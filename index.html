@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WorksheetAI — Printable worksheets in 30 seconds</title>
+  <meta name="description" content="Type a topic and get a printable, grade-appropriate worksheet with an answer key in 30 seconds." />
+  <style>
+    :root {
+      --accent: #2f6fed;
+      --accent-dark: #1f55c4;
+      --ink: #1c2230;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --bg: #f6f7fb;
+      --card: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    /* Make the [hidden] attribute actually win over class display rules */
+    [hidden] { display: none !important; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.5;
+    }
+    .wrap { max-width: 820px; margin: 0 auto; padding: 24px 16px 64px; }
+
+    header.site { text-align: center; padding: 24px 0 8px; }
+    header.site h1 { margin: 0 0 6px; font-size: 34px; letter-spacing: -0.5px; }
+    header.site h1 span { color: var(--accent); }
+    header.site p { margin: 0; color: var(--muted); font-size: 16px; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 8px 30px rgba(20, 30, 60, 0.06);
+      margin-top: 20px;
+    }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field.full { grid-column: 1 / -1; }
+    label { font-size: 13px; font-weight: 600; color: var(--muted); }
+    select, input[type="text"] {
+      font: inherit;
+      padding: 11px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      width: 100%;
+    }
+    select:focus, input:focus { outline: 2px solid rgba(47,111,237,0.35); border-color: var(--accent); }
+
+    button { font: inherit; cursor: pointer; }
+    .btn-primary {
+      width: 100%;
+      margin-top: 16px;
+      padding: 13px 16px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 15px;
+    }
+    .btn-primary:hover { background: var(--accent-dark); }
+    .btn-primary:disabled { opacity: 0.6; cursor: default; }
+
+    .quota { text-align: center; margin: 12px 0 0; font-size: 13px; color: var(--muted); }
+
+    .result-wrap { margin-top: 22px; }
+    .toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-bottom: 10px; flex-wrap: wrap;
+    }
+    .toolbar button {
+      padding: 10px 16px; border-radius: 10px;
+      border: 1px solid var(--line); background: #fff; font-weight: 600;
+    }
+    .toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+    .toolbar .note { font-size: 12px; color: var(--muted); }
+
+    /* The worksheet itself — looks like a classroom handout */
+    .worksheet {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 32px clamp(20px, 5vw, 48px);
+      font-family: Georgia, "Times New Roman", serif;
+      color: #10151f;
+      box-shadow: 0 8px 30px rgba(20, 30, 60, 0.06);
+    }
+    .worksheet h2 { font-size: 22px; margin: 0 0 4px; }
+    .worksheet h3 { font-size: 17px; margin: 22px 0 8px; }
+    .worksheet ol, .worksheet ul { padding-left: 22px; }
+    .worksheet li { margin: 7px 0; }
+    .worksheet hr { border: none; border-top: 1px solid var(--line); margin: 22px 0; }
+    .worksheet .namebar { display: flex; justify-content: space-between; gap: 16px; color: #556; font-size: 14px; margin-bottom: 6px; }
+    .worksheet .namebar span { border-bottom: 1px solid #999; flex: 1; }
+    .watermark { text-align: center; color: #b9bfca; font-size: 12px; font-family: system-ui, sans-serif; margin: 26px 0 0; }
+
+    /* Paywall modal */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(18, 24, 38, 0.55);
+      display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50;
+    }
+    .modal {
+      background: #fff; border-radius: 16px; padding: 26px; max-width: 400px; width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .modal h2 { margin: 0 0 4px; font-size: 21px; }
+    .modal .price { color: var(--accent); font-weight: 700; }
+    .modal ul { padding-left: 20px; color: #333; }
+    .buy-btn {
+      display: block; text-align: center; text-decoration: none;
+      background: var(--accent); color: #fff; font-weight: 700;
+      padding: 13px; border-radius: 10px; margin-top: 12px;
+    }
+    .buy-btn:hover { background: var(--accent-dark); }
+    .divider { text-align: center; color: var(--muted); font-size: 12px; margin: 18px 0 10px; }
+    #licenseInput { margin-bottom: 10px; }
+    .btn-secondary {
+      width: 100%; padding: 11px; border-radius: 10px; border: 1px solid var(--line);
+      background: #fff; font-weight: 600;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .msg { min-height: 18px; font-size: 13px; margin: 10px 0 0; }
+    .link-btn { background: none; border: none; color: var(--muted); display: block; margin: 14px auto 0; text-decoration: underline; }
+
+    footer.site { text-align: center; color: var(--muted); font-size: 12px; margin-top: 40px; }
+
+    /* Print: show only the worksheet */
+    @media print {
+      body { background: #fff; }
+      .no-print { display: none !important; }
+      .wrap { max-width: none; padding: 0; }
+      .result-wrap { margin: 0; }
+      .worksheet { border: none; box-shadow: none; padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="site no-print">
+      <h1>Worksheet<span>AI</span></h1>
+      <p>Type a topic. Get a printable worksheet with answer key in 30 seconds.</p>
+    </header>
+
+    <form id="genForm" class="card no-print">
+      <div class="grid">
+        <div class="field">
+          <label for="grade">Grade</label>
+          <select id="grade">
+            <option>K</option><option>1</option><option>2</option>
+            <option selected>3</option><option>4</option><option>5</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="subject">Subject</label>
+          <select id="subject">
+            <option selected>Math</option>
+            <option>Reading</option>
+            <option>Spelling</option>
+          </select>
+        </div>
+        <div class="field full">
+          <label for="topic">Topic</label>
+          <input id="topic" type="text" placeholder="e.g. grade 3 fractions" autocomplete="off" />
+        </div>
+      </div>
+      <button type="submit" id="genBtn" class="btn-primary">Generate worksheet</button>
+      <p id="quota" class="quota"></p>
+    </form>
+
+    <section id="resultWrap" class="result-wrap" hidden>
+      <div class="toolbar no-print">
+        <button id="printBtn" type="button">🖨️ Print / Save as PDF</button>
+        <span id="note" class="note"></span>
+      </div>
+      <article id="result" class="worksheet"></article>
+    </section>
+
+    <footer class="site no-print">
+      Made for homeschool parents — feedback welcome.
+    </footer>
+  </div>
+
+  <!-- Paywall modal -->
+  <div id="paywall" class="modal-backdrop no-print" hidden>
+    <div class="modal">
+      <h2>Unlock unlimited worksheets</h2>
+      <p class="price">$5 — one-time. No subscription. No account.</p>
+      <ul>
+        <li>Unlimited generation (no daily limit)</li>
+        <li>No watermark</li>
+        <li>Math, Reading &amp; Spelling, Grades K–5</li>
+        <li>Instant print / PDF</li>
+      </ul>
+      <a id="gumroadBtn" class="buy-btn" href="#" target="_blank" rel="noopener">Buy on Gumroad — $5</a>
+      <div class="divider">Already purchased? Enter your key below</div>
+      <input id="licenseInput" type="text" placeholder="Paste your license key" autocomplete="off" />
+      <button id="activateBtn" class="btn-secondary" type="button">Activate</button>
+      <p id="activateMsg" class="msg"></p>
+      <button id="closeModal" class="link-btn" type="button">Close</button>
+    </div>
+  </div>
+
+  <script>
+    // ⚙️ CONFIG — replace with your Gumroad product URL
+    const GUMROAD_URL = "https://219809065360.gumroad.com/l/orqxtr";
+    const FREE_LIMIT = 2; // free worksheets per day
+
+    const $ = (id) => document.getElementById(id);
+    const today = () => new Date().toISOString().slice(0, 10);
+    const countKey = () => "wsai_count_" + today();
+    const isUnlocked = () => localStorage.getItem("wsai_unlocked") === "1";
+    const getCount = () => parseInt(localStorage.getItem(countKey()) || "0", 10);
+    const setCount = (n) => localStorage.setItem(countKey(), String(n));
+
+    function updateQuota() {
+      const q = $("quota");
+      if (isUnlocked()) {
+        q.textContent = "Pro: unlimited worksheets ✔";
+        return;
+      }
+      const left = Math.max(0, FREE_LIMIT - getCount());
+      q.textContent = "Free plan: " + left + " of " + FREE_LIMIT + " worksheets left today";
+    }
+
+    function openPaywall() { $("paywall").hidden = false; }
+    function closePaywall() { $("paywall").hidden = true; }
+
+    function renderResult(html, demo) {
+      const box = $("result");
+      box.innerHTML = html || "<p>No content was returned.</p>";
+
+      // watermark for free users
+      let wm = box.querySelector(".watermark");
+      if (!isUnlocked()) {
+        if (!wm) {
+          wm = document.createElement("p");
+          wm.className = "watermark";
+          box.appendChild(wm);
+        }
+        wm.textContent = "Made with WorksheetAI — upgrade to remove";
+      } else if (wm) {
+        wm.remove();
+      }
+
+      $("resultWrap").hidden = false;
+      const note = $("note");
+      if (demo) note.textContent = "Demo mode (no API key set on server)";
+      else note.textContent = isUnlocked() ? "Pro — watermark removed" : "Free preview";
+      $("resultWrap").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    $("genForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const topic = $("topic").value.trim();
+      if (!topic) { alert("Please enter a topic."); return; }
+      if (!isUnlocked() && getCount() >= FREE_LIMIT) { openPaywall(); return; }
+
+      const btn = $("genBtn");
+      btn.disabled = true;
+      btn.textContent = "Generating…";
+      try {
+        const res = await fetch("/api/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            grade: $("grade").value,
+            subject: $("subject").value,
+            topic,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || "Request failed");
+        renderResult(data.html, data.demo);
+        if (!isUnlocked()) setCount(getCount() + 1);
+        updateQuota();
+      } catch (err) {
+        alert("Something went wrong: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Generate worksheet";
+      }
+    });
+
+    $("printBtn").addEventListener("click", () => window.print());
+
+    $("activateBtn").addEventListener("click", async () => {
+      const key = $("licenseInput").value.trim();
+      const msg = $("activateMsg");
+      if (!key) { msg.textContent = "Please enter your license key."; return; }
+      msg.textContent = "Checking…";
+      try {
+        const res = await fetch("/api/verify-license", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ license_key: key }),
+        });
+        const data = await res.json();
+        if (data.valid) {
+          localStorage.setItem("wsai_unlocked", "1");
+          msg.textContent = "✔ Unlocked! Enjoy unlimited worksheets.";
+          updateQuota();
+          const box = $("result");
+          const wm = box && box.querySelector(".watermark");
+          if (wm) wm.remove();
+          setTimeout(closePaywall, 900);
+        } else {
+          msg.textContent = "✖ " + (data.error || "That key is not valid.");
+        }
+      } catch (err) {
+        msg.textContent = "✖ Error: " + err.message;
+      }
+    });
+
+    $("closeModal").addEventListener("click", closePaywall);
+    $("paywall").addEventListener("click", (e) => {
+      if (e.target === $("paywall")) closePaywall();
+    });
+
+    // init
+    $("gumroadBtn").href = GUMROAD_URL;
+    updateQuota();
+  </script>
+</body>
+</html>
