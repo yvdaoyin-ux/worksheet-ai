@@ -4,7 +4,7 @@
   "private": true,
   "description": "Minimal AI worksheet generator — test-the-waters build (single page + Vercel functions).",
   "scripts": {
-    "start": "node server.js",
+    "local": "node dev-server.js",
     "dev": "vercel dev",
     "deploy": "vercel --prod"
   },

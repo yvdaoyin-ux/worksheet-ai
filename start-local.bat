@@ -14,5 +14,5 @@ echo   (proxy: %HTTPS_PROXY%)
 echo   Keep this window open. Press Ctrl+C to stop.
 echo.
 
-node server.js
+node dev-server.js
 pause
