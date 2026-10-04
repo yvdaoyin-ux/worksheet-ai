@@ -148,6 +148,7 @@ GENERAL RULES
 - Use U.S. contexts and conventions (U.S. names, U.S. spelling).
 - Grades K–2: keep wording very short and concrete.${levelLine(level)}
 - The output MUST be a ${subject} worksheet. Follow the SUBJECT strictly, even if the topic wording could also fit another subject.
+- In the Answer Key, give a brief step or reason for each answer (parents find this very useful).
 - Return ONLY an HTML fragment (no <html>/<body>, no markdown or code fences), using EXACTLY the class names shown.`;
 
   if (s.indexOf("math") >= 0) return head + mathBlock(count);

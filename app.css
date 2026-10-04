@@ -40,7 +40,12 @@ h1.page-h1 { font-size: 27px; line-height: 1.25; margin: 18px 0 6px; }
   padding: 22px; box-shadow: 0 14px 40px rgba(23, 43, 88, 0.08); margin-top: 20px;
 }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-@media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+@media (max-width: 560px) {
+  .grid { grid-template-columns: 1fr; gap: 10px; }
+  .chips { gap: 5px; }
+  .chip { font-size: 12px; padding: 4px 10px; }
+  .options { gap: 10px; }
+}
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field.full { grid-column: 1 / -1; }
 label { font-size: 13px; font-weight: 700; color: var(--muted); }
@@ -59,7 +64,11 @@ button { font: inherit; cursor: pointer; }
 }
 .btn-primary:hover { background: linear-gradient(180deg, #2f6fed, #1f55c4); }
 .btn-primary:disabled { opacity: 0.6; cursor: default; box-shadow: none; }
-.quota { text-align: center; margin: 12px 0 0; font-size: 13px; color: var(--muted); }
+.quota {
+  display: block; width: fit-content; margin: 14px auto 0;
+  font-size: 13px; font-weight: 700; color: #8a5a00;
+  background: #fff7e6; border: 1px solid #ffe0a3; border-radius: 999px; padding: 6px 14px;
+}
 
 /* topic suggestion chips */
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }

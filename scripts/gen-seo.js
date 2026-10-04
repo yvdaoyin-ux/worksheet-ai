@@ -97,8 +97,8 @@ const subjectOptions = subjects.map((s) => `<option>${s[0]}</option>`).join("");
 const resultModal = `
     <section id="resultWrap" class="result-wrap" hidden>
       <div id="upsellBar" class="upsell no-print" hidden>
-        <span>\u{1F513} Free preview — adds a watermark</span>
-        <button id="upsellBtn" type="button">Unlock unlimited — $5</button>
+        <span>\u{1F513} Free preview — your worksheet has a watermark</span>
+        <button id="upsellBtn" type="button">Remove watermark &amp; go unlimited — $5</button>
       </div>
       <div class="toolbar no-print">
         <button id="printBtn" type="button">\u{1F5A8}\u{FE0F} Print / Save as PDF</button>
@@ -151,7 +151,7 @@ function renderPage(p) {
   <title>${title}</title>
   <meta name="description" content="${desc}" />
   <link rel="canonical" href="${url}" />
-  <link rel="stylesheet" href="/app.css?v=3" />
+  <link rel="stylesheet" href="/app.css?v=4" />
 </head>
 <body>
   <div class="wrap">
@@ -182,11 +182,11 @@ ${resultModal}
 
     <footer class="site no-print">
       <p><strong>Unlimited printable worksheets — $5 once.</strong></p>
-      <p><a href="/">WorksheetAI home</a></p>
+      <p><a href="/">WorksheetAI home</a> · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a></p>
     </footer>
   </div>
 ${paywall}
-  <script src="/app.js?v=3" defer></script>
+  <script src="/app.js?v=4" defer></script>
 </body>
 </html>
 `;
