@@ -46,11 +46,11 @@ module.exports = async (req, res) => {
     try {
       const raw = await callChat(a.url, a.key, a.model, prompt);
       const html = stripCodeFences(raw);
-      if (html) {
+      if (html && looksComplete(html)) {
         res.status(200).json({ html, model: a.model });
         return;
       }
-      lastError = "Model returned an empty response.";
+      lastError = html ? "Model returned an incomplete worksheet." : "Model returned an empty response.";
     } catch (err) {
       lastError = String(err && err.message ? err.message : err);
     }
@@ -61,6 +61,14 @@ module.exports = async (req, res) => {
     : "AI request failed. Please try again in a moment.";
   res.status(502).json({ error: friendly, detail: lastError });
 };
+
+function looksComplete(html) {
+  if (!html || html.length < 150) return false;
+  if (html.indexOf("ws-title") < 0) return false;
+  if (html.indexOf("ws-questions") < 0 && html.indexOf("ws-prompt") < 0) return false;
+  if (html.indexOf("</ol>") < 0 && html.indexOf("</div>") < 0) return false;
+  return true;
+}
 
 function getClientIp(req) {
   const xff = (req.headers["x-forwarded-for"] || "").split(",")[0].trim();
@@ -237,7 +245,7 @@ ${NAME_DATE}
 </div>
 <p class="ws-sub">A. Write each word two times.  B. Fill in the missing letters.  C. Use two words in a sentence.</p>
 <ol class="ws-questions">
-  <li>c _ t</li>  (letter-missing items for each word)
+  <li>c _ t</li>  (one letter-blank item for EACH of the 10 words — 10 items total)
   <li>Write a sentence using "…".</li>
   <li>Write a sentence using "…".</li>
 </ol>
