@@ -22,6 +22,10 @@ const subjects = [
   ["Math", "math", "math"],
   ["Reading", "reading", "reading comprehension"],
   ["Spelling", "spelling", "spelling"],
+  ["Vocabulary", "vocabulary", "vocabulary"],
+  ["Grammar", "grammar", "grammar"],
+  ["Writing", "writing", "writing"],
+  ["Science", "science", "science"],
 ];
 
 // [gradeNum, subject, topicLabel, generatorTopic]

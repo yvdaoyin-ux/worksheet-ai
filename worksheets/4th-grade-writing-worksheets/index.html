@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Free 4th Grade Writing Worksheets — Printable with Answer Keys | WorksheetAI</title>
+  <meta name="description" content="Create free 4th grade writing worksheets with instant answer keys. Type any topic and print in 30 seconds — free to try, no signup." />
+  <link rel="canonical" href="https://worksheet-ai-l1td.vercel.app/worksheets/4th-grade-writing-worksheets/" />
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="site no-print">
+      <div class="brand"><a href="/">Worksheet<span>AI</span></a></div>
+    </header>
+
+    <h1 class="page-h1">Free 4th Grade Writing Worksheets</h1>
+    <p class="lede">Need 4th grade writing worksheets fast? Type a topic below and WorksheetAI writes a clean, printable worksheet with an answer key in about 30 seconds — perfect for 4th grade homeschool practice.</p>
+
+    <form id="genForm" class="card no-print" data-grade="4" data-subject="Writing" data-topic="4th Grade writing">
+      <div class="grid">
+        <div class="field"><label for="grade">Grade</label><select id="grade"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>K</option></select></div>
+        <div class="field"><label for="subject">Subject</label><select id="subject"><option>Math</option><option>Reading</option><option>Spelling</option><option>Vocabulary</option><option>Grammar</option><option>Writing</option><option>Science</option></select></div>
+        <div class="field full"><label for="topic">Topic</label><input id="topic" type="text" autocomplete="off" /></div>
+      </div>
+      <button type="submit" id="genBtn" class="btn-primary">Generate worksheet</button>
+      <p id="quota" class="quota"></p>
+    </form>
+
+    <section id="resultWrap" class="result-wrap" hidden>
+      <div id="upsellBar" class="upsell no-print" hidden>
+        <span>🔓 Free preview — adds a watermark</span>
+        <button id="upsellBtn" type="button">Unlock unlimited — $5</button>
+      </div>
+      <div class="toolbar no-print">
+        <button id="printBtn" type="button">🖨️ Print / Save as PDF</button>
+        <span id="note" class="note"></span>
+      </div>
+      <article id="result" class="worksheet"></article>
+    </section>
+
+    <section class="related no-print">
+      <h2>More 4th Grade worksheets</h2>
+      <ul><li><a href="/worksheets/4th-grade-math-worksheets/">Free 4th Grade Math Worksheets</a></li><li><a href="/worksheets/4th-grade-reading-worksheets/">Free 4th Grade Reading Worksheets</a></li><li><a href="/worksheets/4th-grade-spelling-worksheets/">Free 4th Grade Spelling Worksheets</a></li><li><a href="/worksheets/4th-grade-vocabulary-worksheets/">Free 4th Grade Vocabulary Worksheets</a></li><li><a href="/worksheets/4th-grade-grammar-worksheets/">Free 4th Grade Grammar Worksheets</a></li><li><a href="/worksheets/4th-grade-science-worksheets/">Free 4th Grade Science Worksheets</a></li><li><a href="/worksheets/4th-grade-long-division-worksheets/">Free 4th Grade Long Division Worksheets</a></li><li><a href="/worksheets/4th-grade-fractions-worksheets/">Free 4th Grade Fractions Worksheets</a></li><li><a href="/">All worksheets →</a></li></ul>
+    </section>
+
+    <p class="trustbar">Free to try · 2 worksheets a day · no signup · unlimited for $5 once</p>
+
+    <footer class="site no-print">
+      <p><strong>Unlimited printable worksheets — $5 once.</strong></p>
+      <p><a href="/">WorksheetAI home</a></p>
+    </footer>
+  </div>
+
+  <div id="paywall" class="modal-backdrop no-print" hidden>
+    <div class="modal">
+      <h2>Unlock unlimited worksheets</h2>
+      <p class="price">$5 — one-time. No subscription.</p>
+      <ul>
+        <li>Unlimited generation (no daily limit)</li>
+        <li>No watermark</li>
+        <li>Math, Reading &amp; Spelling, Grades K–5</li>
+        <li>Instant print / PDF — forever</li>
+      </ul>
+      <a id="gumroadBtn" class="buy-btn" href="#" target="_blank" rel="noopener">Buy on Gumroad — $5</a>
+      <p class="trust">Secure checkout via Gumroad · no account needed</p>
+      <div class="divider">Already purchased? Enter your key below</div>
+      <input id="licenseInput" type="text" placeholder="Paste your license key" autocomplete="off" />
+      <button id="activateBtn" class="btn-secondary" type="button">Activate</button>
+      <p id="activateMsg" class="msg"></p>
+      <button id="closeModal" class="link-btn" type="button">Close</button>
+    </div>
+  </div>
+  <script src="/app.js" defer></script>
+</body>
+</html>

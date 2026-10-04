@@ -151,6 +151,30 @@ button { font: inherit; cursor: pointer; }
 .viz-pv th, .viz-pv td { border: 2px solid var(--ink2); padding: 8px 16px; text-align: center; font-weight: 700; }
 .viz-pv th { background: #eef3fb; font-size: 12px; }
 
+/* ---------- Subject content blocks ---------- */
+.ws-passage {
+  background: #f8fafc; border: 1px solid #dbe3ef; border-radius: 10px;
+  padding: 16px 18px; margin: 0 0 18px; line-height: 1.85; font-size: 16px; color: #1f2a3a;
+}
+.ws-passage p { margin: 0 0 10px; }
+.ws-passage p:last-child { margin-bottom: 0; }
+.ws-wordlist { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+.ws-wordlist .word {
+  background: #eef3fb; border: 1px solid #d6e0f0; border-radius: 8px;
+  padding: 6px 12px; font-weight: 700; font-size: 16px;
+}
+.ws-prompt {
+  background: #f1f6ff; border-left: 4px solid var(--accent); border-radius: 8px;
+  padding: 14px 16px; margin: 0 0 16px; font-weight: 600; font-size: 16px;
+}
+.ws-prompt p { margin: 0; }
+.ws-sub { font-weight: 700; color: #2b3a52; margin: 14px 0 10px; }
+.ws-lines {
+  margin: 6px 0 16px; height: 300px;
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 33px, #cbd5e1 33px, #cbd5e1 34px);
+}
+.ws-checklist { color: #4a5a72; font-weight: 600; margin: 6px 0 0; }
+
 .watermark { text-align: center; color: #b9bfca; font-size: 12px; margin: 26px 0 0; }
 
 .trustbar { text-align: center; color: var(--muted); font-size: 13px; margin: 30px 0 6px; }
