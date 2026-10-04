@@ -10,7 +10,7 @@
 
 const PER_REQUEST_TIMEOUT_MS = 45000;
 
-const GROQ_MODELS = (process.env.GROQ_MODEL || "llama-3.3-70b-versatile,llama-3.1-8b-instant")
+const GROQ_MODELS = (process.env.GROQ_MODEL || "openai/gpt-oss-120b,openai/gpt-oss-20b")
   .split(",").map((s) => s.trim()).filter(Boolean);
 const OPENROUTER_MODELS = ["nvidia/nemotron-3-super-120b-a12b:free", "openrouter/free"];
 
