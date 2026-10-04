@@ -2,9 +2,9 @@
 // Vercel Serverless Function (Node.js). Keeps the OpenRouter key on the server.
 // POST { grade, subject, topic } -> { html }  (or { html, demo:true } without a key)
 //
-// The model writes CONTENT (questions + answers); the client renders it into a
-// clean, worksheet-looking layout. Math is written in LaTeX so fractions etc.
-// can be typeset properly.
+// The model writes CONTENT (questions + answers + optional visual placeholders);
+// the client renders it into a clean, worksheet-looking layout with code-drawn
+// math visuals and stacked fractions.
 
 const MODELS = [
   "nvidia/nemotron-3-super-120b-a12b:free",
@@ -60,7 +60,7 @@ Grade level: ${grade} (U.S. grade level). Subject: ${subject}. Topic: ${topic}.
 CONTENT RULES
 - Match the concepts and difficulty to U.S. standards for this grade (Common Core style).
 - Use U.S. contexts and conventions: U.S. names, U.S. spelling.
-- Grades K–2: keep the wording very short and concrete; include a simple visual model where helpful.
+- Grades K–2: keep the wording very short and concrete.
 - Include a mix: 2 warm-up questions, the main practice, and 1–2 word problems.
 - Every question must be unambiguous and solvable. Double-check every answer.
 - Provide EXACTLY 10 questions.
@@ -68,7 +68,20 @@ CONTENT RULES
 MATH FORMATTING (very important)
 - Write math using LaTeX commands ONLY: fractions as \\frac{1}{4}, multiplication as \\times, division as \\div, mixed numbers as 1\\frac{1}{2}.
 - NEVER use the dollar sign ($) as a math delimiter. Do NOT write $4$ or $4 \\times 7$. Write numbers and operators plainly: 4 \\times 7.
-- The only time a $ appears is a real money amount inside a money word problem, always with a SINGLE $ and no closing one (e.g. "Mia has $5").
+- A $ appears only for a real money amount in a money word problem, with a SINGLE $ (e.g. "Mia has $5").
+
+VISUALS (use ONE when it directly supports the question — e.g. fractions, number lines, counting, place value, arrays; use them 2–4 times across the sheet)
+Insert a visual on its own line, right after the question text, inside the <li>:
+<div class="ws-visual" data-visual="TYPE" ATTRS></div>
+Available TYPEs and attributes (copy exactly):
+- number-line  -> data-min="0" data-max="1" data-ticks="4"   (ticks = number of equal parts; use for fractions on a number line)
+- fraction-bar -> data-num="3" data-den="4"                  (shaded parts of a whole)
+- fraction-circle -> data-num="1" data-den="4"               (pie)
+- ten-frame    -> data-count="7"                             (0–20)
+- array        -> data-rows="3" data-cols="4"                (multiplication dots)
+- place-value  -> data-number="345"                          (hundreds/tens/ones)
+Example question with a visual:
+  <li>Shade three fourths of the bar. <div class="ws-visual" data-visual="fraction-bar" data-num="3" data-den="4"></div></li>
 
 OUTPUT
 Return ONLY an HTML fragment (no <html>/<body>, no markdown code fences), using EXACTLY this structure and class names:
@@ -134,32 +147,34 @@ function stripCodeFences(text) {
 }
 
 function demoSample(grade, subject, topic) {
-  const t = esc(topic);
   return `
     <h2 class="ws-title">${esc(subject)} Practice — Grade ${esc(grade)}</h2>
     <p class="ws-instructions">Solve each problem. Show your work where needed.</p>
     <p class="ws-name">Name: ______________&nbsp;&nbsp;&nbsp;Date: ______________</p>
     <ol class="ws-questions">
-      <li>What fraction is shaded? (1 of 4 equal parts)</li>
-      <li>Simplify: \\frac{2}{4}</li>
-      <li>What is 3 \\times 5?</li>
-      <li>There are 12 \\div 3 groups. How many in each group?</li>
-      <li>Sample question about "${t}" (5).</li>
-      <li>Sample question about "${t}" (6).</li>
-      <li>Sample question about "${t}" (7).</li>
-      <li>Sample question about "${t}" (8).</li>
-      <li>Sample question about "${t}" (9).</li>
-      <li>Sample question about "${t}" (10).</li>
+      <li>Shade three fourths of the bar.
+        <div class="ws-visual" data-visual="fraction-bar" data-num="3" data-den="4"></div></li>
+      <li>What fraction is shaded? (1 of 4 equal parts)
+        <div class="ws-visual" data-visual="fraction-circle" data-num="1" data-den="4"></div></li>
+      <li>Point to \\frac{3}{4} on the number line.
+        <div class="ws-visual" data-visual="number-line" data-min="0" data-max="1" data-ticks="4"></div></li>
+      <li>How many dots in the array? <div class="ws-visual" data-visual="array" data-rows="3" data-cols="4"></div></li>
+      <li>Show 7 with a ten-frame. <div class="ws-visual" data-visual="ten-frame" data-count="7"></div></li>
+      <li>Write the value of each digit in 345. <div class="ws-visual" data-visual="place-value" data-number="345"></div></li>
+      <li>Sample question about "${esc(topic)}" (7).</li>
+      <li>Sample question about "${esc(topic)}" (8).</li>
+      <li>Sample question about "${esc(topic)}" (9).</li>
+      <li>Sample question about "${esc(topic)}" (10).</li>
     </ol>
     <hr class="ws-pagebreak">
     <h3 class="ws-answers-title">Answer Key</h3>
     <ol class="ws-answers">
+      <li>\\frac{3}{4}</li>
       <li>\\frac{1}{4}</li>
-      <li>\\frac{1}{2}</li>
-      <li>15</li>
-      <li>4</li>
-      <li>Answer (5)</li>
-      <li>Answer (6)</li>
+      <li>\\frac{3}{4}</li>
+      <li>12</li>
+      <li>7 filled</li>
+      <li>3 hundreds, 4 tens, 5 ones</li>
       <li>Answer (7)</li>
       <li>Answer (8)</li>
       <li>Answer (9)</li>

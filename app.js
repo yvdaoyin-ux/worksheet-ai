@@ -13,31 +13,29 @@
   const getCount = () => parseInt(localStorage.getItem(countKey()) || "0", 10);
   const setCount = (n) => localStorage.setItem(countKey(), String(n));
 
-  // ---- math rendering: LaTeX + plain fractions -> stacked fractions, math symbols ----
+  // ================= math rendering =================
   function fracSpan(a, b) {
     return '<span class="frac"><span class="num">' + a + '</span><span class="den">' + b + '</span></span>';
   }
+  function gcd(a, b) { return b ? gcd(b, a % b) : a; }
+  function fracLabel(num, den) {
+    const g = gcd(num, den);
+    const n = num / g, d = den / g;
+    if (d === 1) return String(n);
+    return fracSpan(n, d);
+  }
 
   function renderMathString(t) {
-    // remove LaTeX inline/display math delimiters \( \) \[ \]
     t = t.replace(/\\[\(\)\[\]]/g, "");
-    // strip $...$ ONLY when it wraps a math expression (keep real money amounts)
     t = t.replace(/\$([^$]+)\$/g, (m, inner) =>
       /[\\=+\u00d7\u00f7]/.test(inner) || /^[\s\d.,]+$/.test(inner) ? inner : m
     );
-    // LaTeX fractions  \frac{a}{b}
     t = t.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, (m, a, b) => fracSpan(a, b));
-    // mixed numbers  2 1/3
     t = t.replace(/(\d+)\s+(\d+)\s*\/\s*(\d+)/g, (m, w, a, b) => w + " " + fracSpan(a, b));
-    // simple fractions  1/4  (no lookbehind, for old browsers)
     t = t.replace(/(^|[^\d/])(\d+)\s*\/\s*(\d+)(?![\d/])/g, (m, pre, a, b) => pre + fracSpan(a, b));
-    // math symbols
     t = t
-      .replace(/\\times/g, "\u00d7")
-      .replace(/\\div/g, "\u00f7")
-      .replace(/\\cdot/g, "\u00b7")
-      .replace(/\\le/g, "\u2264")
-      .replace(/\\ge/g, "\u2265");
+      .replace(/\\times/g, "\u00d7").replace(/\\div/g, "\u00f7").replace(/\\cdot/g, "\u00b7")
+      .replace(/\\le/g, "\u2264").replace(/\\ge/g, "\u2265");
     return t;
   }
 
@@ -47,7 +45,6 @@
     const texts = [];
     let n;
     while ((n = walker.nextNode())) texts.push(n);
-
     for (const node of texts) {
       const t = node.nodeValue;
       if (!/(\\frac|\\times|\\div|\\cdot|\\\(|\$|\d\s*\/\s*\d)/.test(t)) continue;
@@ -60,6 +57,108 @@
     }
   }
 
+  // ================= code-drawn math visuals =================
+  function numberLineHTML(o) {
+    const ticks = o.ticks > 0 ? o.ticks : 1;
+    let html = '<div class="viz viz-numline"><span class="nl-line"></span>';
+    for (let i = 0; i <= ticks; i++) {
+      const pct = (i / ticks) * 100;
+      const val = o.min + ((o.max - o.min) * i) / ticks;
+      let label;
+      if (Number.isInteger(val)) label = String(val);
+      else if (o.min === 0 && o.max === 1) label = fracLabel(i, ticks);
+      else label = String(Math.round(val * 100) / 100);
+      html += '<span class="nl-tick" style="left:' + pct + '%"></span>';
+      html += '<span class="nl-label" style="left:' + pct + '%">' + label + "</span>";
+    }
+    (o.points || []).forEach((p) => {
+      const parts = String(p).split(":");
+      const v = parseFloat(parts[0]);
+      if (isNaN(v) || o.max === o.min) return;
+      const pct = ((v - o.min) / (o.max - o.min)) * 100;
+      if (pct < -5 || pct > 105) return;
+      html += '<span class="nl-point" style="left:' + pct + '%">' + (parts[1] ? "<em>" + parts[1] + "</em>" : "") + "</span>";
+    });
+    return html + "</div>";
+  }
+
+  function fractionBarHTML(o) {
+    let segs = "";
+    for (let i = 0; i < o.den; i++) segs += '<span class="bar-seg' + (i < o.num ? " filled" : "") + '"></span>';
+    return '<div class="viz viz-bar"><div class="bar">' + segs + "</div></div>";
+  }
+
+  function fractionCircleHTML(o) {
+    const size = 120, r = 52, cx = 60, cy = 60;
+    let slices = "";
+    for (let i = 0; i < o.den; i++) {
+      const a0 = (i / o.den) * 2 * Math.PI - Math.PI / 2;
+      const a1 = ((i + 1) / o.den) * 2 * Math.PI - Math.PI / 2;
+      const x0 = cx + r * Math.cos(a0), y0 = cy + r * Math.sin(a0);
+      const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
+      const large = a1 - a0 > Math.PI ? 1 : 0;
+      const d = "M " + cx + " " + cy + " L " + x0 + " " + y0 + " A " + r + " " + r + " 0 " + large + " 1 " + x1 + " " + y1 + " Z";
+      slices += '<path d="' + d + '" class="pie-slice' + (i < o.num ? " filled" : "") + '"/>';
+    }
+    return '<div class="viz viz-circle"><svg viewBox="0 0 ' + size + " " + size + '" width="120" height="120">' + slices + "</svg></div>";
+  }
+
+  function tenFrameHTML(o) {
+    const count = Math.max(0, o.count);
+    const frames = count > 10 ? 2 : 1;
+    let remaining = count, out = "";
+    for (let f = 0; f < frames; f++) {
+      let cells = "";
+      for (let i = 0; i < 10; i++) cells += '<span class="tf-cell' + (i < remaining ? " filled" : "") + '"></span>';
+      remaining -= 10;
+      out += '<div class="tf-frame">' + cells + "</div>";
+    }
+    return '<div class="viz viz-tenframe">' + out + "</div>";
+  }
+
+  function arrayHTML(o) {
+    let cells = "";
+    const total = o.rows * o.cols;
+    for (let i = 0; i < total; i++) cells += '<span class="arr-dot"></span>';
+    return '<div class="viz viz-array"><div class="arr" style="--cols:' + o.cols + '">' + cells + "</div></div>";
+  }
+
+  function placeValueHTML(o) {
+    const digits = String(o.number).replace(/\D/g, "").padStart(3, "0").slice(-3).split("");
+    const heads = ["Hundreds", "Tens", "Ones"].map((h) => "<th>" + h + "</th>").join("");
+    const cells = digits.map((d) => "<td>" + d + "</td>").join("");
+    return '<div class="viz viz-pv"><table><thead><tr>' + heads + "</tr></thead><tbody><tr>" + cells + "</tr></tbody></table></div>";
+  }
+
+  function buildVisual(type, params) {
+    const t = String(type || "").toLowerCase();
+    if (t.indexOf("line") >= 0) return numberLineHTML(params);
+    if (t.indexOf("bar") >= 0) return fractionBarHTML(params);
+    if (t.indexOf("circle") >= 0 || t.indexOf("pie") >= 0) return fractionCircleHTML(params);
+    if (t.indexOf("ten") >= 0) return tenFrameHTML(params);
+    if (t.indexOf("array") >= 0) return arrayHTML(params);
+    if (t.indexOf("place") >= 0) return placeValueHTML(params);
+    return "";
+  }
+
+  function hydrateVisuals(root) {
+    if (!root) return;
+    const els = root.querySelectorAll("[data-visual]");
+    for (const el of els) {
+      const a = (name, d) => { const v = parseFloat(el.getAttribute("data-" + name)); return isNaN(v) ? d : v; };
+      const i = (name, d) => { const v = parseInt(el.getAttribute("data-" + name), 10); return isNaN(v) ? d : v; };
+      const points = (el.getAttribute("data-points") || "").split(",").map((s) => s.trim()).filter(Boolean);
+      const type = el.getAttribute("data-visual");
+      const html = buildVisual(type, {
+        min: a("min", 0), max: a("max", 1), ticks: i("ticks", 4), points,
+        num: i("num", 1), den: i("den", 4), count: i("count", 5),
+        rows: i("rows", 3), cols: i("cols", 4), number: i("number", 345),
+      });
+      if (html) el.innerHTML = html; else el.remove();
+    }
+  }
+
+  // ================= UI =================
   function updateQuota() {
     const q = $("quota");
     if (!q) return;
@@ -75,6 +174,7 @@
     const box = $("result");
     box.innerHTML = html || "<p>No content was returned.</p>";
     renderMath(box);
+    hydrateVisuals(box);
 
     let wm = box.querySelector(".watermark");
     if (!isUnlocked()) {
@@ -153,7 +253,6 @@
   $("closeModal").addEventListener("click", closePaywall);
   $("paywall").addEventListener("click", (e) => { if (e.target === $("paywall")) closePaywall(); });
 
-  // Prefill from data-* attributes (used by generated SEO pages)
   const form = $("genForm");
   if (form.dataset.grade) $("grade").value = form.dataset.grade;
   if (form.dataset.subject) $("subject").value = form.dataset.subject;
