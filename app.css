@@ -119,12 +119,13 @@ button { font: inherit; cursor: pointer; }
 .worksheet ol, .worksheet ul { padding-left: 22px; }
 .worksheet li { margin: 7px 0; }
 
-/* Stacked vertical fractions */
+/* Stacked vertical fractions — vertical-align:middle keeps the bar on the math axis
+   so it lines up with + and = signs */
 .worksheet .frac {
-  display: inline-flex; flex-direction: column; vertical-align: -0.45em;
-  text-align: center; line-height: 1.05; margin: 0 3px; font-size: 0.92em;
+  display: inline-flex; flex-direction: column; vertical-align: middle;
+  text-align: center; line-height: 1.05; margin: 0 2px; font-size: 0.9em;
 }
-.worksheet .frac .num { border-bottom: 1.6px solid currentColor; padding: 0 4px; }
+.worksheet .frac .num { border-bottom: 1.5px solid currentColor; padding: 0 4px; }
 .worksheet .frac .den { padding: 0 4px; }
 
 .watermark { text-align: center; color: #b9bfca; font-size: 12px; margin: 26px 0 0; }
