@@ -13,10 +13,46 @@
   const getCount = () => parseInt(localStorage.getItem(countKey()) || "0", 10);
   const setCount = (n) => localStorage.setItem(countKey(), String(n));
 
+  // ---- math rendering: LaTeX + plain fractions -> stacked fractions, math symbols ----
+  function fracSpan(a, b) {
+    return '<span class="frac"><span class="num">' + a + '</span><span class="den">' + b + '</span></span>';
+  }
+
+  function renderMath(root) {
+    if (!root) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    const texts = [];
+    let n;
+    while ((n = walker.nextNode())) texts.push(n);
+
+    for (const node of texts) {
+      let t = node.nodeValue;
+      if (!/\\frac|\d\s*\/\s*\d|\\times|\\div|\\cdot/.test(t)) continue;
+      // LaTeX fractions  \frac{a}{b}
+      t = t.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, (m, a, b) => fracSpan(a, b));
+      // mixed numbers  2 1/3  (plain text)
+      t = t.replace(/(\d+)\s+(\d+)\s*\/\s*(\d+)/g, (m, w, a, b) => w + " " + fracSpan(a, b));
+      // simple fractions  1/4  (no lookbehind, for old Safari)
+      t = t.replace(/(^|[^\d/])(\d+)\s*\/\s*(\d+)(?![\d/])/g, (m, pre, a, b) => pre + fracSpan(a, b));
+      // math symbols
+      t = t
+        .replace(/\\times/g, "\u00d7")
+        .replace(/\\div/g, "\u00f7")
+        .replace(/\\cdot/g, "\u00b7")
+        .replace(/\\le/g, "\u2264")
+        .replace(/\\ge/g, "\u2265");
+      if (t !== node.nodeValue) {
+        const span = document.createElement("span");
+        span.innerHTML = t;
+        node.parentNode.replaceChild(span, node);
+      }
+    }
+  }
+
   function updateQuota() {
     const q = $("quota");
     if (!q) return;
-    if (isUnlocked()) { q.textContent = "Pro: unlimited worksheets ✔"; return; }
+    if (isUnlocked()) { q.textContent = "Pro: unlimited worksheets \u2714"; return; }
     const left = Math.max(0, FREE_LIMIT - getCount());
     q.textContent = "Free plan: " + left + " of " + FREE_LIMIT + " worksheets left today";
   }
@@ -27,6 +63,7 @@
   function renderResult(html, demo) {
     const box = $("result");
     box.innerHTML = html || "<p>No content was returned.</p>";
+    renderMath(box);
 
     let wm = box.querySelector(".watermark");
     if (!isUnlocked()) {
@@ -87,7 +124,7 @@
       const data = await res.json();
       if (data.valid) {
         localStorage.setItem("wsai_unlocked", "1");
-        msg.textContent = "✔ Unlocked! Enjoy unlimited worksheets.";
+        msg.textContent = "\u2714 Unlocked! Enjoy unlimited worksheets.";
         updateQuota();
         const box = $("result");
         const wm = box && box.querySelector(".watermark");
@@ -95,10 +132,10 @@
         $("upsellBar").hidden = true;
         setTimeout(closePaywall, 900);
       } else {
-        msg.textContent = "✖ " + (data.error || "That key is not valid.");
+        msg.textContent = "\u2716 " + (data.error || "That key is not valid.");
       }
     } catch (err) {
-      msg.textContent = "✖ Error: " + err.message;
+      msg.textContent = "\u2716 Error: " + err.message;
     }
   });
 

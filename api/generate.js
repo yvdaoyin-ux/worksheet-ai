@@ -2,8 +2,9 @@
 // Vercel Serverless Function (Node.js). Keeps the OpenRouter key on the server.
 // POST { grade, subject, topic } -> { html }  (or { html, demo:true } without a key)
 //
-// Tries a list of models in order (fast free model first) and falls back if one
-// is rate-limited or slow, so a single flaky free model doesn't break the app.
+// The model writes CONTENT (questions + answers); the client renders it into a
+// clean, worksheet-looking layout. Math is written in LaTeX so fractions etc.
+// can be typeset properly.
 
 const MODELS = [
   "nvidia/nemotron-3-super-120b-a12b:free",
@@ -26,26 +27,12 @@ module.exports = async (req, res) => {
 
   const apiKey = process.env.OPENROUTER_API_KEY;
 
-  // Demo mode: no key configured -> return a sample so the flow is testable.
   if (!apiKey) {
     res.status(200).json({ html: demoSample(grade, subject, topic), demo: true });
     return;
   }
 
-  const prompt = `You are an experienced elementary school teacher.
-Create a printable worksheet.
-Grade: ${grade}. Subject: ${subject}. Topic: ${topic}.
-Rules:
-- Output clean HTML FRAGMENT only (no <html>, <head>, or <body> wrapper).
-- Use only these tags: <h2>, <h3>, <p>, <ol>, <li>, <hr>, <strong>, <em>.
-- Start with a title <h2>, then a Name/Date line as:
-  <p class="namebar"><span>Name:</span> <span>Date:</span></p>
-- Include 8-12 numbered questions inside a single <ol>.
-- After the questions, add <hr style="page-break-before:always"> then an
-  <h3>Answer Key</h3> section listing every answer in a <ol>.
-- For math, double-check every answer before finalizing (accuracy matters a lot).
-- Do not wrap the output in code fences.`;
-
+  const prompt = buildPrompt(grade, subject, topic);
   let lastError = "";
 
   for (const model of MODELS) {
@@ -65,33 +52,70 @@ Rules:
   res.status(502).json({ error: "AI request failed", detail: lastError });
 };
 
+function buildPrompt(grade, subject, topic) {
+  return `You are an experienced U.S. elementary school teacher creating a printable worksheet for a homeschool family.
+
+Grade level: ${grade} (U.S. grade level). Subject: ${subject}. Topic: ${topic}.
+
+CONTENT RULES
+- Match the concepts and difficulty to U.S. standards for this grade (Common Core style).
+- Use U.S. contexts and conventions: U.S. names, dollars ($), U.S. spelling.
+- Grades K–2: keep the wording very short and concrete; include a simple visual model where helpful.
+- Include a mix: 2 warm-up questions, the main practice, and 1–2 word problems.
+- Write ALL math in LaTeX: fractions as \\frac{1}{4}, multiplication as \\times, division as \\div, mixed numbers as 1\\frac{1}{2}. Everything else is plain text.
+- Every question must be unambiguous and solvable. Double-check every answer.
+- Provide EXACTLY 10 questions.
+
+OUTPUT
+Return ONLY an HTML fragment (no <html>/<body>, no markdown code fences), using EXACTLY this structure and class names:
+
+<h2 class="ws-title">A short, specific worksheet title</h2>
+<p class="ws-instructions">One clear sentence telling the student what to do.</p>
+<p class="ws-name">Name: ______________&nbsp;&nbsp;&nbsp;Date: ______________</p>
+<ol class="ws-questions">
+  <li>Question 1</li>
+  <li>Question 2</li>
+  <li>Question 3</li>
+  <li>Question 4</li>
+  <li>Question 5</li>
+  <li>Question 6</li>
+  <li>Question 7</li>
+  <li>Question 8</li>
+  <li>Question 9</li>
+  <li>Question 10</li>
+</ol>
+<hr class="ws-pagebreak">
+<h3 class="ws-answers-title">Answer Key</h3>
+<ol class="ws-answers">
+  <li>Answer to 1 (briefly show the work for math)</li>
+  <li>Answer to 2</li>
+  <li>Answer to 3</li>
+  <li>Answer to 4</li>
+  <li>Answer to 5</li>
+  <li>Answer to 6</li>
+  <li>Answer to 7</li>
+  <li>Answer to 8</li>
+  <li>Answer to 9</li>
+  <li>Answer to 10</li>
+</ol>`;
+}
+
 async function callOpenRouter(key, model, prompt) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PER_MODEL_TIMEOUT_MS);
   try {
     const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
-      headers: {
-        Authorization: "Bearer " + key,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "user", content: prompt }],
-      }),
+      headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
+      body: JSON.stringify({ model, messages: [{ role: "user", content: prompt }] }),
       signal: controller.signal,
     });
-
     const data = await r.json();
     if (!r.ok) {
       throw new Error((data.error && data.error.message) || "OpenRouter request failed");
     }
     return (
-      (data.choices &&
-        data.choices[0] &&
-        data.choices[0].message &&
-        data.choices[0].message.content) ||
-      ""
+      (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || ""
     );
   } finally {
     clearTimeout(timer);
@@ -107,24 +131,41 @@ function stripCodeFences(text) {
 
 function demoSample(grade, subject, topic) {
   const t = esc(topic);
-  const items = (n, ans) =>
-    Array.from({ length: n }, (_, i) => `<li>${ans} ${i + 1}</li>`).join("");
   return `
-    <h2>${esc(subject)} Practice — ${esc(grade)}</h2>
-    <p><em>Topic: ${t}</em></p>
-    <p class="namebar"><span>Name:</span> <span>Date:</span></p>
-    <ol>${items(8, "Sample question about \"" + t + "\"")}</ol>
-    <hr style="page-break-before:always">
-    <h3>Answer Key</h3>
-    <ol>${items(8, "Answer")}</ol>
+    <h2 class="ws-title">${esc(subject)} Practice — Grade ${esc(grade)}</h2>
+    <p class="ws-instructions">Solve each problem. Show your work where needed.</p>
+    <p class="ws-name">Name: ______________&nbsp;&nbsp;&nbsp;Date: ______________</p>
+    <ol class="ws-questions">
+      <li>Sample question about "${t}" — the denominator is 4 and the numerator is 1.</li>
+      <li>Simplify: \\frac{2}{4}</li>
+      <li>What is 3 \\times 5?</li>
+      <li>There are 12 \\div 3 groups. How many in each group?</li>
+      <li>Sample question about "${t}" (5).</li>
+      <li>Sample question about "${t}" (6).</li>
+      <li>Sample question about "${t}" (7).</li>
+      <li>Sample question about "${t}" (8).</li>
+      <li>Sample question about "${t}" (9).</li>
+      <li>Sample question about "${t}" (10).</li>
+    </ol>
+    <hr class="ws-pagebreak">
+    <h3 class="ws-answers-title">Answer Key</h3>
+    <ol class="ws-answers">
+      <li>\\frac{1}{4}</li>
+      <li>\\frac{1}{2}</li>
+      <li>15</li>
+      <li>4</li>
+      <li>Answer (5)</li>
+      <li>Answer (6)</li>
+      <li>Answer (7)</li>
+      <li>Answer (8)</li>
+      <li>Answer (9)</li>
+      <li>Answer (10)</li>
+    </ol>
     <p style="color:#6b7280;font-size:13px">
       This is a DEMO worksheet. Add an OPENROUTER_API_KEY on the server to generate real worksheets.
     </p>`;
 }
 
 function esc(s) {
-  return String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
