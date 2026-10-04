@@ -7,7 +7,7 @@
   <title>WorksheetAI — Printable worksheets in 30 seconds</title>
   <meta name="description" content="Type a topic and get a printable worksheet with an answer key in 30 seconds — math, reading, spelling, vocabulary, writing and science. For homeschool parents, K–5 teachers & tutors." />
   <link rel="canonical" href="https://worksheet-ai-l1td.vercel.app/" />
-  <link rel="stylesheet" href="/app.css?v=8" />
+  <link rel="stylesheet" href="/app.css?v=9" />
   <style>
     /* sample previews (homepage only) */
     .samples { margin-top: 36px; }
@@ -45,9 +45,14 @@
         <div class="field">
           <label for="subject">Subject</label>
           <select id="subject">
-            <option selected>Math</option><option>Reading</option><option>Spelling</option>
-            <option>Vocabulary</option><option>Grammar</option><option>Writing</option>
-            <option>Science</option><option>Social Studies</option>
+            <option value="Math" selected>Math ★</option>
+            <option value="Reading">Reading (beta)</option>
+            <option value="Spelling">Spelling (beta)</option>
+            <option value="Vocabulary">Vocabulary (beta)</option>
+            <option value="Grammar">Grammar (beta)</option>
+            <option value="Writing">Writing (beta)</option>
+            <option value="Science">Science (beta)</option>
+            <option value="Social Studies">Social Studies (beta)</option>
           </select>
         </div>
         <div class="field full">
@@ -107,7 +112,7 @@
     </section>
 
     <section class="info no-print">
-      <p class="trustbar">For homeschool parents, K–5 teachers &amp; tutors · Grades K–5 · Math, Reading, Spelling, Writing &amp; Science</p>
+      <p class="trustbar">For homeschool parents, K–5 teachers &amp; tutors · Grades K–5 · Math-focused, plus reading, spelling &amp; more</p>
 
       <h2>How it works</h2>
       <ol class="steps">
@@ -118,10 +123,10 @@
 
       <h2>Why parents &amp; teachers use it</h2>
       <ul class="benefits">
-        <li>Answer keys included</li>
-        <li>8 subjects, Grades K–5, aligned to U.S. standards</li>
-        <li>Math visuals: number lines, fraction bars, ten-frames</li>
-        <li>Choose number of questions, difficulty &amp; text size</li>
+        <li><strong>Math is our focus</strong> — real number lines, fraction bars, ten-frames &amp; column arithmetic</li>
+        <li>Choose computation, word problems, or mixed</li>
+        <li>Answer keys with steps included</li>
+        <li>Also reading, spelling, vocabulary, grammar, writing &amp; science <em>(beta)</em></li>
         <li>No account, no signup — free to try (2/day)</li>
       </ul>
 
@@ -163,6 +168,6 @@
     </div>
   </div>
 
-  <script src="/app.js?v=8" defer></script>
+  <script src="/app.js?v=9" defer></script>
 </body>
 </html>

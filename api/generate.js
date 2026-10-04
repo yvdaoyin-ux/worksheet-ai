@@ -195,7 +195,9 @@ MATH FORMATTING (very important)
 VISUALS (use ONE when it directly supports the question; 1–4 times across the sheet)
 Insert on its own line inside the relevant <li>:
 <div class="ws-visual" data-visual="TYPE" ATTRS></div>
-Types: number-line (data-min data-max data-ticks) | fraction-bar (data-num data-den) | fraction-circle (data-num data-den) | ten-frame (data-count) | array (data-rows data-cols) | place-value (data-number)
+Types: number-line (data-min data-max data-ticks) | fraction-bar (data-num data-den) | fraction-circle (data-num data-den) | ten-frame (data-count) | array (data-rows data-cols) | place-value (data-number) | vertical (data-a data-b data-op — column arithmetic)
+For column/vertical addition or subtraction problems, use a vertical visual, e.g.:
+  <li>Solve. <div class="ws-visual" data-visual="vertical" data-a="345" data-b="128" data-op="+"></div></li>
 
 OUTPUT (exact structure)
 <h2 class="ws-title">Title</h2>

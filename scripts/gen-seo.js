@@ -92,7 +92,9 @@ for (const [num, subj, topicLabel, genTopic] of topics) {
 const gradeOptions = Object.keys(gradeByNum)
   .map((g) => `<option>${g}</option>`)
   .join("");
-const subjectOptions = subjects.map((s) => `<option>${s[0]}</option>`).join("");
+const subjectOptions = subjects
+  .map((s) => `<option value="${s[0]}">${s[0]}${s[0] === "Math" ? " \u2605" : " (beta)"}</option>`)
+  .join("");
 
 const resultModal = `
     <section id="resultWrap" class="result-wrap" hidden>
@@ -151,7 +153,7 @@ function renderPage(p) {
   <title>${title}</title>
   <meta name="description" content="${desc}" />
   <link rel="canonical" href="${url}" />
-  <link rel="stylesheet" href="/app.css?v=8" />
+  <link rel="stylesheet" href="/app.css?v=9" />
 </head>
 <body>
   <div class="wrap">
@@ -186,7 +188,7 @@ ${resultModal}
     </footer>
   </div>
 ${paywall}
-  <script src="/app.js?v=8" defer></script>
+  <script src="/app.js?v=9" defer></script>
 </body>
 </html>
 `;

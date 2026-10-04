@@ -270,3 +270,7 @@ footer.site strong { color: var(--ink); }
 .viz-organizer .org-title { display: block; font-size: 12px; font-weight: 800; color: #2b3a52; margin-bottom: 6px; }
 .viz-organizer .org-lines { display: block; height: 32px; background-image: repeating-linear-gradient(to bottom, transparent 0 15px, #d7dee9 15px 16px); }
 @media (max-width: 560px) { .viz-organizer { grid-template-columns: 1fr; } }
+
+/* vertical / column arithmetic */
+.viz-vertical { display: inline-block; margin: 6px 0 12px; }
+.viz-vertical pre { font-family: "Courier New", ui-monospace, monospace; font-size: 22px; line-height: 1.3; margin: 0; letter-spacing: 1px; color: var(--ink2); }

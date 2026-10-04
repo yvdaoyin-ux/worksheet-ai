@@ -244,6 +244,19 @@
     const cells = digits.map((d) => "<td>" + d + "</td>").join("");
     return '<div class="viz viz-pv"><table><thead><tr>' + heads + "</tr></thead><tbody><tr>" + cells + "</tr></tbody></table></div>";
   }
+  function verticalMathHTML(o) {
+    const clean = (s) => String(s == null ? "" : s).replace(/[&<>]/g, "");
+    const a = clean(o.a).trim();
+    const b = clean(o.b).trim();
+    const op = clean(o.op).trim() || "+";
+    if (!a) return "";
+    const w = Math.max(a.length, b.length);
+    const line1 = "  " + a.padStart(w, " ");
+    const line2 = op + " " + b.padStart(w, " ");
+    const rule = "  " + "-".repeat(w) + "-";
+    return '<div class="viz viz-vertical"><pre>' + line1 + "\n" + line2 + "\n" + rule + "</pre></div>";
+  }
+
   function organizerHTML(kind) {
     const k = String(kind || "").toLowerCase();
     let rows;
@@ -275,6 +288,7 @@
   function buildVisual(type, params, kind) {
     const t = String(type || "").toLowerCase();
     if (t.indexOf("organizer") >= 0 || t.indexOf("graphic") >= 0) return organizerHTML(kind);
+    if (t.indexOf("vertical") >= 0 || t.indexOf("column") >= 0) return verticalMathHTML(params);
     if (t.indexOf("line") >= 0) return numberLineHTML(params);
     if (t.indexOf("bar") >= 0) return fractionBarHTML(params);
     if (t.indexOf("circle") >= 0 || t.indexOf("pie") >= 0) return fractionCircleHTML(params);
@@ -294,6 +308,7 @@
         min: a("min", 0), max: a("max", 1), ticks: i("ticks", 4), points,
         num: i("num", 1), den: i("den", 4), count: i("count", 5),
         rows: i("rows", 3), cols: i("cols", 4), number: i("number", 345),
+        a: el.getAttribute("data-a"), b: el.getAttribute("data-b"), op: el.getAttribute("data-op"),
       }, el.getAttribute("data-kind"));
       if (html) el.innerHTML = html; else el.remove();
     }
