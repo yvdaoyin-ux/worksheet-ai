@@ -70,6 +70,7 @@ GENERAL RULES
 - Match the concepts and difficulty to U.S. standards for this grade (Common Core / NGSS style).
 - Use U.S. contexts and conventions (U.S. names, U.S. spelling).
 - Grades K–2: keep wording very short and concrete.${levelLine(level)}
+- The output MUST be a ${subject} worksheet. Follow the SUBJECT strictly, even if the topic wording could also fit another subject.
 - Return ONLY an HTML fragment (no <html>/<body>, no markdown or code fences), using EXACTLY the class names shown.`;
 
   if (s.indexOf("math") >= 0) return head + mathBlock(count);
