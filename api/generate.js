@@ -20,14 +20,14 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const { grade = "", subject = "", topic = "", count = 10, level = "standard" } = req.body || {};
+  const { grade = "", subject = "", topic = "", count = 10, level = "standard", style = "mixed" } = req.body || {};
   if (!topic) {
     res.status(400).json({ error: "Please enter a topic." });
     return;
   }
 
   const qCount = Math.min(20, Math.max(3, parseInt(count, 10) || 10));
-  const prompt = buildPrompt(grade, subject, topic, qCount, level);
+  const prompt = buildPrompt(grade, subject, topic, qCount, level, style);
   const attempts = buildAttempts();
 
   if (!attempts.length) {
@@ -145,7 +145,7 @@ function levelLine(level) {
   return "";
 }
 
-function buildPrompt(grade, subject, topic, count, level) {
+function buildPrompt(grade, subject, topic, count, level, style) {
   const s = String(subject || "").toLowerCase();
   const head = `You are an experienced U.S. elementary school teacher creating a printable worksheet for a homeschool family.
 
@@ -159,7 +159,7 @@ GENERAL RULES
 - In the Answer Key, give a brief step or reason for each answer (parents find this very useful).
 - Return ONLY an HTML fragment (no <html>/<body>, no markdown or code fences), using EXACTLY the class names shown.`;
 
-  if (s.indexOf("math") >= 0) return head + mathBlock(count);
+  if (s.indexOf("math") >= 0) return head + mathBlock(count, style);
   if (s.indexOf("read") >= 0) return head + readingBlock(count);
   if (s.indexOf("spell") >= 0 || s.indexOf("phonic") >= 0) return head + spellingBlock(count);
   if (s.indexOf("vocab") >= 0) return head + vocabBlock(count);
@@ -170,12 +170,21 @@ GENERAL RULES
   return head + readingBlock(count);
 }
 
-function mathBlock(count) {
+function mathBlock(count, style) {
   const q = Array.from({ length: count }, () => "  <li>…</li>").join("\n");
+  const st = String(style || "mixed").toLowerCase();
+  let mix;
+  if (st.indexOf("comp") >= 0) {
+    mix = "- ALL " + count + " questions MUST be STRAIGHT COMPUTATION: only numbers, operators and an answer blank — NO story, NO context. Examples: \\frac{3}{4} + \\frac{1}{4} = ___ , Simplify \\frac{6}{8} = ___ , 5 \\times \\frac{2}{3} = ___";
+  } else if (st.indexOf("word") >= 0) {
+    mix = "- ALL " + count + " questions MUST be WORD PROBLEMS: a short real-life story (U.S. context) with numbers to solve.";
+  } else {
+    mix = "- Mix: MOST questions (at least 60%, e.g. 6 of 10) MUST be DIRECT COMPUTATION (numbers/operators/blank, NO story). Then about 2 word problems and about 2 visual/conceptual questions.";
+  }
   return `
 
 CONTENT
-- Mix: 2 warm-up questions, the main practice, and 1–2 word problems.
+${mix}
 - Provide EXACTLY ${count} questions. Double-check every answer.
 
 MATH FORMATTING (very important)

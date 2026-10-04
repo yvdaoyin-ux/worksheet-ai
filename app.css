@@ -79,7 +79,7 @@ button { font: inherit; cursor: pointer; }
 .chip:hover { border-color: var(--accent); color: var(--accent); }
 
 /* options row (questions / level / text size) */
-.options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 14px; }
+.options { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; margin-top: 14px; }
 @media (max-width: 560px) { .options { grid-template-columns: 1fr 1fr; } }
 
 /* large-text worksheet mode */

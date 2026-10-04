@@ -55,6 +55,7 @@
         count: $("count") ? $("count").value : "10",
         level: $("level") ? $("level").value : "standard",
         size: $("size") ? $("size").value : "normal",
+        style: $("style") ? $("style").value : "mixed",
       }));
     } catch (e) { /* ignore */ }
   }
@@ -86,6 +87,12 @@
     });
   }
 
+  function syncMathStyle() {
+    const f = $("styleField");
+    if (!f) return;
+    f.style.display = ($("subject") && $("subject").value === "Math") ? "" : "none";
+  }
+
   function buildExtras() {
     const topicField = $("topic").closest(".field") || $("topic").parentNode;
     const chips = document.createElement("div");
@@ -101,11 +108,14 @@
       '<div class="field"><label for="level">Level</label>' +
       '<select id="level"><option value="easier">Easier</option><option value="standard" selected>Standard</option><option value="challenge">Challenge</option></select></div>' +
       '<div class="field"><label for="size">Text size</label>' +
-      '<select id="size"><option value="normal" selected>Normal</option><option value="large">Large</option></select></div>';
+      '<select id="size"><option value="normal" selected>Normal</option><option value="large">Large</option></select></div>' +
+      '<div class="field" id="styleField"><label for="style">Math style</label>' +
+      '<select id="style"><option value="mixed" selected>Mixed</option><option value="computation">Computation</option><option value="word">Word problems</option></select></div>';
     $("genForm").insertBefore(opts, $("genBtn"));
 
-    if ($("subject")) $("subject").addEventListener("change", renderChips);
+    if ($("subject")) $("subject").addEventListener("change", function () { renderChips(); syncMathStyle(); });
     renderChips();
+    syncMathStyle();
 
     const toolbar = document.querySelector("#resultWrap .toolbar");
     if (toolbar && !$("regenBtn")) {
@@ -347,6 +357,7 @@
           count: $("count") ? parseInt($("count").value, 10) : 10,
           level: $("level") ? $("level").value : "standard",
           size: $("size") ? $("size").value : "normal",
+          style: $("style") ? $("style").value : "mixed",
         }),
       });
       const data = await res.json();
@@ -415,6 +426,8 @@
   if (pref.count && $("count")) $("count").value = pref.count;
   if (pref.level && $("level")) $("level").value = pref.level;
   if (pref.size && $("size")) $("size").value = pref.size;
+  if (pref.style && $("style")) $("style").value = pref.style;
+  syncMathStyle();
 
   $("gumroadBtn").href = GUMROAD_URL;
   updateQuota();
