@@ -18,6 +18,29 @@
     return '<span class="frac"><span class="num">' + a + '</span><span class="den">' + b + '</span></span>';
   }
 
+  function renderMathString(t) {
+    // remove LaTeX inline/display math delimiters \( \) \[ \]
+    t = t.replace(/\\[\(\)\[\]]/g, "");
+    // strip $...$ ONLY when it wraps a math expression (keep real money amounts)
+    t = t.replace(/\$([^$]+)\$/g, (m, inner) =>
+      /[\\=+\u00d7\u00f7]/.test(inner) || /^[\s\d.,]+$/.test(inner) ? inner : m
+    );
+    // LaTeX fractions  \frac{a}{b}
+    t = t.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, (m, a, b) => fracSpan(a, b));
+    // mixed numbers  2 1/3
+    t = t.replace(/(\d+)\s+(\d+)\s*\/\s*(\d+)/g, (m, w, a, b) => w + " " + fracSpan(a, b));
+    // simple fractions  1/4  (no lookbehind, for old browsers)
+    t = t.replace(/(^|[^\d/])(\d+)\s*\/\s*(\d+)(?![\d/])/g, (m, pre, a, b) => pre + fracSpan(a, b));
+    // math symbols
+    t = t
+      .replace(/\\times/g, "\u00d7")
+      .replace(/\\div/g, "\u00f7")
+      .replace(/\\cdot/g, "\u00b7")
+      .replace(/\\le/g, "\u2264")
+      .replace(/\\ge/g, "\u2265");
+    return t;
+  }
+
   function renderMath(root) {
     if (!root) return;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
@@ -26,24 +49,12 @@
     while ((n = walker.nextNode())) texts.push(n);
 
     for (const node of texts) {
-      let t = node.nodeValue;
-      if (!/\\frac|\d\s*\/\s*\d|\\times|\\div|\\cdot/.test(t)) continue;
-      // LaTeX fractions  \frac{a}{b}
-      t = t.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, (m, a, b) => fracSpan(a, b));
-      // mixed numbers  2 1/3  (plain text)
-      t = t.replace(/(\d+)\s+(\d+)\s*\/\s*(\d+)/g, (m, w, a, b) => w + " " + fracSpan(a, b));
-      // simple fractions  1/4  (no lookbehind, for old Safari)
-      t = t.replace(/(^|[^\d/])(\d+)\s*\/\s*(\d+)(?![\d/])/g, (m, pre, a, b) => pre + fracSpan(a, b));
-      // math symbols
-      t = t
-        .replace(/\\times/g, "\u00d7")
-        .replace(/\\div/g, "\u00f7")
-        .replace(/\\cdot/g, "\u00b7")
-        .replace(/\\le/g, "\u2264")
-        .replace(/\\ge/g, "\u2265");
-      if (t !== node.nodeValue) {
+      const t = node.nodeValue;
+      if (!/(\\frac|\\times|\\div|\\cdot|\\\(|\$|\d\s*\/\s*\d)/.test(t)) continue;
+      const out = renderMathString(t);
+      if (out !== t) {
         const span = document.createElement("span");
-        span.innerHTML = t;
+        span.innerHTML = out;
         node.parentNode.replaceChild(span, node);
       }
     }

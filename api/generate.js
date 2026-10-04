@@ -59,12 +59,16 @@ Grade level: ${grade} (U.S. grade level). Subject: ${subject}. Topic: ${topic}.
 
 CONTENT RULES
 - Match the concepts and difficulty to U.S. standards for this grade (Common Core style).
-- Use U.S. contexts and conventions: U.S. names, dollars ($), U.S. spelling.
+- Use U.S. contexts and conventions: U.S. names, U.S. spelling.
 - Grades K–2: keep the wording very short and concrete; include a simple visual model where helpful.
 - Include a mix: 2 warm-up questions, the main practice, and 1–2 word problems.
-- Write ALL math in LaTeX: fractions as \\frac{1}{4}, multiplication as \\times, division as \\div, mixed numbers as 1\\frac{1}{2}. Everything else is plain text.
 - Every question must be unambiguous and solvable. Double-check every answer.
 - Provide EXACTLY 10 questions.
+
+MATH FORMATTING (very important)
+- Write math using LaTeX commands ONLY: fractions as \\frac{1}{4}, multiplication as \\times, division as \\div, mixed numbers as 1\\frac{1}{2}.
+- NEVER use the dollar sign ($) as a math delimiter. Do NOT write $4$ or $4 \\times 7$. Write numbers and operators plainly: 4 \\times 7.
+- The only time a $ appears is a real money amount inside a money word problem, always with a SINGLE $ and no closing one (e.g. "Mia has $5").
 
 OUTPUT
 Return ONLY an HTML fragment (no <html>/<body>, no markdown code fences), using EXACTLY this structure and class names:
@@ -136,7 +140,7 @@ function demoSample(grade, subject, topic) {
     <p class="ws-instructions">Solve each problem. Show your work where needed.</p>
     <p class="ws-name">Name: ______________&nbsp;&nbsp;&nbsp;Date: ______________</p>
     <ol class="ws-questions">
-      <li>Sample question about "${t}" — the denominator is 4 and the numerator is 1.</li>
+      <li>What fraction is shaded? (1 of 4 equal parts)</li>
       <li>Simplify: \\frac{2}{4}</li>
       <li>What is 3 \\times 5?</li>
       <li>There are 12 \\div 3 groups. How many in each group?</li>
