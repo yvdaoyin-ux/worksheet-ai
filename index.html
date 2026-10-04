@@ -5,9 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="google-site-verification" content="I9O9mt5nsZhK9yvr-WcTxn6x4yTL96yeOMtI_Lc1ryc" />
   <title>WorksheetAI — Printable worksheets in 30 seconds</title>
-  <meta name="description" content="Type a topic and get a printable worksheet with an answer key in 30 seconds — math, reading, spelling, vocabulary, writing and science. Made for homeschool families, Grades K–5." />
+  <meta name="description" content="Type a topic and get a printable worksheet with an answer key in 30 seconds — math, reading, spelling, vocabulary, writing and science. For homeschool parents, K–5 teachers & tutors." />
   <link rel="canonical" href="https://worksheet-ai-l1td.vercel.app/" />
   <link rel="stylesheet" href="/app.css?v=2" />
+  <style>
+    /* sample previews (homepage only) */
+    .samples { margin-top: 36px; }
+    .samples h2 { text-align: center; font-size: 20px; margin: 0 0 4px; }
+    .samples-sub { text-align: center; color: var(--muted); margin: 0 0 16px; }
+    .samples-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 640px) { .samples-grid { grid-template-columns: 1fr; } }
+    .sample-worksheet { font-size: 13px; padding: 20px 22px; }
+    .sample-worksheet .ws-title { font-size: 17px; }
+    .sample-worksheet .ws-instructions { font-size: 12px; margin-bottom: 10px; }
+    .sample-worksheet .ws-name { font-size: 11px; margin-bottom: 12px; gap: 8px; }
+    .sample-worksheet .ws-questions > li { font-size: 14px; line-height: 1.7; padding-left: 24px; margin-bottom: 10px; }
+    .sample-worksheet .ws-questions > li::before { left: 0; }
+    .sample-worksheet .ws-passage { font-size: 13px; padding: 12px; margin-bottom: 12px; line-height: 1.7; }
+    .sample-worksheet .viz-bar .bar { width: 190px; height: 26px; }
+    .sample-worksheet .viz-tenframe .tf-frame { grid-template-columns: repeat(5, 26px); grid-template-rows: repeat(2, 26px); }
+  </style>
 </head>
 <body>
   <div class="wrap">
@@ -54,38 +71,73 @@
       <article id="result" class="worksheet"></article>
     </section>
 
+    <section class="samples no-print">
+      <h2>See real examples</h2>
+      <p class="samples-sub">Every worksheet is print-ready with an answer key. Two examples:</p>
+      <div class="samples-grid">
+        <div class="worksheet sample-worksheet">
+          <h2 class="ws-title">Fractions — Grade 3</h2>
+          <p class="ws-instructions">Shade each model to show the fraction.</p>
+          <p class="ws-name"><span>Name: ________</span><span>Date: ________</span><span>Score: ___</span></p>
+          <ol class="ws-questions">
+            <li>Shade <span class="frac"><span class="num">3</span><span class="den">4</span></span> of the bar.
+              <div class="viz viz-bar"><div class="bar"><span class="bar-seg filled"></span><span class="bar-seg filled"></span><span class="bar-seg filled"></span><span class="bar-seg"></span></div></div>
+            </li>
+            <li>Show <span class="frac"><span class="num">7</span><span class="den">10</span></span> on the ten-frame.
+              <div class="viz viz-tenframe"><div class="tf-frame"><span class="tf-cell filled"></span><span class="tf-cell filled"></span><span class="tf-cell filled"></span><span class="tf-cell filled"></span><span class="tf-cell filled"></span><span class="tf-cell filled"></span><span class="tf-cell filled"></span><span class="tf-cell"></span><span class="tf-cell"></span><span class="tf-cell"></span></div></div>
+            </li>
+            <li>What is <span class="frac"><span class="num">2</span><span class="den">5</span></span> + <span class="frac"><span class="num">1</span><span class="den">5</span></span>?</li>
+          </ol>
+        </div>
+
+        <div class="worksheet sample-worksheet">
+          <h2 class="ws-title">The Water Cycle</h2>
+          <p class="ws-instructions">Read the passage. Then answer the questions.</p>
+          <p class="ws-name"><span>Name: ________</span><span>Date: ________</span></p>
+          <div class="ws-passage">
+            <p>The Sun heats water in oceans, lakes, and rivers. The water turns into vapor and rises into the sky. High up, it cools and forms clouds. When the clouds get heavy, the water falls back to Earth as rain or snow. Then the cycle starts again.</p>
+          </div>
+          <ol class="ws-questions">
+            <li>What heats the water in oceans and lakes?</li>
+            <li>What does water form high up in the sky?</li>
+            <li>How do you know the water cycle repeats?</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
     <section class="info no-print">
-      <p class="trustbar">Made for homeschool families · Grades K–5 · Math, Reading, Spelling, Writing &amp; Science</p>
+      <p class="trustbar">For homeschool parents, K–5 teachers &amp; tutors · Grades K–5 · Math, Reading, Spelling, Writing &amp; Science</p>
 
       <h2>How it works</h2>
       <ol class="steps">
-        <li><strong>Enter a topic</strong><span>e.g. "grade 2 fractions"</span></li>
+        <li><strong>Enter a topic</strong><span>or tap a suggestion</span></li>
         <li><strong>Generate</strong><span>worksheet + answer key</span></li>
         <li><strong>Print / save PDF</strong><span>ready in seconds</span></li>
       </ol>
 
-      <h2>Why parents use it</h2>
+      <h2>Why parents &amp; teachers use it</h2>
       <ul class="benefits">
         <li>Answer keys included</li>
-        <li>Math, Reading, Spelling, Vocabulary, Grammar, Writing &amp; Science</li>
-        <li>Grades K–5, aligned to U.S. standards</li>
+        <li>8 subjects, Grades K–5, aligned to U.S. standards</li>
         <li>Math visuals: number lines, fraction bars, ten-frames</li>
+        <li>Choose number of questions, difficulty &amp; text size</li>
         <li>No account, no signup — free to try (2/day)</li>
       </ul>
 
       <h2>FAQ</h2>
       <div class="faq">
         <details><summary>Is it really free?</summary><p>Yes — 2 worksheets per day, no account needed. Unlock unlimited for a one-time $5.</p></details>
-        <details><summary>What grades and subjects?</summary><p>Grades K–5: math, reading, spelling, vocabulary, grammar, writing, science, and social studies.</p></details>
+        <details><summary>Who is it for?</summary><p>Homeschool parents, K–5 teachers, and tutors. Grades K–5: math, reading, spelling, vocabulary, grammar, writing, science, and social studies.</p></details>
         <details><summary>Do I need an account?</summary><p>No. Just pick a grade, subject and topic, then generate.</p></details>
         <details><summary>Is it a subscription?</summary><p>No — it's a one-time $5 payment. No recurring charges.</p></details>
-        <details><summary>Can I print it?</summary><p>Yes — click "Print / Save as PDF" and it prints as a clean handout.</p></details>
+        <details><summary>Can I print it?</summary><p>Yes — click "Print / Save as PDF" and it prints as a clean handout, with the answer key on its own page.</p></details>
       </div>
     </section>
 
     <footer class="site no-print">
       <p><strong>Unlimited printable worksheets — $5 once.</strong></p>
-      <p>Made for homeschool parents. Feedback welcome.</p>
+      <p>For homeschool parents, teachers &amp; tutors.</p>
     </footer>
   </div>
 
@@ -96,7 +148,7 @@
       <ul>
         <li>Unlimited generation (no daily limit)</li>
         <li>No watermark</li>
-        <li>Math, Reading, Spelling, Writing &amp; Science, Grades K–5</li>
+        <li>8 subjects, Grades K–5</li>
         <li>Instant print / PDF — forever</li>
       </ul>
       <a id="gumroadBtn" class="buy-btn" href="#" target="_blank" rel="noopener">Buy on Gumroad — $5</a>
@@ -105,6 +157,7 @@
       <input id="licenseInput" type="text" placeholder="Paste your license key" autocomplete="off" />
       <button id="activateBtn" class="btn-secondary" type="button">Activate</button>
       <p id="activateMsg" class="msg"></p>
+      <p class="trust" style="margin-top:10px">Lost your key? Search your email for the Gumroad receipt, or open the license email.</p>
       <button id="closeModal" class="link-btn" type="button">Close</button>
     </div>
   </div>

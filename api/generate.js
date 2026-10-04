@@ -95,7 +95,7 @@ async function callChat(url, key, model, prompt) {
   }
 }
 
-const NAME_DATE = '<p class="ws-name">Name: ______________&nbsp;&nbsp;&nbsp;Date: ______________</p>';
+const NAME_DATE = '<p class="ws-name"><span>Name: ____________</span><span>Date: ____________</span><span>Score: ______</span></p>';
 
 function levelLine(level) {
   if (level === "easier") return "\n- DIFFICULTY: make the items a little EASIER — more support, simpler numbers/words.";
