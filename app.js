@@ -248,6 +248,20 @@
     return '<div class="viz viz-organizer">' + boxes + "</div>";
   }
 
+  function ensureOrganizer(box) {
+    const subject = $("subject") ? $("subject").value : "";
+    const s = subject.toLowerCase();
+    const needs = s.indexOf("read") >= 0 || s.indexOf("science") >= 0 || s.indexOf("social") >= 0;
+    if (!needs || !box.querySelector || box.querySelector(".viz-organizer")) return;
+    const ol = box.querySelector(".ws-questions");
+    if (!ol) return;
+    const kind = s.indexOf("science") >= 0 || s.indexOf("social") >= 0 ? "kwl" : "main-idea";
+    const div = document.createElement("div");
+    div.className = "ws-visual";
+    div.innerHTML = organizerHTML(kind);
+    ol.parentNode.insertBefore(div, ol.nextSibling);
+  }
+
   function buildVisual(type, params, kind) {
     const t = String(type || "").toLowerCase();
     if (t.indexOf("organizer") >= 0 || t.indexOf("graphic") >= 0) return organizerHTML(kind);
@@ -291,6 +305,7 @@
     box.innerHTML = html || "<p>No content was returned.</p>";
     renderMath(box);
     hydrateVisuals(box);
+    ensureOrganizer(box);
     if ($("size")) box.classList.toggle("text-large", $("size").value === "large");
     let wm = box.querySelector(".watermark");
     if (!isUnlocked()) {
