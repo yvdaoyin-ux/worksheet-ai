@@ -3,6 +3,7 @@
 (function () {
   const GUMROAD_URL = "https://219809065360.gumroad.com/l/orqxtr";
   const FREE_LIMIT = 2; // free worksheets per day
+  const PREF_KEY = "wsai_pref";
 
   const $ = (id) => document.getElementById(id);
   if (!$("genForm")) return; // nothing to do on pages without the tool
@@ -12,6 +13,22 @@
   const isUnlocked = () => localStorage.getItem("wsai_unlocked") === "1";
   const getCount = () => parseInt(localStorage.getItem(countKey()) || "0", 10);
   const setCount = (n) => localStorage.setItem(countKey(), String(n));
+
+  // ---------------- saved preferences ----------------
+  function readPref() {
+    try { return JSON.parse(localStorage.getItem(PREF_KEY) || "{}"); } catch (e) { return {}; }
+  }
+  function savePref() {
+    try {
+      localStorage.setItem(PREF_KEY, JSON.stringify({
+        grade: $("grade") ? $("grade").value : "",
+        subject: $("subject") ? $("subject").value : "",
+        count: $("count") ? $("count").value : "10",
+        level: $("level") ? $("level").value : "standard",
+        size: $("size") ? $("size").value : "normal",
+      }));
+    } catch (e) { /* ignore */ }
+  }
 
   // ---------------- topic suggestions (chips) + options ----------------
   const SUGGESTIONS = {
@@ -28,18 +45,14 @@
   function renderChips() {
     const box = $("topicChips");
     if (!box) return;
-    const subject = ($("subject") && $("subject").value) || "Math";
-    const list = SUGGESTIONS[subject] || SUGGESTIONS.Math;
+    const list = SUGGESTIONS[($("subject") && $("subject").value) || "Math"] || SUGGESTIONS.Math;
     box.innerHTML = "";
     list.forEach((t) => {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "chip";
       b.textContent = t;
-      b.addEventListener("click", () => {
-        $("topic").value = t;
-        $("topic").focus();
-      });
+      b.addEventListener("click", () => { $("topic").value = t; $("topic").focus(); });
       box.appendChild(b);
     });
   }
@@ -51,7 +64,6 @@
     chips.className = "chips";
     topicField.appendChild(chips);
 
-    const form = $("genForm");
     const opts = document.createElement("div");
     opts.className = "options";
     opts.innerHTML =
@@ -61,10 +73,21 @@
       '<select id="level"><option value="easier">Easier</option><option value="standard" selected>Standard</option><option value="challenge">Challenge</option></select></div>' +
       '<div class="field"><label for="size">Text size</label>' +
       '<select id="size"><option value="normal" selected>Normal</option><option value="large">Large</option></select></div>';
-    form.insertBefore(opts, $("genBtn"));
+    $("genForm").insertBefore(opts, $("genBtn"));
 
     if ($("subject")) $("subject").addEventListener("change", renderChips);
     renderChips();
+
+    const toolbar = document.querySelector("#resultWrap .toolbar");
+    if (toolbar && !$("regenBtn")) {
+      const rg = document.createElement("button");
+      rg.type = "button";
+      rg.id = "regenBtn";
+      rg.hidden = true;
+      rg.textContent = "\u{1F504} Another version";
+      rg.addEventListener("click", runGenerate);
+      toolbar.insertBefore(rg, toolbar.firstChild);
+    }
   }
 
   // ================= math rendering =================
@@ -78,7 +101,6 @@
     if (d === 1) return String(n);
     return fracSpan(n, d);
   }
-
   function renderMathString(t) {
     t = t.replace(/\\[\(\)\[\]]/g, "");
     t = t.replace(/\$([^$]+)\$/g, (m, inner) =>
@@ -92,7 +114,6 @@
       .replace(/\\le/g, "\u2264").replace(/\\ge/g, "\u2265");
     return t;
   }
-
   function renderMath(root) {
     if (!root) return;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
@@ -135,13 +156,11 @@
     });
     return html + "</div>";
   }
-
   function fractionBarHTML(o) {
     let segs = "";
     for (let i = 0; i < o.den; i++) segs += '<span class="bar-seg' + (i < o.num ? " filled" : "") + '"></span>';
     return '<div class="viz viz-bar"><div class="bar">' + segs + "</div></div>";
   }
-
   function fractionCircleHTML(o) {
     const size = 120, r = 52, cx = 60, cy = 60;
     let slices = "";
@@ -156,7 +175,6 @@
     }
     return '<div class="viz viz-circle"><svg viewBox="0 0 ' + size + " " + size + '" width="120" height="120">' + slices + "</svg></div>";
   }
-
   function tenFrameHTML(o) {
     const count = Math.max(0, o.count);
     const frames = count > 10 ? 2 : 1;
@@ -169,21 +187,17 @@
     }
     return '<div class="viz viz-tenframe">' + out + "</div>";
   }
-
   function arrayHTML(o) {
     let cells = "";
-    const total = o.rows * o.cols;
-    for (let i = 0; i < total; i++) cells += '<span class="arr-dot"></span>';
+    for (let i = 0; i < o.rows * o.cols; i++) cells += '<span class="arr-dot"></span>';
     return '<div class="viz viz-array"><div class="arr" style="--cols:' + o.cols + '">' + cells + "</div></div>";
   }
-
   function placeValueHTML(o) {
     const digits = String(o.number).replace(/\D/g, "").padStart(3, "0").slice(-3).split("");
     const heads = ["Hundreds", "Tens", "Ones"].map((h) => "<th>" + h + "</th>").join("");
     const cells = digits.map((d) => "<td>" + d + "</td>").join("");
     return '<div class="viz viz-pv"><table><thead><tr>' + heads + "</tr></thead><tbody><tr>" + cells + "</tr></tbody></table></div>";
   }
-
   function buildVisual(type, params) {
     const t = String(type || "").toLowerCase();
     if (t.indexOf("line") >= 0) return numberLineHTML(params);
@@ -194,7 +208,6 @@
     if (t.indexOf("place") >= 0) return placeValueHTML(params);
     return "";
   }
-
   function hydrateVisuals(root) {
     if (!root) return;
     const els = root.querySelectorAll("[data-visual]");
@@ -219,7 +232,6 @@
     const left = Math.max(0, FREE_LIMIT - getCount());
     q.textContent = "Free plan: " + left + " of " + FREE_LIMIT + " worksheets left today";
   }
-
   function openPaywall() { $("paywall").hidden = false; }
   function closePaywall() { $("paywall").hidden = true; }
 
@@ -238,6 +250,7 @@
       wm.remove();
     }
 
+    if ($("regenBtn")) $("regenBtn").hidden = false;
     $("upsellBar").hidden = isUnlocked();
     $("resultWrap").hidden = false;
     const note = $("note");
@@ -246,14 +259,15 @@
     $("resultWrap").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  $("genForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
+  async function runGenerate() {
     const topic = $("topic").value.trim();
     if (!topic) { alert("Please enter a topic (or tap a suggestion)."); return; }
     if (!isUnlocked() && getCount() >= FREE_LIMIT) { openPaywall(); return; }
+    savePref();
 
     const btn = $("genBtn");
-    btn.disabled = true; btn.textContent = "Generating…";
+    btn.disabled = true;
+    btn.textContent = "Generating…";
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -275,10 +289,12 @@
     } catch (err) {
       alert("Something went wrong: " + err.message + "\nFree models can be busy — please try again in a few seconds.");
     } finally {
-      btn.disabled = false; btn.textContent = "Generate worksheet";
+      btn.disabled = false;
+      btn.textContent = "Generate worksheet";
     }
-  });
+  }
 
+  $("genForm").addEventListener("submit", (e) => { e.preventDefault(); runGenerate(); });
   $("printBtn").addEventListener("click", () => window.print());
   if ($("upsellBtn")) $("upsellBtn").addEventListener("click", openPaywall);
 
@@ -314,13 +330,21 @@
   $("closeModal").addEventListener("click", closePaywall);
   $("paywall").addEventListener("click", (e) => { if (e.target === $("paywall")) closePaywall(); });
 
-  // init
+  // ---------------- init ----------------
+  const pref = readPref();
+  if (pref.grade && $("grade")) $("grade").value = pref.grade;
+  if (pref.subject && $("subject")) $("subject").value = pref.subject;
+
   const form = $("genForm");
   if (form.dataset.grade) $("grade").value = form.dataset.grade;
   if (form.dataset.subject) $("subject").value = form.dataset.subject;
   if (form.dataset.topic) $("topic").value = form.dataset.topic;
 
   buildExtras();
+  if (pref.count && $("count")) $("count").value = pref.count;
+  if (pref.level && $("level")) $("level").value = pref.level;
+  if (pref.size && $("size")) $("size").value = pref.size;
+
   $("gumroadBtn").href = GUMROAD_URL;
   updateQuota();
 })();
