@@ -13,6 +13,60 @@
   const getCount = () => parseInt(localStorage.getItem(countKey()) || "0", 10);
   const setCount = (n) => localStorage.setItem(countKey(), String(n));
 
+  // ---------------- topic suggestions (chips) + options ----------------
+  const SUGGESTIONS = {
+    Math: ["addition", "subtraction", "multiplication", "division", "fractions", "place value", "word problems", "money", "time", "shapes"],
+    Reading: ["a short story", "main idea", "animals", "the water cycle", "a famous person", "ocean animals"],
+    Spelling: ["short a words", "sight words", "digraphs sh/ch/th", "long vowel words", "r-controlled words", "CVC words"],
+    Vocabulary: ["context clues", "synonyms and antonyms", "prefixes and suffixes", "science words", "feelings"],
+    Grammar: ["capitalizing proper nouns", "ending punctuation", "plural nouns", "past tense verbs", "complete sentences"],
+    Writing: ["my favorite animal", "a persuasive letter", "how to make a sandwich", "a story about a lost dog", "my summer vacation"],
+    Science: ["the water cycle", "animal habitats", "weather", "the solar system", "forces and motion", "plants"],
+    "Social Studies": ["community helpers", "U.S. symbols", "map skills", "a famous American", "then and now"],
+  };
+
+  function renderChips() {
+    const box = $("topicChips");
+    if (!box) return;
+    const subject = ($("subject") && $("subject").value) || "Math";
+    const list = SUGGESTIONS[subject] || SUGGESTIONS.Math;
+    box.innerHTML = "";
+    list.forEach((t) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.textContent = t;
+      b.addEventListener("click", () => {
+        $("topic").value = t;
+        $("topic").focus();
+      });
+      box.appendChild(b);
+    });
+  }
+
+  function buildExtras() {
+    const topicField = $("topic").closest(".field") || $("topic").parentNode;
+    const chips = document.createElement("div");
+    chips.id = "topicChips";
+    chips.className = "chips";
+    topicField.appendChild(chips);
+
+    const form = $("genForm");
+    const opts = document.createElement("div");
+    opts.className = "options";
+    opts.innerHTML =
+      '<div class="field"><label for="count">Questions</label>' +
+      '<select id="count"><option>5</option><option>8</option><option selected>10</option><option>12</option></select></div>' +
+      '<div class="field"><label for="level">Level</label>' +
+      '<select id="level"><option value="easier">Easier</option><option value="standard" selected>Standard</option><option value="challenge">Challenge</option></select></div>' +
+      '<div class="field"><label for="size">Text size</label>' +
+      '<select id="size"><option value="normal" selected>Normal</option><option value="large">Large</option></select></div>';
+    form.insertBefore(opts, $("genBtn"));
+
+    if ($("subject")) $("subject").addEventListener("change", renderChips);
+    renderChips();
+  }
+
   // ================= math rendering =================
   function fracSpan(a, b) {
     return '<span class="frac"><span class="num">' + a + '</span><span class="den">' + b + '</span></span>';
@@ -148,8 +202,7 @@
       const a = (name, d) => { const v = parseFloat(el.getAttribute("data-" + name)); return isNaN(v) ? d : v; };
       const i = (name, d) => { const v = parseInt(el.getAttribute("data-" + name), 10); return isNaN(v) ? d : v; };
       const points = (el.getAttribute("data-points") || "").split(",").map((s) => s.trim()).filter(Boolean);
-      const type = el.getAttribute("data-visual");
-      const html = buildVisual(type, {
+      const html = buildVisual(el.getAttribute("data-visual"), {
         min: a("min", 0), max: a("max", 1), ticks: i("ticks", 4), points,
         num: i("num", 1), den: i("den", 4), count: i("count", 5),
         rows: i("rows", 3), cols: i("cols", 4), number: i("number", 345),
@@ -175,6 +228,7 @@
     box.innerHTML = html || "<p>No content was returned.</p>";
     renderMath(box);
     hydrateVisuals(box);
+    if ($("size")) box.classList.toggle("text-large", $("size").value === "large");
 
     let wm = box.querySelector(".watermark");
     if (!isUnlocked()) {
@@ -195,7 +249,7 @@
   $("genForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const topic = $("topic").value.trim();
-    if (!topic) { alert("Please enter a topic."); return; }
+    if (!topic) { alert("Please enter a topic (or tap a suggestion)."); return; }
     if (!isUnlocked() && getCount() >= FREE_LIMIT) { openPaywall(); return; }
 
     const btn = $("genBtn");
@@ -204,7 +258,14 @@
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ grade: $("grade").value, subject: $("subject").value, topic }),
+        body: JSON.stringify({
+          grade: $("grade").value,
+          subject: $("subject").value,
+          topic,
+          count: $("count") ? parseInt($("count").value, 10) : 10,
+          level: $("level") ? $("level").value : "standard",
+          size: $("size") ? $("size").value : "normal",
+        }),
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || "Request failed");
@@ -253,11 +314,13 @@
   $("closeModal").addEventListener("click", closePaywall);
   $("paywall").addEventListener("click", (e) => { if (e.target === $("paywall")) closePaywall(); });
 
+  // init
   const form = $("genForm");
   if (form.dataset.grade) $("grade").value = form.dataset.grade;
   if (form.dataset.subject) $("subject").value = form.dataset.subject;
   if (form.dataset.topic) $("topic").value = form.dataset.topic;
 
+  buildExtras();
   $("gumroadBtn").href = GUMROAD_URL;
   updateQuota();
 })();

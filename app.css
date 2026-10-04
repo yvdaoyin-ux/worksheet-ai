@@ -61,6 +61,25 @@ button { font: inherit; cursor: pointer; }
 .btn-primary:disabled { opacity: 0.6; cursor: default; box-shadow: none; }
 .quota { text-align: center; margin: 12px 0 0; font-size: 13px; color: var(--muted); }
 
+/* topic suggestion chips */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip {
+  font: inherit; font-size: 13px; cursor: pointer; color: #2b3a52;
+  background: #eef3fb; border: 1px solid #d6e0f0; border-radius: 999px; padding: 5px 11px;
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+
+/* options row (questions / level / text size) */
+.options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 14px; }
+@media (max-width: 560px) { .options { grid-template-columns: 1fr 1fr; } }
+
+/* large-text worksheet mode */
+.worksheet.text-large .ws-title { font-size: 27px; }
+.worksheet.text-large .ws-questions > li { font-size: 20px; line-height: 2.5; }
+.worksheet.text-large .ws-passage { font-size: 19px; line-height: 2; }
+.worksheet.text-large .ws-answers > li { font-size: 17px; }
+.worksheet.text-large .ws-wordlist .word { font-size: 19px; padding: 8px 15px; }
+
 .result-wrap { margin-top: 22px; }
 .upsell {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;

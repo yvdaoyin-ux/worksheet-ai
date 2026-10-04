@@ -1,10 +1,9 @@
 // api/generate.js
 // Vercel Serverless Function (Node.js). Keeps the OpenRouter key on the server.
-// POST { grade, subject, topic } -> { html }  (or { html, demo:true } without a key)
+// POST { grade, subject, topic, count, level, size } -> { html }
 //
 // The model writes CONTENT; the client renders it. Each subject gets its own
-// output structure (reading = passage + questions, spelling = word list + drills,
-// writing = prompt + lines, etc.), aligned to US Common Core ELA / NGSS.
+// output structure, aligned to US Common Core ELA / NGSS.
 
 const MODELS = [
   "nvidia/nemotron-3-super-120b-a12b:free",
@@ -19,12 +18,13 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const { grade = "", subject = "", topic = "" } = req.body || {};
+  const { grade = "", subject = "", topic = "", count = 10, level = "standard" } = req.body || {};
   if (!topic) {
     res.status(400).json({ error: "Please enter a topic." });
     return;
   }
 
+  const qCount = Math.min(20, Math.max(3, parseInt(count, 10) || 10));
   const apiKey = process.env.OPENROUTER_API_KEY;
 
   if (!apiKey) {
@@ -32,7 +32,7 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const prompt = buildPrompt(grade, subject, topic);
+  const prompt = buildPrompt(grade, subject, topic, qCount, level);
   let lastError = "";
 
   for (const model of MODELS) {
@@ -54,7 +54,13 @@ module.exports = async (req, res) => {
 
 const NAME_DATE = '<p class="ws-name">Name: ______________&nbsp;&nbsp;&nbsp;Date: ______________</p>';
 
-function buildPrompt(grade, subject, topic) {
+function levelLine(level) {
+  if (level === "easier") return "\n- DIFFICULTY: make the items a little EASIER — more support, simpler numbers/words.";
+  if (level === "challenge") return "\n- DIFFICULTY: make the items more CHALLENGING — a stretch for strong students.";
+  return "";
+}
+
+function buildPrompt(grade, subject, topic, count, level) {
   const s = String(subject || "").toLowerCase();
   const head = `You are an experienced U.S. elementary school teacher creating a printable worksheet for a homeschool family.
 
@@ -63,33 +69,34 @@ Grade level: ${grade} (U.S. grade level). Subject: ${subject}. Topic: ${topic}.
 GENERAL RULES
 - Match the concepts and difficulty to U.S. standards for this grade (Common Core / NGSS style).
 - Use U.S. contexts and conventions (U.S. names, U.S. spelling).
-- Grades K–2: keep wording very short and concrete.
+- Grades K–2: keep wording very short and concrete.${levelLine(level)}
 - Return ONLY an HTML fragment (no <html>/<body>, no markdown or code fences), using EXACTLY the class names shown.`;
 
-  if (s.indexOf("math") >= 0) return head + mathBlock(topic);
-  if (s.indexOf("read") >= 0) return head + readingBlock(grade);
-  if (s.indexOf("spell") >= 0 || s.indexOf("phonic") >= 0) return head + spellingBlock();
-  if (s.indexOf("vocab") >= 0) return head + vocabBlock();
-  if (s.indexOf("grammar") >= 0 || s.indexOf("language") >= 0) return head + grammarBlock();
+  if (s.indexOf("math") >= 0) return head + mathBlock(count);
+  if (s.indexOf("read") >= 0) return head + readingBlock(count);
+  if (s.indexOf("spell") >= 0 || s.indexOf("phonic") >= 0) return head + spellingBlock(count);
+  if (s.indexOf("vocab") >= 0) return head + vocabBlock(count);
+  if (s.indexOf("grammar") >= 0 || s.indexOf("language") >= 0) return head + grammarBlock(count);
   if (s.indexOf("writ") >= 0) return head + writingBlock();
-  if (s.indexOf("science") >= 0) return head + scienceBlock();
-  if (s.indexOf("social") >= 0 || s.indexOf("history") >= 0) return head + socialBlock();
-  return head + readingBlock(grade); // sensible default
+  if (s.indexOf("science") >= 0) return head + scienceBlock(count);
+  if (s.indexOf("social") >= 0 || s.indexOf("history") >= 0) return head + socialBlock(count);
+  return head + readingBlock(count);
 }
 
-function mathBlock(topic) {
+function mathBlock(count) {
+  const q = Array.from({ length: count }, () => "  <li>…</li>").join("\n");
   return `
 
 CONTENT
 - Mix: 2 warm-up questions, the main practice, and 1–2 word problems.
-- Provide EXACTLY 10 questions. Double-check every answer.
+- Provide EXACTLY ${count} questions. Double-check every answer.
 
 MATH FORMATTING (very important)
 - Write math using LaTeX commands ONLY: fractions as \\frac{1}{4}, multiplication as \\times, division as \\div, mixed numbers as 1\\frac{1}{2}.
 - NEVER use the dollar sign ($) as a math delimiter. Do NOT write $4$ or $4 \\times 7$; write 4 \\times 7.
 - A $ appears only for a real money amount in a money problem, with a SINGLE $ (e.g. "Mia has $5").
 
-VISUALS (use ONE when it directly supports the question; 2–4 times across the sheet)
+VISUALS (use ONE when it directly supports the question; 1–4 times across the sheet)
 Insert on its own line inside the relevant <li>:
 <div class="ws-visual" data-visual="TYPE" ATTRS></div>
 Types: number-line (data-min data-max data-ticks) | fraction-bar (data-num data-den) | fraction-circle (data-num data-den) | ten-frame (data-count) | array (data-rows data-cols) | place-value (data-number)
@@ -99,23 +106,22 @@ OUTPUT (exact structure)
 <p class="ws-instructions">One clear instruction sentence.</p>
 ${NAME_DATE}
 <ol class="ws-questions">
-  <li>…</li>  (10 total)
+${q}
 </ol>
 <hr class="ws-pagebreak">
 <h3 class="ws-answers-title">Answer Key</h3>
 <ol class="ws-answers">
-  <li>…</li>  (10 total, briefly show the work for math)
+${q}
 </ol>`;
 }
 
-function readingBlock(grade) {
+function readingBlock(count) {
   return `
 
 STRUCTURE — Reading comprehension (Common Core Reading Literature/Informational)
-- Write an ORIGINAL, age-appropriate passage (do not copy any published text).
+- Write an ORIGINAL, age-appropriate passage (never copy a published text).
   Length by grade: K–1 ≈ 40–60 words; grades 2–3 ≈ 90–140 words; grades 4–5 ≈ 160–220 words.
-- Then ask comprehension questions: K–1 → 3 questions; grades 2–3 → 5; grades 4–5 → 6.
-  Include literal questions, a main-idea question, and at least one "how do you know / why" question.
+- Provide EXACTLY ${count} comprehension questions (literal, main idea, and at least one "how do you know / why").
 
 OUTPUT (exact structure)
 <h2 class="ws-title">Title</h2>
@@ -134,11 +140,11 @@ ${NAME_DATE}
 </ol>`;
 }
 
-function spellingBlock() {
+function spellingBlock(count) {
   return `
 
 STRUCTURE — Spelling / Phonics (Common Core Foundational Skills; Dolch/Fry sight words)
-- Pick ONE phonics/spelling pattern appropriate for the grade (e.g. short-a CVC, digraphs sh/ch/th, blends, silent-e, vowel teams, r-controlled).
+- Pick ONE phonics/spelling pattern appropriate for the grade (short-a CVC, digraphs sh/ch/th, blends, silent-e, vowel teams, r-controlled).
 - Provide EXACTLY 10 words that ALL match that pattern (use common sight words where possible).
 
 OUTPUT (exact structure)
@@ -150,18 +156,18 @@ ${NAME_DATE}
 </div>
 <p class="ws-sub">A. Write each word two times.  B. Fill in the missing letters.  C. Use two words in a sentence.</p>
 <ol class="ws-questions">
-  <li>c _ t</li> …  (8–10 letter-missing items based on the word list)
+  <li>c _ t</li>  (letter-missing items for each word)
   <li>Write a sentence using "…".</li>
   <li>Write a sentence using "…".</li>
 </ol>
 <hr class="ws-pagebreak">
 <h3 class="ws-answers-title">Answer Key</h3>
 <ol class="ws-answers">
-  <li>cat</li> … (the completed words; accept reasonable sentences)
+  <li>cat</li>  (the completed words; accept reasonable sentences)
 </ol>`;
 }
 
-function vocabBlock() {
+function vocabBlock(count) {
   return `
 
 STRUCTURE — Vocabulary (Common Core Language; context clues)
@@ -176,8 +182,8 @@ ${NAME_DATE}
 </div>
 <p class="ws-sub">A. Match each word to its meaning.  B. Fill in the blank.  C. Write your own sentence for two words.</p>
 <ol class="ws-questions">
-  <li>definition of one word (students match the word)</li> … (8)
-  <li>sentence with a blank using one of the words</li> … (5)
+  <li>definition of one word (students match the word)</li>  (8)
+  <li>sentence with a blank using one of the words</li>  (5)
   <li>Write a sentence using "…".</li>
   <li>Write a sentence using "…".</li>
 </ol>
@@ -188,23 +194,24 @@ ${NAME_DATE}
 </ol>`;
 }
 
-function grammarBlock() {
+function grammarBlock(count) {
   return `
 
 STRUCTURE — Grammar / Language (Common Core Language conventions)
-- Focus on ONE skill appropriate for the grade (e.g. capitalizing proper nouns, ending punctuation, plural nouns, verb tense, complete sentences).
+- Focus on ONE grammar skill appropriate for the grade (capitalizing proper nouns, ending punctuation, plural nouns, verb tense, complete sentences).
+- The worksheet is a set of sentences to FIX or label — it is NOT a reading passage.
 
 OUTPUT (exact structure)
 <h2 class="ws-title">Grammar: <the skill></h2>
 <p class="ws-instructions">Rewrite each sentence correctly. / Circle the nouns. (pick what fits)</p>
 ${NAME_DATE}
 <ol class="ws-questions">
-  <li>…sentence to fix or item…</li>  (10 total)
+  <li>…a sentence that needs fixing, or an item to label…</li>  (EXACTLY ${count} total)
 </ol>
 <hr class="ws-pagebreak">
 <h3 class="ws-answers-title">Answer Key</h3>
 <ol class="ws-answers">
-  <li>the corrected sentence — and the rule in (parentheses)</li>  (10 total)
+  <li>the corrected sentence — and the rule in (parentheses)</li>  (${count} total)
 </ol>`;
 }
 
@@ -226,11 +233,11 @@ ${NAME_DATE}
 <p class="ws-checklist">&check; Capital letters  &check; Punctuation  &check; Complete sentences  &check; Clear main idea</p>`;
 }
 
-function scienceBlock() {
+function scienceBlock(count) {
   return `
 
 STRUCTURE — Science (NGSS)
-- Write a short, accurate, grade-appropriate informational text (≈ 80–140 words) about the topic.
+- Write a short, accurate, grade-appropriate informational text (≈ 80–140 words).
 
 OUTPUT (exact structure)
 <h2 class="ws-title">Title</h2>
@@ -240,7 +247,7 @@ ${NAME_DATE}
   <p>…the informational text…</p>
 </div>
 <ol class="ws-questions">
-  <li>…</li>  (4–5 questions: recall + explain WHY)
+  <li>…</li>  (EXACTLY ${count} questions: recall + explain WHY)
 </ol>
 <hr class="ws-pagebreak">
 <h3 class="ws-answers-title">Answer Key</h3>
@@ -249,11 +256,11 @@ ${NAME_DATE}
 </ol>`;
 }
 
-function socialBlock() {
+function socialBlock(count) {
   return `
 
 STRUCTURE — Social Studies / History
-- Write a short, accurate, grade-appropriate informational text (≈ 80–140 words) about the topic.
+- Write a short, accurate, grade-appropriate informational text (≈ 80–140 words).
 - Typical K–5 themes: K = family/community; G1 = symbols & family history; G2 = people who made a difference; G3 = local history; G4 = state history & U.S. regions; G5 = early U.S. history.
 
 OUTPUT (exact structure)
@@ -264,7 +271,7 @@ ${NAME_DATE}
   <p>…the informational text…</p>
 </div>
 <ol class="ws-questions">
-  <li>…</li>  (4–5 questions)
+  <li>…</li>  (EXACTLY ${count} questions)
 </ol>
 <hr class="ws-pagebreak">
 <h3 class="ws-answers-title">Answer Key</h3>
