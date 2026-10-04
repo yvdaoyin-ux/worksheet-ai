@@ -1,7 +1,7 @@
 // WorksheetAI — shared client logic (used by index.html and all generated pages)
 // Optional prefill: put data-grade / data-subject / data-topic on the <form id="genForm">.
 (function () {
-  const GUMROAD_URL = "https://219809065360.gumroad.com/l/orqxtr";
+  const GUMROAD_URL = "https://219809065360.gumroad.com/l/orqxtr?code=LAUNCH30";
   const FREE_LIMIT = 2; // free worksheets per day
   const PREF_KEY = "wsai_pref";
 
@@ -349,7 +349,7 @@
   }
 
   async function rewriteItem(li, btn) {
-    if (!isUnlocked() && getCount() >= FREE_LIMIT) { openPaywall(); return; }
+    // Rewriting a single question does NOT consume the free daily quota.
     const clone = li.cloneNode(true);
     const toolsInClone = clone.querySelector(".li-tools");
     if (toolsInClone) toolsInClone.remove();
@@ -369,7 +369,6 @@
       makeTools(li);
       renderMath(li);
       hydrateVisuals(li);
-      if (!isUnlocked()) { setCount(getCount() + 1); updateQuota(); }
     } catch (e) {
       alert("Could not rewrite: " + e.message);
     } finally {
