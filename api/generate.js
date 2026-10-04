@@ -1,10 +1,16 @@
 // api/generate.js
-// Vercel Serverless Function (Node.js). Keeps the AI API key on the server.
+// Vercel Serverless Function (Node.js). Keeps the OpenRouter key on the server.
 // POST { grade, subject, topic } -> { html }  (or { html, demo:true } without a key)
 //
-// Supports two providers, auto-selected by which env var is set:
-//   - OPENROUTER_API_KEY  -> OpenRouter (recommended: no card, no ID verification)
-//   - GEMINI_API_KEY      -> Google Gemini direct (needs a Google Cloud project)
+// Tries a list of models in order (fast free model first) and falls back if one
+// is rate-limited or slow, so a single flaky free model doesn't break the app.
+
+const MODELS = [
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "openrouter/free",
+];
+
+const PER_MODEL_TIMEOUT_MS = 45000;
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
@@ -18,94 +24,15 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const openrouterKey = process.env.OPENROUTER_API_KEY;
-  const geminiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
 
   // Demo mode: no key configured -> return a sample so the flow is testable.
-  if (!openrouterKey && !geminiKey) {
+  if (!apiKey) {
     res.status(200).json({ html: demoSample(grade, subject, topic), demo: true });
     return;
   }
 
-  const prompt = buildPrompt(grade, subject, topic);
-
-  try {
-    let html = "";
-    if (openrouterKey) {
-      html = await callOpenRouter(openrouterKey, prompt);
-    } else {
-      html = await callGemini(geminiKey, prompt);
-    }
-    html = stripCodeFences(html);
-    if (!html) {
-      res.status(502).json({ error: "The model returned an empty response." });
-      return;
-    }
-    res.status(200).json({ html });
-  } catch (err) {
-    res.status(502).json({ error: String(err.message || err) });
-  }
-};
-
-// ---------------------------------------------------------------- providers
-
-async function callOpenRouter(key, prompt) {
-  const model = process.env.OPENROUTER_MODEL || "qwen/qwen3.8-27b:free";
-  const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer " + key,
-      "Content-Type": "application/json",
-      // These two headers are optional but recommended by OpenRouter:
-      "HTTP-Referer": "http://localhost",
-      "X-Title": "WorksheetAI",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
-  const data = await r.json();
-  if (!r.ok) {
-    throw new Error(
-      (data && data.error && data.error.message) ||
-        "OpenRouter request failed (try a different OPENROUTER_MODEL)"
-    );
-  }
-  return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || "";
-}
-
-async function callGemini(key, prompt) {
-  const url =
-    "https://generativelanguage.googleapis.com/v1beta/models/" +
-    "gemini-2.0-flash:generateContent?key=" +
-    encodeURIComponent(key);
-  const r = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-  });
-  const data = await r.json();
-  if (!r.ok) {
-    throw new Error(
-      (data && data.error && data.error.message) || "Gemini request failed"
-    );
-  }
-  return (
-    (data.candidates &&
-      data.candidates[0] &&
-      data.candidates[0].content &&
-      data.candidates[0].content.parts &&
-      data.candidates[0].content.parts[0] &&
-      data.candidates[0].content.parts[0].text) ||
-    ""
-  );
-}
-
-// ---------------------------------------------------------------- helpers
-
-function buildPrompt(grade, subject, topic) {
-  return `You are an experienced elementary school teacher.
+  const prompt = `You are an experienced elementary school teacher.
 Create a printable worksheet.
 Grade: ${grade}. Subject: ${subject}. Topic: ${topic}.
 Rules:
@@ -118,10 +45,61 @@ Rules:
   <h3>Answer Key</h3> section listing every answer in a <ol>.
 - For math, double-check every answer before finalizing (accuracy matters a lot).
 - Do not wrap the output in code fences.`;
+
+  let lastError = "";
+
+  for (const model of MODELS) {
+    try {
+      const raw = await callOpenRouter(apiKey, model, prompt);
+      const html = stripCodeFences(raw);
+      if (html) {
+        res.status(200).json({ html, model });
+        return;
+      }
+      lastError = "Model returned an empty response.";
+    } catch (err) {
+      lastError = String(err && err.message ? err.message : err);
+    }
+  }
+
+  res.status(502).json({ error: "AI request failed", detail: lastError });
+};
+
+async function callOpenRouter(key, model, prompt) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PER_MODEL_TIMEOUT_MS);
+  try {
+    const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + key,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: prompt }],
+      }),
+      signal: controller.signal,
+    });
+
+    const data = await r.json();
+    if (!r.ok) {
+      throw new Error((data.error && data.error.message) || "OpenRouter request failed");
+    }
+    return (
+      (data.choices &&
+        data.choices[0] &&
+        data.choices[0].message &&
+        data.choices[0].message.content) ||
+      ""
+    );
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function stripCodeFences(text) {
-  return text
+  return String(text)
     .replace(/^\s*```(?:html)?\s*/i, "")
     .replace(/\s*```\s*$/i, "")
     .trim();
@@ -129,28 +107,18 @@ function stripCodeFences(text) {
 
 function demoSample(grade, subject, topic) {
   const t = esc(topic);
+  const items = (n, ans) =>
+    Array.from({ length: n }, (_, i) => `<li>${ans} ${i + 1}</li>`).join("");
   return `
     <h2>${esc(subject)} Practice — ${esc(grade)}</h2>
     <p><em>Topic: ${t}</em></p>
     <p class="namebar"><span>Name:</span> <span>Date:</span></p>
-    <ol>
-      <li>Sample question about "${t}" (1).</li>
-      <li>Sample question about "${t}" (2).</li>
-      <li>Sample question about "${t}" (3).</li>
-      <li>Sample question about "${t}" (4).</li>
-      <li>Sample question about "${t}" (5).</li>
-      <li>Sample question about "${t}" (6).</li>
-      <li>Sample question about "${t}" (7).</li>
-      <li>Sample question about "${t}" (8).</li>
-    </ol>
+    <ol>${items(8, "Sample question about \"" + t + "\"")}</ol>
     <hr style="page-break-before:always">
     <h3>Answer Key</h3>
-    <ol>
-      <li>Answer (1)</li><li>Answer (2)</li><li>Answer (3)</li><li>Answer (4)</li>
-      <li>Answer (5)</li><li>Answer (6)</li><li>Answer (7)</li><li>Answer (8)</li>
-    </ol>
+    <ol>${items(8, "Answer")}</ol>
     <p style="color:#6b7280;font-size:13px">
-      This is a DEMO worksheet. Add an OPENROUTER_API_KEY (or GEMINI_API_KEY) on the server to generate real worksheets.
+      This is a DEMO worksheet. Add an OPENROUTER_API_KEY on the server to generate real worksheets.
     </p>`;
 }
 
