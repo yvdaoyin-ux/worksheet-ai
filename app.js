@@ -54,7 +54,8 @@
         subject: $("subject") ? $("subject").value : "",
         count: $("count") ? $("count").value : "10",
         level: $("level") ? $("level").value : "standard",
-        size: $("size") ? $("size").value : "normal",
+        font: $("font") ? $("font").value : "andika",
+        size: $("size") ? $("size").value : "m",
         style: $("style") ? $("style").value : "mixed",
       }));
     } catch (e) { /* ignore */ }
@@ -107,8 +108,10 @@
       '<select id="count"><option>5</option><option>8</option><option selected>10</option><option>12</option></select></div>' +
       '<div class="field"><label for="level">Level</label>' +
       '<select id="level"><option value="easier">Easier</option><option value="standard" selected>Standard</option><option value="challenge">Challenge</option></select></div>' +
+      '<div class="field"><label for="font">Font</label>' +
+      '<select id="font"><option value="andika" selected>Andika</option><option value="comic">Comic Neue</option><option value="lexend">Lexend</option><option value="nunito">Nunito</option></select></div>' +
       '<div class="field"><label for="size">Text size</label>' +
-      '<select id="size"><option value="normal" selected>Normal</option><option value="large">Large</option></select></div>' +
+      '<select id="size"><option value="s">Small</option><option value="m" selected>Normal</option><option value="l">Large</option><option value="xl">Extra large</option></select></div>' +
       '<div class="field" id="styleField"><label for="style">Math style</label>' +
       '<select id="style"><option value="mixed" selected>Mixed</option><option value="computation">Computation</option><option value="word">Word problems</option></select></div>';
     $("genForm").insertBefore(opts, $("genBtn"));
@@ -381,7 +384,8 @@
     hydrateVisuals(box);
     ensureOrganizer(box);
     attachItemTools(box);
-    if ($("size")) box.classList.toggle("text-large", $("size").value === "large");
+    if ($("font")) { box.classList.remove("font-andika", "font-comic", "font-lexend", "font-nunito"); box.classList.add("font-" + $("font").value); }
+    if ($("size")) { box.classList.remove("size-s", "size-m", "size-l", "size-xl"); box.classList.add("size-" + $("size").value); }
     let wm = box.querySelector(".watermark");
     if (!isUnlocked()) {
       if (!wm) { wm = document.createElement("p"); wm.className = "watermark"; box.appendChild(wm); }
@@ -490,6 +494,7 @@
   renderHist();
   if (pref.count && $("count")) $("count").value = pref.count;
   if (pref.level && $("level")) $("level").value = pref.level;
+  if (pref.font && $("font")) $("font").value = pref.font;
   if (pref.size && $("size")) $("size").value = pref.size;
   if (pref.style && $("style")) $("style").value = pref.style;
   syncMathStyle();
