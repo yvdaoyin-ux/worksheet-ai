@@ -259,3 +259,7 @@ footer.site strong { color: var(--ink); }
   .worksheet .ws-pagebreak { page-break-before: always; border-top: none; }
   .ws-visual { break-inside: avoid; }
 }
+
+/* recent worksheets */
+.recent { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 14px 0 0; }
+.recent-label { font-size: 13px; font-weight: 700; color: var(--muted); }

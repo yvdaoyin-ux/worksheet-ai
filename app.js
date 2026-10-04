@@ -14,6 +14,35 @@
   const getCount = () => parseInt(localStorage.getItem(countKey()) || "0", 10);
   const setCount = (n) => localStorage.setItem(countKey(), String(n));
 
+  // ---------------- recent worksheets (localStorage) ----------------
+  const HIST_KEY = "wsai_hist";
+  function loadHist() { try { return JSON.parse(localStorage.getItem(HIST_KEY) || "[]"); } catch (e) { return []; } }
+  function saveHist(item) {
+    try {
+      const h = loadHist().filter((x) => !(x.topic === item.topic && x.subject === item.subject));
+      h.unshift(item);
+      localStorage.setItem(HIST_KEY, JSON.stringify(h.slice(0, 5)));
+    } catch (e) { /* ignore */ }
+  }
+  function renderHist() {
+    const box = $("recentBox");
+    if (!box) return;
+    const h = loadHist();
+    if (!h.length) { box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML = '<span class="recent-label">\u{1F550} Recent:</span>';
+    h.forEach((it) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "chip";
+      b.textContent = (it.subject ? it.subject + ": " : "") + it.topic;
+      b.addEventListener("click", () => {
+        paintWorksheet(it.html);
+        $("resultWrap").scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      box.appendChild(b);
+    });
+  }
+
   // ---------------- saved preferences ----------------
   function readPref() {
     try { return JSON.parse(localStorage.getItem(PREF_KEY) || "{}"); } catch (e) { return {}; }
@@ -88,6 +117,13 @@
       rg.addEventListener("click", runGenerate);
       toolbar.insertBefore(rg, toolbar.firstChild);
     }
+
+    const recent = document.createElement("div");
+    recent.id = "recentBox";
+    recent.className = "recent no-print";
+    recent.hidden = true;
+    const rw = $("resultWrap");
+    if (rw && rw.parentNode) rw.parentNode.insertBefore(recent, rw.nextSibling);
   }
 
   // ================= math rendering =================
@@ -235,13 +271,12 @@
   function openPaywall() { $("paywall").hidden = false; }
   function closePaywall() { $("paywall").hidden = true; }
 
-  function renderResult(html, demo) {
+  function paintWorksheet(html) {
     const box = $("result");
     box.innerHTML = html || "<p>No content was returned.</p>";
     renderMath(box);
     hydrateVisuals(box);
     if ($("size")) box.classList.toggle("text-large", $("size").value === "large");
-
     let wm = box.querySelector(".watermark");
     if (!isUnlocked()) {
       if (!wm) { wm = document.createElement("p"); wm.className = "watermark"; box.appendChild(wm); }
@@ -249,10 +284,13 @@
     } else if (wm) {
       wm.remove();
     }
-
     if ($("regenBtn")) $("regenBtn").hidden = false;
     $("upsellBar").hidden = isUnlocked();
     $("resultWrap").hidden = false;
+  }
+
+  function renderResult(html, demo) {
+    paintWorksheet(html);
     const note = $("note");
     if (demo) note.textContent = "Demo mode (no API key set on server)";
     else note.textContent = isUnlocked() ? "Pro — watermark removed" : "Free preview";
@@ -284,6 +322,8 @@
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || "Request failed");
       renderResult(data.html, data.demo);
+      try { saveHist({ topic: topic, subject: $("subject").value, grade: $("grade").value, html: data.html }); } catch (e) { /* ignore */ }
+      renderHist();
       if (!isUnlocked()) setCount(getCount() + 1);
       updateQuota();
     } catch (err) {
@@ -341,6 +381,7 @@
   if (form.dataset.topic) $("topic").value = form.dataset.topic;
 
   buildExtras();
+  renderHist();
   if (pref.count && $("count")) $("count").value = pref.count;
   if (pref.level && $("level")) $("level").value = pref.level;
   if (pref.size && $("size")) $("size").value = pref.size;

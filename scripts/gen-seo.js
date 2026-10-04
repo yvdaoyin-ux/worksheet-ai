@@ -151,7 +151,7 @@ function renderPage(p) {
   <title>${title}</title>
   <meta name="description" content="${desc}" />
   <link rel="canonical" href="${url}" />
-  <link rel="stylesheet" href="/app.css?v=4" />
+  <link rel="stylesheet" href="/app.css?v=5" />
 </head>
 <body>
   <div class="wrap">
@@ -186,7 +186,7 @@ ${resultModal}
     </footer>
   </div>
 ${paywall}
-  <script src="/app.js?v=4" defer></script>
+  <script src="/app.js?v=5" defer></script>
 </body>
 </html>
 `;
