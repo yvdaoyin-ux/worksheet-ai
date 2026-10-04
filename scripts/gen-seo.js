@@ -153,7 +153,7 @@ function renderPage(p) {
   <title>${title}</title>
   <meta name="description" content="${desc}" />
   <link rel="canonical" href="${url}" />
-  <link rel="stylesheet" href="/app.css?v=9" />
+  <link rel="stylesheet" href="/app.css?v=10" />
 </head>
 <body>
   <div class="wrap">
@@ -184,11 +184,12 @@ ${resultModal}
 
     <footer class="site no-print">
       <p><strong>Unlimited printable worksheets — $5 once.</strong></p>
+      <p class="about">Made by an independent developer — every purchase keeps the servers running and funds new features. Thank you for the support!</p>
       <p><a href="/">WorksheetAI home</a> · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a></p>
     </footer>
   </div>
 ${paywall}
-  <script src="/app.js?v=9" defer></script>
+  <script src="/app.js?v=10" defer></script>
 </body>
 </html>
 `;

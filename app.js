@@ -325,12 +325,62 @@
   function openPaywall() { $("paywall").hidden = false; }
   function closePaywall() { $("paywall").hidden = true; }
 
+  function makeTools(li) {
+    if (li.querySelector(".li-tools")) return;
+    const t = document.createElement("span");
+    t.className = "li-tools no-print";
+    t.setAttribute("contenteditable", "false");
+    const edit = document.createElement("button");
+    edit.type = "button"; edit.title = "Edit this question"; edit.textContent = "\u270F\uFE0F";
+    edit.addEventListener("click", () => { li.contentEditable = "true"; li.focus(); });
+    li.addEventListener("blur", () => { li.contentEditable = "false"; });
+    const re = document.createElement("button");
+    re.type = "button"; re.title = "Rewrite this question"; re.textContent = "\u{1F504}";
+    re.addEventListener("click", () => rewriteItem(li, re));
+    t.appendChild(edit); t.appendChild(re);
+    li.appendChild(t);
+  }
+
+  function attachItemTools(box) {
+    box.querySelectorAll(".ws-questions > li").forEach(makeTools);
+  }
+
+  async function rewriteItem(li, btn) {
+    if (!isUnlocked() && getCount() >= FREE_LIMIT) { openPaywall(); return; }
+    const clone = li.cloneNode(true);
+    const toolsInClone = clone.querySelector(".li-tools");
+    if (toolsInClone) toolsInClone.remove();
+    const item = clone.innerHTML.trim();
+    const subject = $("subject") ? $("subject").value : "";
+    const topic = ($("topic") && $("topic").value.trim()) || "worksheet";
+    const old = btn.textContent;
+    btn.disabled = true; btn.textContent = "\u2026";
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "rewrite", grade: $("grade").value, subject, topic, item }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.html) throw new Error(data.error || "failed");
+      li.innerHTML = data.html;
+      makeTools(li);
+      renderMath(li);
+      hydrateVisuals(li);
+      if (!isUnlocked()) { setCount(getCount() + 1); updateQuota(); }
+    } catch (e) {
+      alert("Could not rewrite: " + e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = old;
+    }
+  }
+
   function paintWorksheet(html) {
     const box = $("result");
     box.innerHTML = html || "<p>No content was returned.</p>";
     renderMath(box);
     hydrateVisuals(box);
     ensureOrganizer(box);
+    attachItemTools(box);
     if ($("size")) box.classList.toggle("text-large", $("size").value === "large");
     let wm = box.querySelector(".watermark");
     if (!isUnlocked()) {

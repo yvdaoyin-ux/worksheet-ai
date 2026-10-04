@@ -26,6 +26,21 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (req.body.mode === "rewrite") {
+    const item = String(req.body.item || "").slice(0, 800);
+    if (!item) { res.status(400).json({ error: "Nothing to rewrite." }); return; }
+    const rPrompt = buildRewritePrompt(grade, subject, topic, item);
+    for (const a of buildAttempts()) {
+      try {
+        const raw = await callChat(a.url, a.key, a.model, rPrompt);
+        const html = stripCodeFences(raw);
+        if (html) { res.status(200).json({ html, model: a.model }); return; }
+      } catch (e) { /* try next */ }
+    }
+    res.status(502).json({ error: "Could not regenerate that question. Please try again." });
+    return;
+  }
+
   const qCount = Math.min(20, Math.max(3, parseInt(count, 10) || 10));
   const prompt = buildPrompt(grade, subject, topic, qCount, level, style);
   const attempts = buildAttempts();
@@ -143,6 +158,14 @@ function levelLine(level) {
   if (level === "easier") return "\n- DIFFICULTY: make the items a little EASIER — more support, simpler numbers/words.";
   if (level === "challenge") return "\n- DIFFICULTY: make the items more CHALLENGING — a stretch for strong students.";
   return "";
+}
+
+function buildRewritePrompt(grade, subject, topic, item) {
+  return `You are an experienced U.S. elementary school teacher. Here is ONE question from a Grade ${grade} ${subject} worksheet on "${topic}":
+
+${item}
+
+Rewrite it as a SINGLE new question that tests the SAME skill but is clearer and different (new numbers or context). Return ONLY that one question as an HTML fragment using the SAME tags and class names as the original (do NOT wrap it in <li>). Keep math in LaTeX (\\frac, \\times, \\div) and never use $ as a math delimiter.`;
 }
 
 function buildPrompt(grade, subject, topic, count, level, style) {
