@@ -35,6 +35,12 @@ module.exports = async (req, res) => {
     return;
   }
 
+  const rl = await rateLimit(getClientIp(req));
+  if (!rl.ok) {
+    res.status(429).json({ error: "You've reached today's worksheet limit. Please try again tomorrow." });
+    return;
+  }
+
   let lastError = "";
   for (const a of attempts) {
     try {
@@ -55,6 +61,34 @@ module.exports = async (req, res) => {
     : "AI request failed. Please try again in a moment.";
   res.status(502).json({ error: friendly, detail: lastError });
 };
+
+function getClientIp(req) {
+  const xff = (req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  return xff || req.headers["x-real-ip"] || "unknown";
+}
+
+// Optional per-IP daily cap (anti-abuse). Needs UPSTASH_REDIS_REST_URL/TOKEN; else no-op.
+async function rateLimit(ip) {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return { ok: true };
+  const limit = Math.max(1, parseInt(process.env.DAILY_LIMIT_PER_IP || "100", 10));
+  const day = new Date().toISOString().slice(0, 10);
+  const key = "rl:" + ip + ":" + day;
+  try {
+    const r = await fetch(url.replace(/\/$/, "") + "/pipeline", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+      body: JSON.stringify([["INCR", key], ["EXPIRE", key, 172800]]),
+    });
+    const data = await r.json();
+    const count = data && data[0] && data[0].result;
+    if (typeof count === "number") return { ok: count <= limit, count, limit };
+    return { ok: true };
+  } catch (e) {
+    return { ok: true }; // fail open
+  }
+}
 
 function buildAttempts() {
   const attempts = [];
