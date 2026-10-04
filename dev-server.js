@@ -86,12 +86,17 @@ const server = http.createServer(async (req, res) => {
   }
 
   // --- static files ---
-  const rel = pathname === "/" ? "/index.html" : pathname;
-  const full = path.join(__dirname, rel);
+  let rel = pathname === "/" ? "/index.html" : pathname;
+  let full = path.join(__dirname, rel);
   if (!full.startsWith(__dirname)) {
     res.writeHead(403);
     res.end("Forbidden");
     return;
+  }
+  try {
+    if (fs.statSync(full).isDirectory()) full = path.join(full, "index.html");
+  } catch {
+    /* not found — fall through to readFile error */
   }
   fs.readFile(full, (err, data) => {
     if (err) {
