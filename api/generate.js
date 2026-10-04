@@ -1,16 +1,18 @@
 // api/generate.js
-// Vercel Serverless Function (Node.js). Keeps the OpenRouter key on the server.
+// Vercel Serverless Function (Node.js). Keeps AI keys on the server.
 // POST { grade, subject, topic, count, level, size } -> { html }
 //
+// Providers (tries in order, first success wins):
+//   1) Groq        (if GROQ_API_KEY)      — fast, generous free tier, OpenAI-compatible
+//   2) OpenRouter  (if OPENROUTER_API_KEY)
 // The model writes CONTENT; the client renders it. Each subject gets its own
 // output structure, aligned to US Common Core ELA / NGSS.
 
-const MODELS = [
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "openrouter/free",
-];
+const PER_REQUEST_TIMEOUT_MS = 45000;
 
-const PER_MODEL_TIMEOUT_MS = 45000;
+const GROQ_MODELS = (process.env.GROQ_MODEL || "llama-3.3-70b-versatile,llama-3.1-8b-instant")
+  .split(",").map((s) => s.trim()).filter(Boolean);
+const OPENROUTER_MODELS = ["nvidia/nemotron-3-super-120b-a12b:free", "openrouter/free"];
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
@@ -25,22 +27,21 @@ module.exports = async (req, res) => {
   }
 
   const qCount = Math.min(20, Math.max(3, parseInt(count, 10) || 10));
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const prompt = buildPrompt(grade, subject, topic, qCount, level);
+  const attempts = buildAttempts();
 
-  if (!apiKey) {
+  if (!attempts.length) {
     res.status(200).json({ html: demoSample(grade, subject, topic), demo: true });
     return;
   }
 
-  const prompt = buildPrompt(grade, subject, topic, qCount, level);
   let lastError = "";
-
-  for (const model of MODELS) {
+  for (const a of attempts) {
     try {
-      const raw = await callOpenRouter(apiKey, model, prompt);
+      const raw = await callChat(a.url, a.key, a.model, prompt);
       const html = stripCodeFences(raw);
       if (html) {
-        res.status(200).json({ html, model });
+        res.status(200).json({ html, model: a.model });
         return;
       }
       lastError = "Model returned an empty response.";
@@ -49,8 +50,50 @@ module.exports = async (req, res) => {
     }
   }
 
-  res.status(502).json({ error: "AI request failed", detail: lastError });
+  const friendly = /rate limit|quota|429|per-day|exceeded/i.test(lastError)
+    ? "The AI is at its daily/usage limit right now. Please try again later."
+    : "AI request failed. Please try again in a moment.";
+  res.status(502).json({ error: friendly, detail: lastError });
 };
+
+function buildAttempts() {
+  const attempts = [];
+  if (process.env.GROQ_API_KEY) {
+    GROQ_MODELS.forEach((m) => attempts.push({
+      url: "https://api.groq.com/openai/v1/chat/completions",
+      key: process.env.GROQ_API_KEY, model: m,
+    }));
+  }
+  if (process.env.OPENROUTER_API_KEY) {
+    OPENROUTER_MODELS.forEach((m) => attempts.push({
+      url: "https://openrouter.ai/api/v1/chat/completions",
+      key: process.env.OPENROUTER_API_KEY, model: m,
+    }));
+  }
+  return attempts;
+}
+
+async function callChat(url, key, model, prompt) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PER_REQUEST_TIMEOUT_MS);
+  try {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
+      body: JSON.stringify({ model, messages: [{ role: "user", content: prompt }] }),
+      signal: controller.signal,
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      throw new Error((data.error && data.error.message) || ("HTTP " + r.status));
+    }
+    return (
+      (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || ""
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 const NAME_DATE = '<p class="ws-name">Name: ______________&nbsp;&nbsp;&nbsp;Date: ______________</p>';
 
@@ -281,28 +324,6 @@ ${NAME_DATE}
 </ol>`;
 }
 
-async function callOpenRouter(key, model, prompt) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), PER_MODEL_TIMEOUT_MS);
-  try {
-    const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
-      body: JSON.stringify({ model, messages: [{ role: "user", content: prompt }] }),
-      signal: controller.signal,
-    });
-    const data = await r.json();
-    if (!r.ok) {
-      throw new Error((data.error && data.error.message) || "OpenRouter request failed");
-    }
-    return (
-      (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || ""
-    );
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 function stripCodeFences(text) {
   return String(text)
     .replace(/^\s*```(?:html)?\s*/i, "")
@@ -317,7 +338,7 @@ function demoSample(grade, subject, topic) {
     <h2 class="ws-title">${esc(topic)}</h2>
     <p class="ws-instructions">Read the passage. Then answer the questions.</p>
     ${NAME_DATE}
-    <div class="ws-passage"><p>This is a DEMO passage about "${esc(topic)}". Add an OPENROUTER_API_KEY on the server to generate real content.</p></div>
+    <div class="ws-passage"><p>This is a DEMO passage about "${esc(topic)}". Add an AI key on the server to generate real content.</p></div>
     <ol class="ws-questions"><li>Sample question (1)</li><li>Sample question (2)</li><li>Sample question (3)</li></ol>
     <hr class="ws-pagebreak">
     <h3 class="ws-answers-title">Answer Key</h3>
@@ -328,7 +349,7 @@ function demoSample(grade, subject, topic) {
     <h2 class="ws-title">Writing Prompt</h2>
     <p class="ws-instructions">Plan your ideas, then write your response on the lines below.</p>
     ${NAME_DATE}
-    <div class="ws-prompt"><p>DEMO prompt about "${esc(topic)}". Add an OPENROUTER_API_KEY to generate real content.</p></div>
+    <div class="ws-prompt"><p>DEMO prompt about "${esc(topic)}". Add an AI key to generate real content.</p></div>
     <div class="ws-lines"></div>`;
   }
   if (s.indexOf("spell") >= 0 || s.indexOf("phonic") >= 0 || s.indexOf("vocab") >= 0) {
