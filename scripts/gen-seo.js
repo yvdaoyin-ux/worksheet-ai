@@ -100,7 +100,7 @@ const resultModal = `
     <section id="resultWrap" class="result-wrap" hidden>
       <div id="upsellBar" class="upsell no-print" hidden>
         <span>\u{1F513} Free preview — your worksheet has a watermark</span>
-        <button id="upsellBtn" type="button">Remove watermark &amp; go unlimited — $6.90 (30% off)</button>
+        <button id="upsellBtn" type="button">Remove watermark &amp; go unlimited — $6.93 (30% off)</button>
       </div>
       <div class="toolbar no-print">
         <button id="printBtn" type="button">\u{1F5A8}\u{FE0F} Print / Save as PDF</button>
@@ -113,14 +113,14 @@ const paywall = `
   <div id="paywall" class="modal-backdrop no-print" hidden>
     <div class="modal">
       <h2>Unlock unlimited worksheets</h2>
-      <p class="price"><s>$9.90</s> $6.90 — one-time. 30% off. No subscription.</p>
+      <p class="price"><s>$9.90</s> $6.93 — one-time. 30% off. No subscription.</p>
       <ul>
         <li>Unlimited generation (no daily limit)</li>
         <li>No watermark</li>
         <li>Math, Reading &amp; Spelling, Grades K–5</li>
         <li>Instant print / PDF — forever</li>
       </ul>
-      <a id="gumroadBtn" class="buy-btn" href="#" target="_blank" rel="noopener">Buy on Gumroad — $6.90 (30% off)</a>
+      <a id="gumroadBtn" class="buy-btn" href="#" target="_blank" rel="noopener">Buy on Gumroad — $6.93 (30% off)</a>
       <p class="trust">Secure checkout via Gumroad · no account needed</p>
       <div class="divider">Already purchased? Enter your key below</div>
       <input id="licenseInput" type="text" placeholder="Paste your license key" autocomplete="off" />
@@ -159,7 +159,7 @@ function renderPage(p) {
   <meta property="og:url" content="${url}" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="${url}" />
-  <link rel="stylesheet" href="/app.css?v=13" />
+  <link rel="stylesheet" href="/app.css?v=14" />
 </head>
 <body>
   <div class="wrap">
@@ -186,16 +186,16 @@ ${resultModal}
       <ul>${related}<li><a href="/">All worksheets →</a></li></ul>
     </section>
 
-    <p class="trustbar">Free to try · 2 worksheets a day · no signup · unlimited for $6.90 once</p>
+    <p class="trustbar">Free to try · 2 worksheets a day · no signup · unlimited for $6.93 once</p>
 
     <footer class="site no-print">
-      <p><strong>Unlimited printable worksheets — $6.90 once (30% off).</strong></p>
+      <p><strong>Unlimited printable worksheets — $6.93 once (30% off).</strong></p>
       <p class="about">Made by an independent developer — every purchase keeps the servers running and funds new features. Thank you for the support!</p>
       <p><a href="/">WorksheetAI home</a> · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a></p>
     </footer>
   </div>
 ${paywall}
-  <script src="/app.js?v=13" defer></script>
+  <script src="/app.js?v=14" defer></script>
 </body>
 </html>
 `;
