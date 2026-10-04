@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 1200px; height: 630px; overflow: hidden;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    background: linear-gradient(135deg, #2f6fed 0%, #1f55c4 100%);
+    color: #fff; display: flex;
+  }
+  .left { flex: 1.05; padding: 64px 20px 64px 72px; display: flex; flex-direction: column; justify-content: center; }
+  .brand { font-size: 60px; font-weight: 800; letter-spacing: -1px; }
+  .brand span { color: #cfe0ff; }
+  .headline { font-size: 40px; font-weight: 700; line-height: 1.2; margin: 26px 0 10px; }
+  .sub { font-size: 23px; color: #dbe6ff; }
+  .chips { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+  .chip { background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.35); border-radius: 999px; padding: 9px 18px; font-size: 19px; }
+  .url { margin-top: 34px; font-size: 22px; color: #dbe6ff; }
+  .right { flex: 0.95; display: flex; align-items: center; justify-content: center; }
+  .sheet { background: #fff; color: #16202e; width: 420px; border-radius: 14px; padding: 30px 34px; box-shadow: 0 24px 60px rgba(0,0,0,0.35); font-family: Georgia, serif; }
+  .sheet h3 { font-family: "Segoe UI", sans-serif; font-size: 22px; text-align: center; margin-bottom: 4px; }
+  .sheet .meta { font-family: "Segoe UI", sans-serif; font-size: 12px; color: #7b8798; text-align: center; margin-bottom: 18px; }
+  .sheet ol { font-size: 19px; line-height: 2.1; padding-left: 26px; }
+  .frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; line-height: 1.05; font-size: 0.9em; margin: 0 2px; }
+  .frac b { border-bottom: 1.5px solid currentColor; padding: 0 4px; font-weight: 400; }
+  .bar { display: flex; width: 180px; height: 26px; border: 2px solid #33415a; border-radius: 4px; overflow: hidden; margin-top: 8px; }
+  .bar i { flex: 1; border-right: 2px solid #33415a; }
+  .bar i:last-child { border-right: none; }
+  .bar i.fill { background: #cfe0ff; }
+</style>
+</head>
+<body>
+  <div class="left">
+    <div class="brand">Worksheet<span>AI</span></div>
+    <div class="headline">Printable worksheets with answer keys — in 30 seconds</div>
+    <div class="sub">For homeschool parents, K–5 teachers &amp; tutors</div>
+    <div class="chips">
+      <span class="chip">Number lines</span>
+      <span class="chip">Fraction bars</span>
+      <span class="chip">Column math</span>
+      <span class="chip">Answer keys</span>
+    </div>
+    <div class="url">worksheet-ai-l1td.vercel.app</div>
+  </div>
+  <div class="right">
+    <div class="sheet">
+      <h3>Fractions — Grade 3</h3>
+      <div class="meta">Name: ______   Date: ______   Score: ___</div>
+      <ol>
+        <li><span class="frac"><b>1</b><b>4</b></span> + <span class="frac"><b>2</b><b>4</b></span> = ___</li>
+        <li>Shade <span class="frac"><b>3</b><b>4</b></span>:
+          <div class="bar"><i class="fill"></i><i class="fill"></i><i class="fill"></i><i></i></div>
+        </li>
+        <li>Simplify <span class="frac"><b>6</b><b>8</b></span> = ___</li>
+      </ol>
+    </div>
+  </div>
+</body>
+</html>
