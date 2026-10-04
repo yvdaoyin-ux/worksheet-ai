@@ -234,8 +234,23 @@
     const cells = digits.map((d) => "<td>" + d + "</td>").join("");
     return '<div class="viz viz-pv"><table><thead><tr>' + heads + "</tr></thead><tbody><tr>" + cells + "</tr></tbody></table></div>";
   }
-  function buildVisual(type, params) {
+  function organizerHTML(kind) {
+    const k = String(kind || "").toLowerCase();
+    let rows;
+    if (k.indexOf("story") >= 0) rows = ["Characters", "Setting", "Problem", "Solution"];
+    else if (k.indexOf("sequence") >= 0 || k.indexOf("first") >= 0) rows = ["First", "Next", "Then", "Last"];
+    else if (k.indexOf("kwl") >= 0) rows = ["K \u2014 What I Know", "W \u2014 What I Want to Know", "L \u2014 What I Learned"];
+    else if (k.indexOf("compare") >= 0 || k.indexOf("venn") >= 0) rows = ["Alike", "Different"];
+    else rows = ["Main Idea", "Detail 1", "Detail 2", "Detail 3"];
+    const boxes = rows.map((t) =>
+      '<div class="org-box"><span class="org-title">' + t + '</span><span class="org-lines"></span></div>'
+    ).join("");
+    return '<div class="viz viz-organizer">' + boxes + "</div>";
+  }
+
+  function buildVisual(type, params, kind) {
     const t = String(type || "").toLowerCase();
+    if (t.indexOf("organizer") >= 0 || t.indexOf("graphic") >= 0) return organizerHTML(kind);
     if (t.indexOf("line") >= 0) return numberLineHTML(params);
     if (t.indexOf("bar") >= 0) return fractionBarHTML(params);
     if (t.indexOf("circle") >= 0 || t.indexOf("pie") >= 0) return fractionCircleHTML(params);
@@ -255,7 +270,7 @@
         min: a("min", 0), max: a("max", 1), ticks: i("ticks", 4), points,
         num: i("num", 1), den: i("den", 4), count: i("count", 5),
         rows: i("rows", 3), cols: i("cols", 4), number: i("number", 345),
-      });
+      }, el.getAttribute("data-kind"));
       if (html) el.innerHTML = html; else el.remove();
     }
   }

@@ -263,3 +263,10 @@ footer.site strong { color: var(--ink); }
 /* recent worksheets */
 .recent { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 14px 0 0; }
 .recent-label { font-size: 13px; font-weight: 700; color: var(--muted); }
+
+/* reading/science graphic organizers */
+.viz-organizer { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 620px; }
+.viz-organizer .org-box { border: 1.5px solid var(--ink2); border-radius: 6px; padding: 8px 10px; min-height: 64px; }
+.viz-organizer .org-title { display: block; font-size: 12px; font-weight: 800; color: #2b3a52; margin-bottom: 6px; }
+.viz-organizer .org-lines { display: block; height: 32px; background-image: repeating-linear-gradient(to bottom, transparent 0 15px, #d7dee9 15px 16px); }
+@media (max-width: 560px) { .viz-organizer { grid-template-columns: 1fr; } }

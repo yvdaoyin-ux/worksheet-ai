@@ -201,6 +201,7 @@ STRUCTURE — Reading comprehension (Common Core Reading Literature/Informationa
 - Write an ORIGINAL, age-appropriate passage (never copy a published text).
   Length by grade: K–1 ≈ 40–60 words; grades 2–3 ≈ 90–140 words; grades 4–5 ≈ 160–220 words.
 - Provide EXACTLY ${count} comprehension questions (literal, main idea, and at least one "how do you know / why").
+- After the questions, add ONE graphic organizer that fits the passage.
 
 OUTPUT (exact structure)
 <h2 class="ws-title">Title</h2>
@@ -212,6 +213,7 @@ ${NAME_DATE}
 <ol class="ws-questions">
   <li>…</li>
 </ol>
+<div class="ws-visual" data-visual="organizer" data-kind="main-idea"></div>
 <hr class="ws-pagebreak">
 <h3 class="ws-answers-title">Answer Key</h3>
 <ol class="ws-answers">
@@ -328,6 +330,7 @@ ${NAME_DATE}
 <ol class="ws-questions">
   <li>…</li>  (EXACTLY ${count} questions: recall + explain WHY)
 </ol>
+<div class="ws-visual" data-visual="organizer" data-kind="kwl"></div>
 <hr class="ws-pagebreak">
 <h3 class="ws-answers-title">Answer Key</h3>
 <ol class="ws-answers">
