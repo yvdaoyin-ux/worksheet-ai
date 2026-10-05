@@ -23,6 +23,12 @@
 
   const today = () => new Date().toISOString().slice(0, 10);
   const countKey = () => "wsai_count_" + today();
+  // Sheets are generated one request at a time, but a 10-sheet pack or a
+  // 3-level set still arrives as a burst. Groq's free tier caps TOKENS PER
+  // MINUTE, so an unpaced burst can trip a 429 mid-set. A short pause between
+  // sheets keeps a set completing instead of stopping half-built.
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const BETWEEN_SHEETS_MS = 1200;
 
   // plan: "free" | "basic" | "pro" (old single-flag installs are migrated to "basic")
   function plan() {
@@ -109,6 +115,12 @@
       b.type = "button"; b.className = "chip";
       b.textContent = (it.subject ? it.subject + ": " : "") + it.topic;
       b.addEventListener("click", () => {
+        // Show a stored sheet AND make it the one the level-set button acts on.
+        // Without this the button would re-level whatever was generated last,
+        // i.e. the wrong worksheet.
+        lastSheetHtml = it.html;
+        lastIsSingle = true;
+        lastCtx = { grade: it.grade || "", subject: it.subject || "", topic: it.topic || "" };
         paintWorksheet(it.html);
         $("resultWrap").scrollIntoView({ behavior: "smooth", block: "start" });
       });
@@ -209,6 +221,16 @@
       rg.textContent = "\u{1F504} Another version";
       rg.addEventListener("click", () => runGenerate(true));
       toolbar.insertBefore(rg, toolbar.firstChild);
+    }
+    if (toolbar && !$("levelSetBtn")) {
+      const lb = document.createElement("button");
+      lb.type = "button";
+      lb.id = "levelSetBtn";
+      lb.hidden = true;
+      lb.title = "Make an easier and a harder version of this same worksheet";
+      lb.textContent = "\u{1F39A}\uFE0F Easier + harder version";
+      lb.addEventListener("click", runLevelSet);
+      toolbar.insertBefore(lb, $("regenBtn") ? $("regenBtn").nextSibling : toolbar.firstChild);
     }
 
     const recent = document.createElement("div");
@@ -611,6 +633,8 @@
       wm.remove();
     }
     if ($("regenBtn")) $("regenBtn").hidden = false;
+    // The level-set button only makes sense while ONE sheet is on screen.
+    if ($("levelSetBtn")) $("levelSetBtn").hidden = !(lastIsSingle && lastSheetHtml);
     $("upsellBar").hidden = isUnlocked();
     $("resultWrap").hidden = false;
   }
@@ -684,14 +708,25 @@
       (m, a, t, b) => a + t.trim() + " \u2014 Sheet " + i + " of " + n + b
     );
   }
-  function labelKey(key, i) {
+  function labelKeyWith(key, label) {
     return String(key).replace(
       /(<h3[^>]*class="ws-answers-title"[^>]*>)([\s\S]*?)(<\/h3>)/i,
-      (m, a, t, b) => a + "Answer Key \u2014 Sheet " + i + b
+      (m, a, t, b) => a + "Answer Key \u2014 " + label + b
+    );
+  }
+  function labelKey(key, i) {
+    return labelKeyWith(key, "Sheet " + i);
+  }
+  function labelLevel(html, label) {
+    return String(html).replace(
+      /(<h2[^>]*class="ws-title"[^>]*>)([\s\S]*?)(<\/h2>)/i,
+      (m, a, t, b) => a + t.trim() + " \u2014 " + label + b
     );
   }
 
   function paintPack(sheets, stopped, requested) {
+    lastIsSingle = false; // the visible document is a set, not one sheet
+    lastSheetHtml = "";
     const parts = sheets.map((s) => splitSheet(s.html));
     const n = parts.length;
     const body = parts
@@ -717,6 +752,108 @@
     if (stopped) { try { openPaywall("pack_limit"); } catch (e) { /* ignore */ } }
   }
 
+  // ============ level sets: one worksheet, three difficulties ================
+  // A worksheet library sells three DIFFERENT worksheets. What a family with
+  // children at different levels actually needs is the SAME worksheet at three
+  // levels, so one lesson can be taught once and marked once. Nothing in the
+  // category offers that, and a library structurally cannot.
+  let lastSheetHtml = "";
+  let lastIsSingle = false;
+  // The grade/subject/topic the sheet on screen was actually generated for.
+  // Taken at generation time, not read off the form later, because the visitor
+  // may have edited the topic box in the meantime.
+  let lastCtx = { grade: "", subject: "", topic: "" };
+
+  async function relevelOnce(level) {
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mode: "relevel",
+        grade: lastCtx.grade || $("grade").value,
+        subject: lastCtx.subject || $("subject").value,
+        topic: lastCtx.topic || $("topic").value.trim(),
+        level: level,
+        source: lastSheetHtml,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || "Request failed");
+    return data;
+  }
+
+  function paintLevelSet(sheets, stopped) {
+    const parts = sheets.map((s) => {
+      const sp = splitSheet(s.html);
+      return { label: s.label, body: sp.body, key: sp.key };
+    });
+    const body = parts
+      .map((p) => '<section class="ws-pack-sheet">' + labelLevel(p.body, p.label) + "</section>")
+      .join("");
+    const keys = parts
+      .map((p) => (p.key ? '<section class="ws-pack-key">' + labelKeyWith(p.key, p.label) + "</section>" : ""))
+      .join("");
+    const head =
+      '<p class="ws-pack-head">' + (lastCtx.grade || $("grade").value) + " \u00b7 " +
+      (lastCtx.subject || $("subject").value) + " \u00b7 " +
+      (lastCtx.topic || $("topic").value.trim()) + " \u2014 the same worksheet at three levels</p>";
+    lastSheetHtml = "";
+    lastIsSingle = false;
+    paintWorksheet(
+      head +
+        '<section class="ws-pack-body">' + body + "</section>" +
+        (keys ? '<hr class="ws-pagebreak">' + '<section class="ws-pack-keys">' + keys + "</section>" : "")
+    );
+    const note = $("note");
+    if (note) {
+      note.textContent = stopped
+        ? "Made " + parts.length + " of 3 levels \u2014 you hit today's free limit. Upgrade to finish the set."
+        : parts.length + " levels ready: Easier / Standard / Challenge \u2014 print them as one set";
+    }
+    if (stopped) { try { openPaywall("levelset_limit"); } catch (e) { /* ignore */ } }
+  }
+
+  async function runLevelSet() {
+    if (!lastSheetHtml || !lastIsSingle) return;
+    const btn = $("levelSetBtn");
+    const note = $("note");
+    const orig = btn.textContent;
+    const out = [{ label: "Standard", html: lastSheetHtml }];
+    let stopped = false;
+    btn.disabled = true;
+    track("levelset_start", { subject: $("subject").value, grade: $("grade").value, plan: plan() });
+    try {
+      for (const pair of [["easier", "Easier"], ["challenge", "Challenge"]]) {
+        if (!canGenerate()) { stopped = true; break; }
+        btn.textContent = "Making the " + pair[1].toLowerCase() + " version\u2026";
+        if (note) note.textContent = "Rewriting this exact sheet at a " + pair[1].toLowerCase() + " level\u2026";
+        try {
+          const d = await relevelOnce(pair[0]);
+          out.push({ label: pair[1], html: d.html });
+          consumeCredit();
+          updateQuota();
+          await sleep(BETWEEN_SHEETS_MS);
+        } catch (e) {
+          if (out.length === 1) throw e;
+          break; // keep whatever we managed to build
+        }
+      }
+      if (out.length === 1) throw new Error("The AI was busy \u2014 please try again in a few seconds.");
+      const ordered = ["Easier", "Standard", "Challenge"]
+        .map((l) => out.filter((o) => o.label === l)[0])
+        .filter(Boolean);
+      paintLevelSet(ordered, stopped);
+      track("levelset_ok", { made: ordered.length, stopped: stopped });
+    } catch (err) {
+      track("levelset_err", { message: String(err.message || err).slice(0, 120) });
+      alert("Something went wrong: " + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = orig;
+      updateQuota();
+    }
+  }
+
   async function runPack(n) {
     const topic = $("topic").value.trim();
     if (!topic) { alert("Please enter a topic (or tap a suggestion)."); return; }
@@ -739,6 +876,7 @@
           sheets.push(await generateOnce(topic));
           consumeCredit();
           updateQuota();
+          await sleep(BETWEEN_SHEETS_MS);
         } catch (e) {
           // A single busy model shouldn't destroy a half-built pack.
           if (!sheets.length) throw e;
@@ -778,6 +916,9 @@
     btn.textContent = "Generating…";
     try {
       const data = await generateOnce(topic);
+      lastSheetHtml = data.html; // kept so "easier + harder" can re-level THIS sheet
+      lastIsSingle = true;
+      lastCtx = { grade: $("grade").value, subject: $("subject").value, topic: topic };
       renderResult(data.html, data.demo);
       try { saveHist({ topic: topic, subject: $("subject").value, grade: $("grade").value, html: data.html }); } catch (e) { /* ignore */ }
       renderHist();

@@ -9,83 +9,36 @@ const ROOT = path.resolve(__dirname, "..");
 const OUT_DIR = path.join(ROOT, "worksheets");
 const DOMAIN = "https://worksheet-ai-l1td.vercel.app";
 
-// ---- taxonomy ----
-const gradeByNum = {
-  K: ["Kindergarten", "kindergarten"],
-  "1": ["1st Grade", "1st-grade"],
-  "2": ["2nd Grade", "2nd-grade"],
-  "3": ["3rd Grade", "3rd-grade"],
-  "4": ["4th Grade", "4th-grade"],
-  "5": ["5th Grade", "5th-grade"],
-};
-const subjects = [
-  ["Math", "math", "math"],
-  ["Reading", "reading", "reading comprehension"],
-  ["Spelling", "spelling", "spelling"],
-  ["Vocabulary", "vocabulary", "vocabulary"],
-  ["Grammar", "grammar", "grammar"],
-  ["Writing", "writing", "writing"],
-  ["Science", "science", "science"],
-];
+// ---- taxonomy (shared with gen-samples.js so the two can't drift) ----
+const { pages, gradeByNum, subjects } = require("./pages");
+const { hydrate } = require("./visuals");
 
-// [gradeNum, subject, topicLabel, generatorTopic]
-const topics = [
-  ["K", "Math", "Counting", "Kindergarten counting to 20"],
-  ["K", "Reading", "Sight Words", "Kindergarten sight words"],
-  ["K", "Spelling", "Letter Sounds", "Kindergarten beginning letter sounds"],
-  ["1", "Math", "Addition", "1st Grade addition to 20"],
-  ["1", "Math", "Subtraction", "1st Grade subtraction within 20"],
-  ["1", "Reading", "Sight Words", "1st Grade sight words"],
-  ["1", "Spelling", "Phonics", "1st Grade phonics"],
-  ["2", "Math", "Fractions", "2nd Grade fractions"],
-  ["2", "Math", "Addition With Regrouping", "2nd Grade addition with regrouping"],
-  ["2", "Math", "Place Value", "2nd Grade place value"],
-  ["2", "Reading", "Reading Comprehension", "2nd Grade reading comprehension"],
-  ["3", "Math", "Multiplication", "3rd Grade multiplication"],
-  ["3", "Math", "Division", "3rd Grade division"],
-  ["3", "Math", "Fractions", "3rd Grade fractions"],
-  ["4", "Math", "Long Division", "4th Grade long division"],
-  ["4", "Math", "Fractions", "4th Grade fractions"],
-  ["5", "Math", "Decimals", "5th Grade decimals"],
-  ["5", "Math", "Fractions", "5th Grade fractions"],
-  ["5", "Spelling", "Vocabulary", "5th Grade vocabulary"],
-];
-
-const slugify = (s) =>
-  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-
-// ---- collect pages ----
-const pages = [];
-const seen = new Set();
-function addPage(p) {
-  if (seen.has(p.slug)) return;
-  seen.add(p.slug);
-  pages.push(p);
-}
-
-for (const [num, [gl, gs]] of Object.entries(gradeByNum)) {
-  for (const [subj, sslug, stopic] of subjects) {
-    addPage({
-      slug: `${gs}-${sslug}-worksheets`,
-      grade: num,
-      gradeLabel: gl,
-      subject: subj,
-      genTopic: `${gl} ${stopic}`,
-      h1: `Free ${gl} ${subj} Worksheets`,
-    });
+// ---- real sample worksheet, embedded in every landing page ----
+// Without this the pages are doorway pages: an H1 promising "Free Worksheets"
+// and no worksheet. scripts/gen-samples.js writes samples/<slug>.html; we bake
+// the artwork in (see scripts/visuals.js) so it survives without JavaScript and
+// is visible to Google.
+const SAMPLES_DIR = path.join(ROOT, "samples");
+function sampleBlock(p) {
+  const file = path.join(SAMPLES_DIR, p.slug + ".html");
+  if (!fs.existsSync(file)) return "";
+  let html = hydrate(fs.readFileSync(file, "utf8"));
+  const m = html.match(/<hr[^>]*class="ws-pagebreak"[^>]*>/i);
+  let body = html, key = "";
+  if (m) {
+    body = html.slice(0, m.index);
+    key = html.slice(m.index + m[0].length);
   }
-}
-for (const [num, subj, topicLabel, genTopic] of topics) {
-  const gl = gradeByNum[num][0];
-  const gs = gradeByNum[num][1];
-  addPage({
-    slug: `${gs}-${slugify(topicLabel)}-worksheets`,
-    grade: num,
-    gradeLabel: gl,
-    subject: subj,
-    genTopic,
-    h1: `Free ${gl} ${topicLabel} Worksheets`,
-  });
+  const subj = p.subject.toLowerCase();
+  return `
+    <section class="sample-block">
+      <h2>A real ${p.gradeLabel} ${subj} worksheet you can print right now</h2>
+      <p class="sample-sub">This is a live example, not a mockup — the same layout and answer key you get in the tool. Print it and use it today, no signup.</p>
+      <div class="worksheet sample-worksheet">${body}</div>
+      ${key ? `<details class="sample-key"><summary>Show the answer key</summary><div class="worksheet sample-worksheet">${key}</div></details>` : ""}
+      <p class="sample-cta">Want a different topic? <a href="#genForm">Type it above</a> and press Generate — the first ${p.subject === "Math" ? "2" : "1"} each day is free.</p>
+    </section>
+`;
 }
 
 // ---- templates ----
@@ -176,6 +129,25 @@ function renderPage(p) {
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="${url}" />
   <link rel="stylesheet" href="/app.css?v=22" />
+  <style>
+    .sample-block { margin: 26px 0 6px; }
+    .sample-block h2 { text-align: center; font-size: 20px; margin: 0 0 4px; }
+    .sample-sub { text-align: center; color: var(--muted); margin: 0 0 16px; font-size: 14px; }
+    .sample-worksheet { font-size: 13px; padding: 20px 22px; }
+    .sample-worksheet .ws-title { font-size: 17px; }
+    .sample-worksheet .ws-instructions { font-size: 12px; margin-bottom: 10px; }
+    .sample-worksheet .ws-name { font-size: 11px; margin-bottom: 12px; gap: 8px; }
+    .sample-worksheet .ws-questions > li { font-size: 14px; line-height: 1.75; padding-left: 24px; margin-bottom: 10px; }
+    .sample-worksheet .ws-questions > li::before { left: 0; }
+    .sample-worksheet .ws-answers > li { font-size: 13px; margin-bottom: 4px; }
+    .sample-worksheet .viz-bar .bar { width: 180px; height: 26px; }
+    .sample-worksheet .viz-tenframe .tf-frame { grid-template-columns: repeat(5, 24px); grid-template-rows: repeat(2, 24px); }
+    .sample-worksheet .viz-numline { height: 60px; }
+    .sample-key { max-width: 660px; margin: 16px auto 0; font-size: 14px; }
+    .sample-key summary { cursor: pointer; font-weight: 700; color: #2b3a52; }
+    .sample-key .sample-worksheet { margin-top: 12px; }
+    .sample-cta { text-align: center; color: var(--muted); font-size: 14px; margin: 16px 0 0; }
+  </style>
 </head>
 <body>
   <div class="wrap">
@@ -185,6 +157,7 @@ function renderPage(p) {
 
     <h1 class="page-h1">${p.h1}</h1>
     <p class="lede">${lede}</p>
+${sampleBlock(p)}
 
     <form id="genForm" class="card no-print" data-grade="${p.grade}" data-subject="${p.subject}" data-topic="${p.genTopic}">
       <div class="grid">

@@ -28,6 +28,38 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (req.body.mode === "relevel") {
+    // Re-level an EXISTING worksheet: same skills, same question count, same
+    // order - only the numbers, scaffolding and wording change. This is the
+    // feature a worksheet library structurally cannot offer: a library sells
+    // you three DIFFERENT worksheets, not one worksheet at three levels.
+    const lvl = req.body.level === "challenge" ? "challenge" : "easier";
+    const source = String(req.body.source || "").slice(0, 14000);
+    if (!source || source.indexOf("ws-questions") < 0) {
+      res.status(400).json({ error: "Nothing to re-level." });
+      return;
+    }
+    const rl2 = await rateLimit(getClientIp(req));
+    if (!rl2.ok) {
+      res.status(429).json({ error: "You've reached today's limit. Please try again tomorrow." });
+      return;
+    }
+    const rp = buildRelevelPrompt(grade, subject, topic, lvl, source);
+    for (const a of buildAttempts()) {
+      try {
+        const raw = await callChat(a.url, a.key, a.model, rp);
+        const html = stripCodeFences(raw);
+        if (html && looksComplete(html)) {
+          const checked = await proofread(html, grade, subject, topic);
+          res.status(200).json({ html: checked.html, model: a.model, checked: checked.ran, level: lvl });
+          return;
+        }
+      } catch (e) { /* try next */ }
+    }
+    res.status(502).json({ error: "Could not build that version. Please try again." });
+    return;
+  }
+
   if (req.body.mode === "rewrite") {
     const item = String(req.body.item || "").slice(0, 800);
     if (!item) { res.status(400).json({ error: "Nothing to rewrite." }); return; }
@@ -477,6 +509,50 @@ ${item}
 Rewrite it as a SINGLE new question that tests the SAME skill but is clearer and different (new numbers or context). Return ONLY that one question as an HTML fragment using the SAME tags and class names as the original (do NOT wrap it in <li>). Keep math in LaTeX (\\frac, \\times, \\div) and never use $ as a math delimiter.`;
 }
 
+// Re-levels a whole worksheet. This is deliberately NOT a fresh generation:
+// the point is that question 3 of the Easier sheet and question 3 of the
+// Challenge sheet are the SAME question, so a parent can teach one lesson to
+// two children at different levels and mark both against one answer key.
+// A worksheet library structurally cannot do this - it sells three different
+// worksheets, not one worksheet at three levels.
+function buildRelevelPrompt(grade, subject, topic, level, source) {
+  const how = level === "easier"
+    ? [
+        "Use SMALLER numbers and simpler wording.",
+        "Add scaffolding: give the first step, or state the method in the instruction.",
+        "Use short, concrete sentences and familiar contexts.",
+        "If a question needs several steps, reduce it to one step.",
+      ]
+    : [
+        "Use LARGER numbers and less obvious wording.",
+        "Remove scaffolding: no hint about the method, no given first step.",
+        "Where it fits, add ONE extra step to the same skill (a two-step version).",
+        "Use a less obvious context or a slightly more demanding phrasing.",
+      ];
+  return `You are an experienced U.S. elementary school teacher.
+
+Below is a complete Grade ${grade} ${subject} worksheet on "${topic}".
+Produce the ${level.toUpperCase()} version of THIS SAME worksheet.
+
+HOW TO CHANGE IT
+${how.map((h) => "- " + h).join("\n")}
+
+WHAT MUST NOT CHANGE
+- The SKILL tested, question by question. Question 3 must still test what question 3 tested.
+- The NUMBER of questions and their ORDER. Question 3 stays question 3.
+- The HTML structure and every class name: same tags, same <ol class="ws-questions">, same <hr class="ws-pagebreak">, same Answer Key block.
+- Math stays in LaTeX (\\frac{1}{4}, \\times, \\div). Never use the dollar sign as a math delimiter.
+- Any <div class="ws-visual" data-visual="..."> line stays as it is, unless its numbers must change to match the new question.
+
+ALSO
+- Change the title so it ends with " \u2014 ${level === "easier" ? "Easier" : "Challenge"}".
+- Recompute the ENTIRE Answer Key for the new questions, keeping the same brief reasoning style.
+- Return ONLY the HTML fragment. No <html>, no markdown, no code fences.
+
+WORKSHEET TO RE-LEVEL
+${source}`;
+}
+
 function buildPrompt(grade, subject, topic, count, level, style) {
   const s = String(subject || "").toLowerCase();
   const head = `You are an experienced U.S. elementary school teacher creating a printable worksheet for a homeschool family.
@@ -770,6 +846,7 @@ function esc(s) {
 // Exposed only so local tooling (prompt benchmarks + answer-check tests) can
 // reuse the EXACT logic the server runs. Vercel uses the default export above.
 module.exports._buildPrompt = buildPrompt;
+module.exports._buildRelevelPrompt = buildRelevelPrompt;
 module.exports._checkMath = checkMath;
 module.exports._proofread = proofread;
 module.exports._applyFixes = applyFixes;
