@@ -321,6 +321,40 @@ footer.site strong { color: var(--ink); }
   );
 }
 
+/* 30-day money-back guarantee. Deliberately NOT muted: research on risk
+   reversal is consistent that a guarantee buried in small grey footer text
+   performs the same as not offering one. It has to sit where the doubt is. */
+.guarantee {
+  margin: 12px 0 0;
+  padding: 9px 12px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f6e56;
+  background: #e1f5ee;
+  border: 1px solid #9fe1cb;
+  border-radius: 8px;
+}
+
+/* Answers "is it cheap for a reason?" BEFORE the buyer assumes the worst.
+   Consumers hold two competing beliefs about a low price - "good value" and
+   "low quality" - and whichever one is primed first tends to win. So we lead
+   with how the thing is made, and only then explain why it costs so little. */
+.why-cheap {
+  max-width: 620px;
+  margin: 18px auto 0;
+  padding: 14px 16px;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: #3a4456;
+}
+.why-cheap p { margin: 0 0 10px; }
+.why-cheap p:last-child { margin-bottom: 0; }
+.why-cheap strong { color: #16202e; }
+
 /* recent worksheets */
 .recent { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 14px 0 0; }
 .recent-label { font-size: 13px; font-weight: 700; color: var(--muted); }

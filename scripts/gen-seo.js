@@ -133,6 +133,7 @@ const paywall = `
       </ul>
       <a id="gumroadMonthlyBtn" class="buy-btn buy-btn-alt" href="#" target="_blank" rel="noopener">Go Pro monthly</a>
 
+      <p class="guarantee">30-day money-back guarantee — if it isn't right for you, we refund you in full.</p>
       <p class="plan-note">Both plans keep math unlimited. Cancel Pro any time.</p>
       <p class="trust">Secure checkout via Gumroad · no account needed</p>
       <div class="divider">Already purchased? Enter your key below</div>
@@ -172,7 +173,7 @@ function renderPage(p) {
   <meta property="og:url" content="${url}" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="${url}" />
-  <link rel="stylesheet" href="/app.css?v=20" />
+  <link rel="stylesheet" href="/app.css?v=21" />
 </head>
 <body>
   <div class="wrap">
@@ -209,7 +210,7 @@ ${resultModal}
       <p id="homeSubMsg" class="msg"></p>
     </section>
 
-    <p class="trustbar">2 math worksheets a day free · 1 in other subjects · no signup · Basic (unlimited math) $6.93 <strong>once — no renewal</strong> · Pro (all subjects) monthly</p>
+    <p class="trustbar">2 math worksheets a day free · 1 in other subjects · <strong>30-day money-back guarantee</strong> · no signup · Basic (unlimited math) $6.93 <strong>once — no renewal</strong> · Pro (all subjects) monthly</p>
 
     <footer class="site no-print">
       <p><strong>Unlimited printable worksheets — $6.93 once (30% off).</strong></p>
@@ -218,7 +219,7 @@ ${resultModal}
     </footer>
   </div>
 ${paywall}
-  <script src="/app.js?v=20" defer></script>
+  <script src="/app.js?v=21" defer></script>
 </body>
 </html>
 `;
