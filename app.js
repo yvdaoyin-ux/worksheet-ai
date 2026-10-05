@@ -2,8 +2,14 @@
 // Optional prefill: put data-grade / data-subject / data-topic on the <form id="genForm">.
 (function () {
   const GUMROAD_URL = "https://219809065360.gumroad.com/l/orqxtr?code=LAUNCH30";
-  const FREE_LIMIT = 2; // free worksheets per day
+  // Free tier: a small daily allowance AND a small lifetime allowance, whichever
+  // runs out first. Two worksheets a day was enough for real daily homeschool use,
+  // which left no reason to pay.
+  const FREE_DAILY_LIMIT = 1; // free worksheets per day
+  const FREE_TOTAL_LIMIT = 3; // free worksheets ever, per browser
   const PREF_KEY = "wsai_pref";
+  const TOTAL_KEY = "wsai_total";
+  const SUB_KEY = "wsai_subbed";
 
   const $ = (id) => document.getElementById(id);
   if (!$("genForm")) return; // nothing to do on pages without the tool
@@ -13,6 +19,40 @@
   const isUnlocked = () => localStorage.getItem("wsai_unlocked") === "1";
   const getCount = () => parseInt(localStorage.getItem(countKey()) || "0", 10);
   const setCount = (n) => localStorage.setItem(countKey(), String(n));
+  const getTotal = () => parseInt(localStorage.getItem(TOTAL_KEY) || "0", 10);
+  const setTotal = (n) => localStorage.setItem(TOTAL_KEY, String(n));
+
+  function freeLeft() {
+    return Math.min(
+      Math.max(0, FREE_DAILY_LIMIT - getCount()),
+      Math.max(0, FREE_TOTAL_LIMIT - getTotal())
+    );
+  }
+  function canGenerate() {
+    return isUnlocked() || freeLeft() > 0;
+  }
+
+  // ---------------- analytics (no vendor needed; logs to /api/track) ----------------
+  function track(event, props) {
+    try {
+      const body = JSON.stringify({
+        event: event,
+        props: props || {},
+        path: location.pathname,
+        ref: document.referrer || "",
+      });
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon("/api/track", new Blob([body], { type: "application/json" }));
+      } else {
+        fetch("/api/track", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: body,
+          keepalive: true,
+        }).catch(function () {});
+      }
+    } catch (e) { /* analytics must never break the product */ }
+  }
 
   // ---------------- recent worksheets (localStorage) ----------------
   const HIST_KEY = "wsai_hist";
@@ -322,10 +362,16 @@
     const q = $("quota");
     if (!q) return;
     if (isUnlocked()) { q.textContent = "Pro: unlimited worksheets \u2714"; return; }
-    const left = Math.max(0, FREE_LIMIT - getCount());
-    q.textContent = "Free plan: " + left + " of " + FREE_LIMIT + " worksheets left today";
+    const totalLeft = Math.max(0, FREE_TOTAL_LIMIT - getTotal());
+    const todayLeft = Math.max(0, FREE_DAILY_LIMIT - getCount());
+    q.textContent =
+      "Free plan: " + totalLeft + " of " + FREE_TOTAL_LIMIT + " free worksheets left" +
+      (todayLeft > 0 ? " (\u2714 1 available today)" : " \u2014 come back tomorrow");
   }
-  function openPaywall() { $("paywall").hidden = false; }
+  function openPaywall(reason) {
+    track("paywall_open", { reason: reason || "unknown" });
+    $("paywall").hidden = false;
+  }
   function closePaywall() { $("paywall").hidden = true; }
 
   function makeTools(li) {
@@ -338,14 +384,93 @@
     edit.addEventListener("click", () => { li.contentEditable = "true"; li.focus(); });
     li.addEventListener("blur", () => { li.contentEditable = "false"; });
     const re = document.createElement("button");
-    re.type = "button"; re.title = "Rewrite this question"; re.textContent = "\u{1F504}";
-    re.addEventListener("click", () => rewriteItem(li, re));
+    re.type = "button";
+    const pro = isUnlocked();
+    re.title = pro ? "Rewrite this question" : "Rewrite this question (Pro)";
+    re.textContent = "\u{1F504}";
+    if (!pro) re.className = "pro-only";
+    re.addEventListener("click", () => {
+      if (!isUnlocked()) { openPaywall("rewrite"); return; }
+      rewriteItem(li, re);
+    });
     t.appendChild(edit); t.appendChild(re);
     li.appendChild(t);
   }
 
   function attachItemTools(box) {
     box.querySelectorAll(".ws-questions > li").forEach(makeTools);
+  }
+
+  function refreshItemTools() {
+    const box = $("result");
+    if (!box) return;
+    box.querySelectorAll(".li-tools").forEach((n) => n.remove());
+    attachItemTools(box);
+  }
+
+  // ---------------- email capture (the only durable asset a visitor leaves behind) ----------------
+  function buildSubscribeBox() {
+    if (document.getElementById("subBox")) return;
+    const box = document.createElement("div");
+    box.id = "subBox";
+    box.className = "sub-box no-print";
+    box.hidden = true;
+    box.innerHTML =
+      '<p class="sub-title">\u{1F4E9} Want a fresh worksheet pack every week?</p>' +
+      '<p class="sub-sub">Five printables with answer keys in one email. No spam, unsubscribe anytime.</p>' +
+      '<form id="subForm" class="sub-form">' +
+      '<input id="subEmail" type="email" placeholder="you@email.com" autocomplete="email" required />' +
+      '<button type="submit" id="subBtn">Send me packs</button>' +
+      '</form>' +
+      '<p id="subMsg" class="msg"></p>';
+    const rw = $("resultWrap");
+    if (rw && rw.parentNode) rw.parentNode.insertBefore(box, rw.nextSibling);
+    wireSubForm("subForm", "subEmail", "subBtn", "subMsg");
+  }
+
+  function maybeShowSubscribe() {
+    const box = $("subBox");
+    if (!box) return;
+    box.hidden = localStorage.getItem(SUB_KEY) === "1";
+  }
+
+  function wireSubForm(formId, inputId, btnId, msgId) {
+    const form = $(formId);
+    if (!form) return;
+    form.addEventListener("submit", (e) => submitSubscribe(e, inputId, btnId, msgId));
+  }
+
+  async function submitSubscribe(e, inputId, btnId, msgId) {
+    e.preventDefault();
+    const email = ($(inputId).value || "").trim();
+    const msg = $(msgId);
+    const btn = $(btnId);
+    if (!email) { msg.textContent = "Please enter your email."; return; }
+    btn.disabled = true; btn.textContent = "\u2026";
+    msg.className = "msg"; msg.textContent = "";
+    try {
+      const res = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email, source: location.pathname }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error((data && data.error) || "Could not sign you up.");
+      localStorage.setItem(SUB_KEY, "1");
+      msg.className = "msg ok";
+      msg.textContent = "\u2714 You're on the list \u2014 check your inbox soon.";
+      track("subscribe_ok", {});
+      setTimeout(() => {
+        if ($("subBox")) $("subBox").hidden = true;
+        if (msgId !== "subMsg" && msg.parentNode) msg.parentNode.hidden = true;
+      }, 2500);
+    } catch (err) {
+      msg.className = "msg";
+      msg.textContent = "\u2716 " + err.message;
+      track("subscribe_err", {});
+    } finally {
+      btn.disabled = false; btn.textContent = "Send me packs";
+    }
   }
 
   async function rewriteItem(li, btn) {
@@ -408,8 +533,9 @@
   async function runGenerate() {
     const topic = $("topic").value.trim();
     if (!topic) { alert("Please enter a topic (or tap a suggestion)."); return; }
-    if (!isUnlocked() && getCount() >= FREE_LIMIT) { openPaywall(); return; }
+    if (!canGenerate()) { openPaywall("quota"); return; }
     savePref();
+    track("generate_start", { subject: $("subject").value, grade: $("grade").value, pro: isUnlocked() });
 
     const btn = $("genBtn");
     btn.disabled = true;
@@ -433,9 +559,12 @@
       renderResult(data.html, data.demo);
       try { saveHist({ topic: topic, subject: $("subject").value, grade: $("grade").value, html: data.html }); } catch (e) { /* ignore */ }
       renderHist();
-      if (!isUnlocked()) setCount(getCount() + 1);
+      if (!isUnlocked()) { setCount(getCount() + 1); setTotal(getTotal() + 1); }
       updateQuota();
+      maybeShowSubscribe();
+      track("generate_ok", { subject: $("subject").value, demo: !!data.demo });
     } catch (err) {
+      track("generate_err", { message: String(err.message || err).slice(0, 120) });
       alert("Something went wrong: " + err.message + "\nFree models can be busy — please try again in a few seconds.");
     } finally {
       btn.disabled = false;
@@ -447,8 +576,7 @@
   $("printBtn").addEventListener("click", () => window.print());
   if ($("upsellBtn")) $("upsellBtn").addEventListener("click", openPaywall);
 
-  $("activateBtn").addEventListener("click", async () => {
-    const key = $("licenseInput").value.trim();
+  async function doActivate(key) {
     const msg = $("activateMsg");
     if (!key) { msg.textContent = "Please enter your license key."; return; }
     msg.textContent = "Checking…";
@@ -467,14 +595,32 @@
         const wm = box && box.querySelector(".watermark");
         if (wm) wm.remove();
         $("upsellBar").hidden = true;
+        refreshItemTools();
+        track("activate_ok", {});
         setTimeout(closePaywall, 900);
       } else {
         msg.textContent = "\u2716 " + (data.error || "That key is not valid.");
+        track("activate_fail", {});
       }
     } catch (err) {
       msg.textContent = "\u2716 Error: " + err.message;
     }
-  });
+  }
+
+  $("activateBtn").addEventListener("click", () => doActivate($("licenseInput").value.trim()));
+
+  // Gumroad can send buyers back with the key in the URL — activate it for them
+  // instead of making them copy/paste (fewer "I paid and it doesn't work" emails).
+  function autoActivateFromUrl() {
+    try {
+      const p = new URLSearchParams(location.search);
+      const key = p.get("license_key") || p.get("key") || p.get("lk");
+      if (!key || isUnlocked()) return;
+      const clean = key.trim();
+      $("licenseInput").value = clean;
+      doActivate(clean);
+    } catch (e) { /* ignore */ }
+  }
 
   $("closeModal").addEventListener("click", closePaywall);
   $("paywall").addEventListener("click", (e) => { if (e.target === $("paywall")) closePaywall(); });
@@ -499,5 +645,17 @@
   syncMathStyle();
 
   $("gumroadBtn").href = GUMROAD_URL;
+  $("gumroadBtn").addEventListener("click", () => track("buy_click", { from: "paywall" }));
+  if ($("upsellBtn")) $("upsellBtn").addEventListener("click", () => track("buy_click", { from: "upsell_bar" }));
+
+  buildSubscribeBox();
+  wireSubForm("homeSubForm", "homeSubEmail", "homeSubBtn", "homeSubMsg");
+  if (localStorage.getItem(SUB_KEY) === "1") {
+    const hb = $("homeSubBox");
+    if (hb) hb.hidden = true;
+  }
   updateQuota();
+
+  track("page_view", { pro: isUnlocked() });
+  autoActivateFromUrl();
 })();

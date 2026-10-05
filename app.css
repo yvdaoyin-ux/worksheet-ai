@@ -296,3 +296,14 @@ footer.site strong { color: var(--ink); }
 .li-tools button { font: inherit; font-size: 12px; line-height: 1; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 3px 6px; cursor: pointer; }
 .li-tools button:hover { border-color: var(--accent); }
 .ws-questions > li[contenteditable="true"] { outline: 2px dashed var(--accent); outline-offset: 4px; border-radius: 4px; }
+
+/* ---------- email capture ---------- */
+.sub-box { margin: 22px 0 0; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+.sub-title { margin: 0; font-size: 15px; font-weight: 800; }
+.sub-sub { margin: 4px 0 12px; font-size: 13px; color: var(--muted); }
+.sub-form { display: flex; gap: 8px; flex-wrap: wrap; }
+.sub-form input { flex: 1 1 220px; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; font-size: 14px; }
+.sub-form button { padding: 10px 16px; border: none; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 800; white-space: nowrap; }
+.sub-form button:hover { background: var(--accent-dark); }
+.msg.ok { color: #12805f; font-weight: 700; }
+.li-tools button.pro-only { opacity: .5; }

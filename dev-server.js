@@ -1,7 +1,8 @@
 // server.js — zero-dependency local dev server.
 // Lets you run the whole app with just `node server.js` (no Vercel CLI needed).
 // It loads .env, serves index.html, and routes /api/* to the same handlers
-// used in production (api/generate.js, api/verify-license.js).
+// used in production (api/generate.js, api/verify-license.js, api/track.js,
+// api/subscribe.js).
 
 const http = require("http");
 const fs = require("fs");
@@ -25,11 +26,15 @@ const path = require("path");
 
 const generate = require("./api/generate.js");
 const verifyLicense = require("./api/verify-license.js");
+const track = require("./api/track.js");
+const subscribe = require("./api/subscribe.js");
 
 const PORT = process.env.PORT || 3000;
 const ROUTES = {
   "/api/generate": generate,
   "/api/verify-license": verifyLicense,
+  "/api/track": track,
+  "/api/subscribe": subscribe,
 };
 
 function readBody(req) {

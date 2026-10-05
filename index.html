@@ -18,7 +18,7 @@
   <meta name="twitter:description" content="Type a topic → printable worksheet with answer key. Math K–5, free to try." />
   <meta name="twitter:image" content="https://worksheet-ai-l1td.vercel.app/og.png" />
   <link rel="canonical" href="https://worksheet-ai-l1td.vercel.app/" />
-  <link rel="stylesheet" href="/app.css?v=14" />
+  <link rel="stylesheet" href="/app.css?v=15" />
   <style>
     /* sample previews (homepage only) */
     .samples { margin-top: 36px; }
@@ -125,6 +125,16 @@
     <section class="info no-print">
       <p class="trustbar">For homeschool parents, K–5 teachers &amp; tutors · Grades K–5 · Math-focused, plus reading, spelling &amp; more</p>
 
+      <div id="homeSubBox" class="sub-box no-print">
+        <p class="sub-title">📩 Get a free worksheet pack every Friday</p>
+        <p class="sub-sub">Five printables with answer keys, straight to your inbox. No spam, unsubscribe anytime.</p>
+        <form id="homeSubForm" class="sub-form">
+          <input id="homeSubEmail" type="email" placeholder="you@email.com" autocomplete="email" required />
+          <button type="submit" id="homeSubBtn">Send me packs</button>
+        </form>
+        <p id="homeSubMsg" class="msg"></p>
+      </div>
+
       <h2>How it works</h2>
       <ol class="steps">
         <li><strong>Enter a topic</strong><span>or tap a suggestion</span></li>
@@ -138,12 +148,13 @@
         <li>Choose computation, word problems, or mixed</li>
         <li>Answer keys with steps included</li>
         <li>Also reading, spelling, vocabulary, grammar, writing &amp; science <em>(beta)</em></li>
-        <li>No account, no signup — free to try (2/day)</li>
+        <li>No account, no signup — 3 free worksheets to try (1 per day)</li>
+        <li>Pro adds unlimited worksheets, no watermark, and rewrite-any-question</li>
       </ul>
 
       <h2>FAQ</h2>
       <div class="faq">
-        <details><summary>Is it really free?</summary><p>Yes — 2 worksheets per day, no account needed. Unlock unlimited for a one-time $6.93 (30% off $9.90).</p></details>
+        <details><summary>Is it really free?</summary><p>Yes — 3 worksheets free to try (1 per day), no account needed. Unlock unlimited, no watermark and AI rewrite of any single question for a one-time $6.93 (30% off $9.90).</p></details>
         <details><summary>Who is it for?</summary><p>Homeschool parents, K–5 teachers, and tutors. Grades K–5: math, reading, spelling, vocabulary, grammar, writing, science, and social studies.</p></details>
         <details><summary>Do I need an account?</summary><p>No. Just pick a grade, subject and topic, then generate.</p></details>
         <details><summary>Is it a subscription?</summary><p>No — it's a one-time $6.93 payment (30% off $9.90). No recurring charges.</p></details>
@@ -165,7 +176,8 @@
       <p class="price"><s>$9.90</s> $6.93 — one-time. 30% off. No subscription.</p>
       <ul>
         <li>Unlimited generation (no daily limit)</li>
-        <li>No watermark</li>
+        <li>No watermark on any worksheet</li>
+        <li>Rewrite any single question with AI</li>
         <li>8 subjects, Grades K–5</li>
         <li>Instant print / PDF — forever</li>
       </ul>
@@ -180,6 +192,6 @@
     </div>
   </div>
 
-  <script src="/app.js?v=14" defer></script>
+  <script src="/app.js?v=15" defer></script>
 </body>
 </html>

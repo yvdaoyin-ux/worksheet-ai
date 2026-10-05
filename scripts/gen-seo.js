@@ -116,7 +116,8 @@ const paywall = `
       <p class="price"><s>$9.90</s> $6.93 — one-time. 30% off. No subscription.</p>
       <ul>
         <li>Unlimited generation (no daily limit)</li>
-        <li>No watermark</li>
+        <li>No watermark on any worksheet</li>
+        <li>Rewrite any single question with AI</li>
         <li>Math, Reading &amp; Spelling, Grades K–5</li>
         <li>Instant print / PDF — forever</li>
       </ul>
@@ -159,7 +160,7 @@ function renderPage(p) {
   <meta property="og:url" content="${url}" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="${url}" />
-  <link rel="stylesheet" href="/app.css?v=14" />
+  <link rel="stylesheet" href="/app.css?v=15" />
 </head>
 <body>
   <div class="wrap">
@@ -186,7 +187,17 @@ ${resultModal}
       <ul>${related}<li><a href="/">All worksheets →</a></li></ul>
     </section>
 
-    <p class="trustbar">Free to try · 2 worksheets a day · no signup · unlimited for $6.93 once</p>
+    <section id="homeSubBox" class="sub-box no-print">
+      <p class="sub-title">📩 Get a free ${p.gradeLabel} worksheet pack every Friday</p>
+      <p class="sub-sub">Five printables with answer keys, straight to your inbox. No spam, unsubscribe anytime.</p>
+      <form id="homeSubForm" class="sub-form">
+        <input id="homeSubEmail" type="email" placeholder="you@email.com" autocomplete="email" required />
+        <button type="submit" id="homeSubBtn">Send me packs</button>
+      </form>
+      <p id="homeSubMsg" class="msg"></p>
+    </section>
+
+    <p class="trustbar">Free to try · 3 free worksheets · no signup · unlimited for $6.93 once</p>
 
     <footer class="site no-print">
       <p><strong>Unlimited printable worksheets — $6.93 once (30% off).</strong></p>
@@ -195,7 +206,7 @@ ${resultModal}
     </footer>
   </div>
 ${paywall}
-  <script src="/app.js?v=14" defer></script>
+  <script src="/app.js?v=15" defer></script>
 </body>
 </html>
 `;

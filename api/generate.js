@@ -29,6 +29,11 @@ module.exports = async (req, res) => {
   if (req.body.mode === "rewrite") {
     const item = String(req.body.item || "").slice(0, 800);
     if (!item) { res.status(400).json({ error: "Nothing to rewrite." }); return; }
+    const rrl = await rateLimit(getClientIp(req));
+    if (!rrl.ok) {
+      res.status(429).json({ error: "You've reached today's limit. Please try again tomorrow." });
+      return;
+    }
     const rPrompt = buildRewritePrompt(grade, subject, topic, item);
     for (const a of buildAttempts()) {
       try {
@@ -90,11 +95,14 @@ function getClientIp(req) {
   return xff || req.headers["x-real-ip"] || "unknown";
 }
 
-// Optional per-IP daily cap (anti-abuse). Needs UPSTASH_REDIS_REST_URL/TOKEN; else no-op.
+// Per-IP daily cap (anti-abuse). Uses Upstash when configured, otherwise falls back
+// to a per-instance in-memory counter. The fallback is imperfect across instances but
+// it is the difference between "one viral pin kills the Groq quota" and "it doesn't".
+const MEM = new Map();
 async function rateLimit(ip) {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return { ok: true };
+  if (!url || !token) return memRateLimit(ip);
   const limit = Math.max(1, parseInt(process.env.DAILY_LIMIT_PER_IP || "100", 10));
   const day = new Date().toISOString().slice(0, 10);
   const key = "rl:" + ip + ":" + day;
@@ -109,8 +117,18 @@ async function rateLimit(ip) {
     if (typeof count === "number") return { ok: count <= limit, count, limit };
     return { ok: true };
   } catch (e) {
-    return { ok: true }; // fail open
+    return memRateLimit(ip);
   }
+}
+
+function memRateLimit(ip) {
+  const limit = Math.max(10, parseInt(process.env.MEM_LIMIT_PER_IP_DAY || "60", 10));
+  const day = new Date().toISOString().slice(0, 10);
+  const key = ip + ":" + day;
+  const n = (MEM.get(key) || 0) + 1;
+  MEM.set(key, n);
+  if (MEM.size > 20000) MEM.clear(); // crude bound; entries expire by day key anyway
+  return { ok: n <= limit, count: n, limit: limit, via: "memory" };
 }
 
 function buildAttempts() {
