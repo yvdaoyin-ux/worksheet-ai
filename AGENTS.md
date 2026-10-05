@@ -46,6 +46,7 @@
 - `PRO_MONTHLY_URL` 当前是**占位店铺首页**，拿到 Gumroad 订阅产品链接后替换；置空则月付按钮自动隐藏（不会留死链）。价格文案 `PRO_MONTHLY_LABEL` 必须与实际一致。
 - **Pro 是另一个 Gumroad 产品**（Membership/订阅型）：permalink `scrywy`，`product_id = poNRKhKHkoG_Etcw2o5F-A==`，$4.99/月；已填进 `PRO_MONTHLY_URL`。**Vercel 环境变量 `GUMROAD_PRO_PRODUCT_ID` 必须补上这个值并 Redeploy**，否则 Pro 激活不了（我改不了线上 env）。
 - 一个 Gumroad 产品不能既一次性又订阅，所以 Basic/Pro 永远是两个产品。`verify-license` 已检查退订/失效字段，前端每天静默复检一次，退订后自动回落档位。
+- **售后自动激活**：Gumroad 占位符是 **`__license_key__`**（双下划线，不是 `{license_key}`），只能用在**产品内容页**的链接/按钮里。填 `https://worksheet-ai-l1td.vercel.app/?license_key=__license_key__`。前端 `autoActivateFromUrl()` 会自动校验、弹框显示结果、并清掉地址栏里的 key。
 - 单题 🔄 重写**免费且不耗额度**；✏️ 编辑同样免费。
 - 价格数字散落在 `index.html` + `scripts/gen-seo.js`（搜 `$6.93`），Gumroad 是第三处，**改价必须三处同步**。
 

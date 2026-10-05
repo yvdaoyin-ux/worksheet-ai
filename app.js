@@ -10,6 +10,8 @@
   const FREE_OTHER_DAILY = 1;
   const BASIC_OTHER_DAILY = 3;
   const PRO_MONTHLY_URL = "https://219809065360.gumroad.com/l/scrywy"; // Pro monthly (Gumroad product "scrywy"); "" hides the button
+  // Gumroad replaces __license_key__ per customer inside links/buttons on the product
+  // content page. Point one at: https://worksheet-ai-l1td.vercel.app/?license_key=__license_key__
   const PRO_MONTHLY_LABEL = "$4.99/month"; // keep in sync with Gumroad
   const PLAN_KEY = "wsai_plan"; // "basic" | "pro"
   const LEGACY_KEY = "wsai_unlocked"; // old unlock flag -> treated as Basic
@@ -705,9 +707,13 @@
     try {
       const p = new URLSearchParams(location.search);
       const key = p.get("license_key") || p.get("key") || p.get("lk");
-      if (!key || isUnlocked()) return;
+      if (!key) return;
       const clean = key.trim();
+      // Drop the key from the address bar so it is not shared or bookmarked.
+      try { history.replaceState({}, "", location.pathname + location.hash); } catch (e) { /* ignore */ }
+      if (isUnlocked()) return;
       $("licenseInput").value = clean;
+      $("paywall").hidden = false; // show the modal so the buyer sees it happening
       doActivate(clean);
     } catch (e) { /* ignore */ }
   }
