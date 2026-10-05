@@ -32,6 +32,13 @@
    ```
    **改完必须字节校验**：文件里不应出现 U+9225（`鈥`）；`—` 应为字节 `E2 80 94`。
    （用编辑器/Edit 工具改文件是安全的，只有这条 PowerShell 路径有毒。）
+9. **写 `.bat` 文件必须用 CRLF 行尾。** cmd.exe 遇到 **LF-only 的批处理会让 `goto :label` 失效、脚本直接不执行** —— 现象是双击后**窗口一闪而过或毫无反应**。而编辑器 / Write 工具写文件默认是 **LF**，所以写完**必须显式转成 CRLF**：
+   ```powershell
+   $t = [System.Text.Encoding]::ASCII.GetString([System.IO.File]::ReadAllBytes($p))
+   $t = $t.Replace("`r`n","`n").Replace("`n","`r`n")
+   [System.IO.File]::WriteAllText($p, $t, (New-Object System.Text.UTF8Encoding($false)))
+   ```
+   **2026-10-05 真实踩过两次**：`push-to-github.bat` 和 `start-local.bat` 被写成 LF，用户双击"没有反应"，排查了很久才想到是行尾。
 
 ## 关键文件
 
