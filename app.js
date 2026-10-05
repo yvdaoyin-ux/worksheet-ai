@@ -216,23 +216,22 @@
 
     const toolbar = document.querySelector("#resultWrap .toolbar");
     if (toolbar && !$("regenBtn")) {
-      const rg = document.createElement("button");
-      rg.type = "button";
-      rg.id = "regenBtn";
-      rg.hidden = true;
-      rg.textContent = "\u{1F504} Another version";
-      rg.addEventListener("click", () => runGenerate(true));
-      toolbar.insertBefore(rg, toolbar.firstChild);
-    }
-    if (toolbar && !$("levelSetBtn")) {
-      const lb = document.createElement("button");
-      lb.type = "button";
-      lb.id = "levelSetBtn";
-      lb.hidden = true;
-      lb.title = "Make an easier and a harder version of this same worksheet";
-      lb.textContent = "\u{1F39A}\uFE0F Easier + harder version";
-      lb.addEventListener("click", runLevelSet);
-      toolbar.insertBefore(lb, $("regenBtn") ? $("regenBtn").nextSibling : toolbar.firstChild);
+      const mk = (id, label, title, fn) => {
+        const b = document.createElement("button");
+        b.type = "button"; b.id = id; b.hidden = true; b.title = title; b.textContent = label;
+        b.addEventListener("click", fn);
+        return b;
+      };
+      const anchor = $("printBtn") || toolbar.firstChild;
+      // "Easier" and "Harder" are one API call each, so a parent who wants only
+      // one direction doesn't pay the compute/time for both. "All 3 levels" stays
+      // as an opt-in for families comparing the same sheet side by side.
+      [
+        mk("levelEasierBtn", "⬇️ Easier version", "Make this same worksheet easier", () => runRelevelOne("easier")),
+        mk("levelHarderBtn", "⬆️ Harder version", "Make this same worksheet harder", () => runRelevelOne("challenge")),
+        mk("levelSetBtn", "🎚️ All 3 levels", "Make the Easier and Harder versions at once and compare them", runLevelSet),
+        mk("regenBtn", "🔄 Another version", "Generate a brand-new worksheet on the same topic", () => runGenerate(true)),
+      ].forEach((b) => toolbar.insertBefore(b, anchor));
     }
 
     const recent = document.createElement("div");
@@ -649,7 +648,8 @@
     }
     if ($("regenBtn")) $("regenBtn").hidden = false;
     // The level-set button only makes sense while ONE sheet is on screen.
-    if ($("levelSetBtn")) $("levelSetBtn").hidden = !(lastIsSingle && lastSheetHtml);
+    const showLevels = !!(lastIsSingle && lastSheetHtml);
+    ["levelEasierBtn", "levelHarderBtn", "levelSetBtn"].forEach((id) => { if ($(id)) $(id).hidden = !showLevels; });
     $("upsellBar").hidden = isUnlocked();
     $("resultWrap").hidden = false;
   }
@@ -875,6 +875,35 @@
     }
   }
 
+  // Re-level the current sheet at ONE chosen difficulty. One API call (not two),
+  // so a parent who only wants an easier (or only a harder) version does not pay
+  // the compute/time for both.
+  async function runRelevelOne(level) {
+    if (!lastSheetHtml || !lastIsSingle) return;
+    const label = level === "challenge" ? "Harder" : "Easier";
+    if (!canGenerate()) { openPaywall(isMath() ? "quota" : "subject_gate"); return; }
+    const btn = $(level === "challenge" ? "levelHarderBtn" : "levelEasierBtn");
+    const note = $("note");
+    if (btn) btn.disabled = true;
+    track("relevel_start", { level: level, subject: $("subject").value, grade: $("grade").value, plan: plan() });
+    try {
+      const d = await relevelOnce(level);
+      lastSheetHtml = d.html;
+      lastIsSingle = true;
+      renderResult(d.html, false, d.checked);
+      if (note) note.textContent = label + " version ready — make it " + (level === "challenge" ? "easier" : "harder") + " or print it now.";
+      consumeCredit();
+      updateQuota();
+      track("relevel_ok", { level: level });
+    } catch (err) {
+      track("relevel_err", { level: level, message: String(err.message || err).slice(0, 120) });
+      alert("Something went wrong: " + err.message);
+    } finally {
+      if (btn) btn.disabled = false;
+      updateQuota();
+    }
+  }
+
   async function runPack(n) {
     const topic = $("topic").value.trim();
     if (!topic) { alert("Please enter a topic (or tap a suggestion)."); return; }
@@ -920,6 +949,11 @@
   }
 
   async function runGenerate(forceSingle) {
+    if (!$("subject") || !$("subject").value) {
+      alert("Please choose a subject first.");
+      if ($("subject")) $("subject").focus();
+      return;
+    }
     const packN = forceSingle || !$("pack") ? 1 : parseInt($("pack").value, 10) || 1;
     if (packN > 1) {
       $("upsellBar").hidden = isUnlocked();
