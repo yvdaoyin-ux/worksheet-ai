@@ -644,7 +644,11 @@
       if (data.valid) {
         const pl = data.plan === "pro" ? "pro" : "basic";
         localStorage.setItem(PLAN_KEY, pl);
-        try { localStorage.setItem(LEGACY_KEY, "1"); } catch (e) { /* ignore */ }
+        try {
+          localStorage.setItem(LEGACY_KEY, "1");
+          localStorage.setItem("wsai_key", key);
+          localStorage.setItem("wsai_checked", today());
+        } catch (e) { /* ignore */ }
         msg.textContent = pl === "pro"
           ? "\u2714 Pro activated \u2014 all subjects, unlimited."
           : "\u2714 Basic activated \u2014 unlimited Math, 3 other-subject worksheets a day.";
@@ -669,6 +673,34 @@
 
   // Gumroad can send buyers back with the key in the URL — activate it for them
   // instead of making them copy/paste (fewer "I paid and it doesn't work" emails).
+  // Re-check a stored key once a day, so a cancelled Pro subscription falls back
+  // to the free plan instead of staying unlocked forever in this browser.
+  function silentRecheck() {
+    let key = "";
+    try { key = localStorage.getItem("wsai_key") || ""; } catch (e) { return; }
+    if (!key) return;
+    if (localStorage.getItem("wsai_checked") === today()) return;
+    fetch("/api/verify-license", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ license_key: key }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        localStorage.setItem("wsai_checked", today());
+        if (data && data.valid) {
+          localStorage.setItem(PLAN_KEY, data.plan === "pro" ? "pro" : "basic");
+        } else {
+          localStorage.removeItem(PLAN_KEY);
+          localStorage.removeItem(LEGACY_KEY);
+          localStorage.removeItem("wsai_key");
+        }
+        updateQuota();
+        track("license_recheck", { ok: !!(data && data.valid) });
+      })
+      .catch(() => { /* offline: keep the current plan until tomorrow */ });
+  }
+
   function autoActivateFromUrl() {
     try {
       const p = new URLSearchParams(location.search);
@@ -725,6 +757,7 @@
   }
   updateQuota();
 
-  track("page_view", { pro: isUnlocked() });
+  track("page_view", { plan: plan() });
   autoActivateFromUrl();
+  silentRecheck();
 })();

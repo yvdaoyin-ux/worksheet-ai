@@ -34,6 +34,8 @@ module.exports = async (req, res) => {
     return;
   }
 
+  let lastReason = "That key was not recognised.";
+
   // Pro first: a Pro key must never be downgraded to Basic.
   for (const tier of [
     { name: "pro", ids: proIds },
@@ -44,6 +46,8 @@ module.exports = async (req, res) => {
         const params = new URLSearchParams({
           product_id: productId,
           license_key: String(license_key).trim(),
+          // never bump the use counter on every page load
+          increment_uses_count: "false",
         });
 
         const r = await fetch("https://api.gumroad.com/v2/licenses/verify", {
@@ -54,6 +58,11 @@ module.exports = async (req, res) => {
 
         const data = await r.json();
         if (data && data.success) {
+          // A Pro subscription that was cancelled / ended / failed must not keep Pro access.
+          if (!isActive(data.purchase)) {
+            lastReason = "That subscription is no longer active.";
+            continue;
+          }
           res.status(200).json({ valid: true, plan: tier.name });
           return;
         }
@@ -63,8 +72,21 @@ module.exports = async (req, res) => {
     }
   }
 
-  res.status(200).json({ valid: false, error: "That key was not recognised." });
+  res.status(200).json({ valid: false, error: lastReason });
 };
+
+// False when refunded/charged back, or when the membership is no longer in good standing.
+function isActive(purchase) {
+  if (!purchase) return true;
+  if (purchase.refunded || purchase.disputed || purchase.chargebacked) return false;
+  const dead = ["subscription_cancelled_at", "subscription_ended_at", "subscription_failed_at"].some(
+    (k) => {
+      const v = purchase[k];
+      return v !== null && v !== undefined && String(v).trim() !== "";
+    }
+  );
+  return !dead;
+}
 
 function splitIds(v) {
   return String(v || "")
