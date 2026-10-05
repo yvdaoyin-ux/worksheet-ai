@@ -5,6 +5,9 @@
 // Providers (tries in order, first success wins):
 //   1) Groq        (if GROQ_API_KEY)      — fast, generous free tier, OpenAI-compatible
 //   2) OpenRouter  (if OPENROUTER_API_KEY)
+//   3) DeepSeek    (if DEEPSEEK_API_KEY)  — cheap PAID fallback, so the product
+//                                            keeps working when a free tier
+//                                            hits its rate limit.
 // The model writes CONTENT; the client renders it. Each subject gets its own
 // output structure, aligned to US Common Core ELA / NGSS.
 
@@ -15,6 +18,11 @@ const PER_REQUEST_TIMEOUT_MS = 45000;
 const GROQ_MODELS = (process.env.GROQ_MODEL || "openai/gpt-oss-120b,openai/gpt-oss-20b")
   .split(",").map((s) => s.trim()).filter(Boolean);
 const OPENROUTER_MODELS = ["nvidia/nemotron-3-super-120b-a12b:free", "openrouter/free"];
+// deepseek-v4-flash is the current cheapest DeepSeek tier ($0.14 in / $0.28 out
+// per 1M). The legacy aliases deepseek-chat / deepseek-reasoner were retired
+// 24 July 2026 and must NOT be used.
+const DEEPSEEK_MODELS = (process.env.DEEPSEEK_MODEL || "deepseek-v4-flash")
+  .split(",").map((s) => s.trim()).filter(Boolean);
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
@@ -466,6 +474,12 @@ function buildAttempts() {
     OPENROUTER_MODELS.forEach((m) => attempts.push({
       url: "https://openrouter.ai/api/v1/chat/completions",
       key: process.env.OPENROUTER_API_KEY, model: m,
+    }));
+  }
+  if (process.env.DEEPSEEK_API_KEY) {
+    DEEPSEEK_MODELS.forEach((m) => attempts.push({
+      url: "https://api.deepseek.com/chat/completions",
+      key: process.env.DEEPSEEK_API_KEY, model: m,
     }));
   }
   return attempts;

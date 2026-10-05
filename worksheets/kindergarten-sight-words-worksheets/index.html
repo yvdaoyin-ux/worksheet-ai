@@ -31,6 +31,25 @@
     .sample-key summary { cursor: pointer; font-weight: 700; color: #2b3a52; }
     .sample-key .sample-worksheet { margin-top: 12px; }
     .sample-cta { text-align: center; color: var(--muted); font-size: 14px; margin: 16px 0 0; }
+    .sample-print { text-align: center; margin: 18px 0 0; }
+    .sample-print button { font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; border: none; border-radius: 12px; padding: 12px 22px; color: #fff; background: #2f6fed; }
+    .sample-print span { display: block; color: var(--muted); font-size: 12px; margin-top: 8px; }
+    /* In print, the page must reduce to JUST the worksheet (one page), so the
+       inline .sample-worksheet rules above must be overridden with the same
+       tighter print rhythm the app uses. These selectors are more specific than
+       the app's generic .worksheet rules, so without this block the sample would
+       keep its roomy on-screen spacing and spill onto a second page. */
+    @media print {
+      .sample-worksheet { padding: 0; border: none; box-shadow: none; font-size: 15px; }
+      .sample-worksheet .ws-questions > li { padding-bottom: 7px; margin-bottom: 8px; line-height: 1.8; font-size: 15px; padding-left: 22px; }
+      .sample-worksheet .ws-answers > li { margin-bottom: 4px; font-size: 14px; }
+      .sample-worksheet .ws-name { margin-bottom: 12px; font-size: 13px; }
+      .sample-worksheet .ws-instructions { margin-bottom: 10px; font-size: 14px; }
+      .sample-worksheet .ws-title { margin-bottom: 4px; font-size: 17px; }
+      .sample-worksheet .ws-visual { margin: 5px 0 8px; }
+      .sample-worksheet .viz-numline { height: 64px; }
+      .sample-worksheet .viz-bar .bar { width: 220px; height: 30px; }
+    }
   </style>
 </head>
 <body>
@@ -39,12 +58,12 @@
       <div class="brand"><a href="/">Worksheet<span>AI</span></a></div>
     </header>
 
-    <h1 class="page-h1">Free Kindergarten Sight Words Worksheets</h1>
-    <p class="lede">Need kindergarten sight words worksheets fast? Type a topic below and WorksheetAI writes a clean, printable worksheet with an answer key in about 30 seconds — perfect for kindergarten homeschool practice.</p>
+    <h1 class="page-h1 no-print">Free Kindergarten Sight Words Worksheets</h1>
+    <p class="lede no-print">Need kindergarten sight words worksheets fast? Type a topic below and WorksheetAI writes a clean, printable worksheet with an answer key in about 30 seconds — perfect for kindergarten homeschool practice.</p>
 
     <section class="sample-block">
-      <h2>A real Kindergarten reading worksheet you can print right now</h2>
-      <p class="sample-sub">This is a live example, not a mockup — the same layout and answer key you get in the tool. Print it and use it today, no signup.</p>
+      <h2 class="no-print">A real Kindergarten reading worksheet you can print right now</h2>
+      <p class="sample-sub no-print">This is a live example, not a mockup — the same layout and answer key you get in the tool. Print it and use it today, no signup.</p>
       <div class="worksheet sample-worksheet"><h2 class="ws-title">Playing with the Ball</h2>
 <p class="ws-instructions">Read the passage. Then answer the questions in complete sentences.</p>
 <p class="ws-name"><span>Name: ____________</span><span>Date: ____________</span><span>Score: ______</span></p>
@@ -65,7 +84,7 @@
 </ol>
 <div class="viz viz-organizer"><div class="org-box"><span class="org-title">Main Idea</span><span class="org-lines"></span></div><div class="org-box"><span class="org-title">Detail 1</span><span class="org-lines"></span></div><div class="org-box"><span class="org-title">Detail 2</span><span class="org-lines"></span></div><div class="org-box"><span class="org-title">Detail 3</span><span class="org-lines"></span></div></div>
 </div>
-      <details class="sample-key"><summary>Show the answer key</summary><div class="worksheet sample-worksheet">
+      <details class="sample-key no-print"><summary>Show the answer key</summary><div class="worksheet sample-worksheet">
 <h3 class="ws-answers-title">Answer Key</h3>
 <ol class="ws-answers">
   <li>The cat is on the mat.</li>
@@ -79,7 +98,8 @@
   <li>The sight words are “the” and “and.”</li>
   <li>(Student draws a picture.)</li>
 </ol></div></details>
-      <p class="sample-cta">Want a different topic? <a href="#genForm">Type it above</a> and press Generate — the first 1 each day is free.</p>
+      <p class="sample-print no-print"><button type="button" onclick="window.print()">Print this worksheet</button><span>Or press Ctrl/⌘ + P — everything except this worksheet is already hidden from the printout.</span></p>
+      <p class="sample-cta no-print">Want a different topic? <a href="#genForm">Type it above</a> and press Generate — the first 1 each day is free.</p>
     </section>
 
 
@@ -120,7 +140,7 @@
       <p id="homeSubMsg" class="msg"></p>
     </section>
 
-    <p class="trustbar">2 math worksheets a day free · 1 in other subjects · <strong>30-day money-back guarantee</strong> · no signup · Basic (unlimited math) $13.30 <strong>once — no renewal</strong> · Pro (all subjects) monthly</p>
+    <p class="trustbar no-print">2 math worksheets a day free · 1 in other subjects · <strong>30-day money-back guarantee</strong> · no signup · Basic (unlimited math) $13.30 <strong>once — no renewal</strong> · Pro (all subjects) monthly</p>
 
     <footer class="site no-print">
       <p><strong>Unlimited printable worksheets — $13.30 once (30% off).</strong></p>
