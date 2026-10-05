@@ -4,3 +4,7 @@ start-local.bat
 .env.example
 README.md
 你只需要做这些.md
+推广文案.md
+push-to-github.bat
+AGENTS.md
+.vercelignore
