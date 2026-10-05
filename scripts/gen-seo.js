@@ -100,7 +100,7 @@ const resultModal = `
     <section id="resultWrap" class="result-wrap" hidden>
       <div id="upsellBar" class="upsell no-print" hidden>
         <span>\u{1F513} Free plan — watermarked · 2 math worksheets a day</span>
-        <button id="upsellBtn" type="button">Upgrade — unlimited math from $6.93</button>
+        <button id="upsellBtn" type="button">Upgrade — unlimited math from $13.30</button>
       </div>
       <div class="toolbar no-print">
         <button id="printBtn" type="button">\u{1F5A8}\u{FE0F} Print / Save as PDF</button>
@@ -115,7 +115,7 @@ const paywall = `
       <h2>Choose a plan</h2>
       <p class="price">Free forever: 2 math worksheets a day + 1 in any other subject.</p>
 
-      <p class="plan-head"><strong>Basic — $6.93 once</strong> <s>$9.90</s> (30% off)</p>
+      <p class="plan-head"><strong>Basic — $13.30 once</strong> <s>$19</s> (30% off)</p>
       <ul>
         <li><strong>Unlimited math worksheets</strong>, every day — forever</li>
         <li>3 worksheets a day in reading, spelling, science &amp; the rest</li>
@@ -124,8 +124,8 @@ const paywall = `
         <li><strong>One payment.</strong> No subscription, no renewal, no recurring charge.</li>
         <li>30-day money-back guarantee</li>
       </ul>
-      <a id="gumroadBtn" class="buy-btn" href="#" target="_blank" rel="noopener">Get Basic — $6.93 once (30% off)</a>
-      <p class="plan-note">Worksheet libraries usually cost $25–150 <em>every year</em>. Basic is a one-time payment — under 2¢ a day for the first year, and nothing after that.</p>
+      <a id="gumroadBtn" class="buy-btn" href="#" target="_blank" rel="noopener">Get Basic — $13.30 once (30% off)</a>
+      <p class="plan-note">Worksheet libraries usually cost $25–150 <em>every year</em>. Basic is a one-time payment — under 4&cent; a day for the first year, and nothing after that.</p>
 
       <p class="plan-head"><strong>Pro — monthly</strong></p>
       <ul>
@@ -212,10 +212,10 @@ ${resultModal}
       <p id="homeSubMsg" class="msg"></p>
     </section>
 
-    <p class="trustbar">2 math worksheets a day free · 1 in other subjects · <strong>30-day money-back guarantee</strong> · no signup · Basic (unlimited math) $6.93 <strong>once — no renewal</strong> · Pro (all subjects) monthly</p>
+    <p class="trustbar">2 math worksheets a day free · 1 in other subjects · <strong>30-day money-back guarantee</strong> · no signup · Basic (unlimited math) $13.30 <strong>once — no renewal</strong> · Pro (all subjects) monthly</p>
 
     <footer class="site no-print">
-      <p><strong>Unlimited printable worksheets — $6.93 once (30% off).</strong></p>
+      <p><strong>Unlimited printable worksheets — $13.30 once (30% off).</strong></p>
       <p class="about">Made by an independent developer — every purchase keeps the servers running and funds new features. Thank you for the support!</p>
       <p><a href="/">WorksheetAI home</a> · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a></p>
     </footer>

@@ -3,7 +3,7 @@
 // POST { license_key } -> { valid: boolean, plan: "pro" | "basic" }
 //
 // Tiers (as agreed with the owner):
-//   Basic = one-time $6.93  -> unlimited MATH, 3 worksheets/day in other subjects
+//   Basic = one-time $13.30  -> unlimited MATH, 3 worksheets/day in other subjects
 //   Pro   = monthly sub     -> everything unlimited + future features
 //
 // Env vars (Vercel):

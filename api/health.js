@@ -5,7 +5,7 @@ module.exports = (req, res) => {
     groq: !!process.env.GROQ_API_KEY,
     groqModels: process.env.GROQ_MODEL || "openai/gpt-oss-120b,openai/gpt-oss-20b",
     openrouter: !!process.env.OPENROUTER_API_KEY,
-    gumroadProductId: !!process.env.GUMROAD_PRODUCT_ID, // Basic ($6.93)
+    gumroadProductId: !!process.env.GUMROAD_PRODUCT_ID, // Basic ($13.30)
     gumroadProProductId: !!process.env.GUMROAD_PRO_PRODUCT_ID, // Pro monthly
     track: true,
     answerCheck: process.env.SKIP_ANSWER_CHECK ? "off" : "on", // second-pass answer-key proofread

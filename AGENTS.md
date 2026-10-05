@@ -9,7 +9,7 @@
 面向**北美 homeschool 家长/K–5 老师**的 **AI 练习纸生成器**（网页）。主打**数学**（真实图形：数轴/分数条/十格板/竖式）。
 - 线上：https://worksheet-ai-l1td.vercel.app
 - 代码：本目录（`worksheet-ai/`）
-- 收款：Gumroad（$9.90 → 折扣码 `LAUNCH30` → 实付 **$6.93**）
+- 收款：Gumroad（$19 → 折扣码 `LAUNCH30` → 实付 **$13.30**）
 - AI：Groq（主）+ OpenRouter（备）；密钥在 `.env` / Vercel 环境变量
 
 ## 硬规矩（改代码前必看）
@@ -41,14 +41,14 @@
 
 用户已对外承诺过，**以下两条不许擅自改**：
 1. **免费额度 = 每天 2 份**（`app.js` 的 `FREE_MATH_DAILY = 2`）。
-2. **价格 = $9.90，折扣码 `LAUNCH30` → 实付 $6.93**（一次性）。
+2. **价格 = $19，折扣码 `LAUNCH30` → 实付 $13.30**（一次性）。
 
 在此之上的**三档分层（v=17 现行）**：
 
 | | Math | 其他 7 个科目 | 水印 | 价格 |
 |---|---|---|---|---|
 | **Free** | 2 份/天 | 1 份/天 | 有 | $0 |
-| **Basic** | **无限** | 3 份/天 | 无 | $6.93 一次性（码 LAUNCH30） |
+| **Basic** | **无限** | 3 份/天 | 无 | $13.30 一次性（码 LAUNCH30） |
 | **Pro** | 无限 | **无限** | 无 | 月付（$4.99/月）+ 后续新功能都包含 |
 
 - 常量在 `app.js` 顶部：`FREE_MATH_DAILY=2`、`FREE_OTHER_DAILY=1`、`BASIC_OTHER_DAILY=3`、`PRO_MONTHLY_URL`、`PRO_MONTHLY_LABEL`。
@@ -59,7 +59,7 @@
 - 一个 Gumroad 产品不能既一次性又订阅，所以 Basic/Pro 永远是两个产品。`verify-license` 已检查退订/失效字段，前端每天静默复检一次，退订后自动回落档位。
 - **售后自动激活**：Gumroad 占位符是 **`__license_key__`**（双下划线，不是 `{license_key}`），只能用在**产品内容页**的链接/按钮里。填 `https://worksheet-ai-l1td.vercel.app/?license_key=__license_key__`。前端 `autoActivateFromUrl()` 会自动校验、弹框显示结果、并清掉地址栏里的 key。
 - 单题 🔄 重写**免费且不耗额度**；✏️ 编辑同样免费。
-- 价格数字散落在 `index.html` + `scripts/gen-seo.js`（搜 `$6.93`），Gumroad 是第三处，**改价必须三处同步**。
+- 价格数字散落在 `index.html` + `scripts/gen-seo.js`（搜 `$13.30`），Gumroad 是第三处，**改价必须三处同步**。
 
 ## 课标锚点（年级对齐）
 

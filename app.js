@@ -4,7 +4,7 @@
   const GUMROAD_URL = "https://219809065360.gumroad.com/l/orqxtr?code=LAUNCH30";
   // ---- plan rules (agreed with the owner; the free allowance and prices are promises) ----
   // Free   : 2 Math/day + 1 other-subject worksheet/day
-  // Basic  : one-time $6.93 -> unlimited MATH + 3 other-subject worksheets/day
+  // Basic  : one-time $13.30 -> unlimited MATH + 3 other-subject worksheets/day
   // Pro    : monthly subscription -> ALL subjects unlimited + every new feature we ship
   const FREE_MATH_DAILY = 2; // promised — do not lower
   const FREE_OTHER_DAILY = 1;
