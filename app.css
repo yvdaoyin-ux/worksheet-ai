@@ -280,6 +280,12 @@ footer.site strong { color: var(--ink); }
 @page { size: Letter; margin: 12mm; }
 
 @media print {
+  /* Print "economy" mode drops CSS backgrounds and gradients - that is exactly
+     what erased the number line (its line, ticks and dot are all backgrounds),
+     the filled fraction-bar segments and ten-frame cells, the array dots, and
+     the ruled writing lines (background-image gradients). Force ink so a printed
+     worksheet matches what the parent sees on screen. */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
   body { background: #fff; }
   .no-print { display: none !important; }
   .wrap { max-width: none; padding: 0; }
