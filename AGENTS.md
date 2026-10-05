@@ -22,6 +22,16 @@
 5. **别把密钥**写进代码或提交 `.env`。
 6. 本地跑要带代理：`NODE_USE_ENV_PROXY=1 HTTPS_PROXY=http://127.0.0.1:7890 node dev-server.js`（`NODE_USE_ENV_PROXY` **必须在启动时设**）。
 7. **不用** html2canvas/jspdf 导 PDF；**不加**具体 CCSS 代码。
+8. **⚠️ 千万不要用 PowerShell 的 `Get-Content -Raw` 去读写站内文件。** PS 5.1 遇到**无 BOM 的 UTF-8 文件会按 GBK 解码**，把 `—`（U+2014）变成 `鈥?`（**第三个字节永久丢失，不可逆**）再写回 —— **整站文案被静默破坏**。2026-10-05 真实发生过一次：一次"只改版本号"的操作污染了 `index.html` / `privacy.html` / `terms.html` / `scripts/gen-seo.js`，并顺着 `gen-seo.js` 扩散到 60 个 SEO 落地页（页面标题、meta description、OG 分享卡全变乱码）。
+   **唯一正确写法**：
+   ```powershell
+   $enc = New-Object System.Text.UTF8Encoding($false)   # 无 BOM
+   $txt = [System.IO.File]::ReadAllText($path, $enc)
+   $txt = $txt.Replace("old", "new")
+   [System.IO.File]::WriteAllText($path, $txt, $enc)
+   ```
+   **改完必须字节校验**：文件里不应出现 U+9225（`鈥`）；`—` 应为字节 `E2 80 94`。
+   （用编辑器/Edit 工具改文件是安全的，只有这条 PowerShell 路径有毒。）
 
 ## 关键文件
 
