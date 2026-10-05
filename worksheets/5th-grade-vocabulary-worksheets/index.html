@@ -12,7 +12,7 @@
   <meta property="og:url" content="https://worksheet-ai-l1td.vercel.app/worksheets/5th-grade-vocabulary-worksheets/" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="https://worksheet-ai-l1td.vercel.app/worksheets/5th-grade-vocabulary-worksheets/" />
-  <link rel="stylesheet" href="/app.css?v=22" />
+  <link rel="stylesheet" href="/app.css?v=23" />
   <style>
     .sample-block { margin: 26px 0 6px; }
     .sample-block h2 { text-align: center; font-size: 20px; margin: 0 0 4px; }
@@ -34,21 +34,24 @@
     .sample-print { text-align: center; margin: 18px 0 0; }
     .sample-print button { font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; border: none; border-radius: 12px; padding: 12px 22px; color: #fff; background: #2f6fed; }
     .sample-print span { display: block; color: var(--muted); font-size: 12px; margin-top: 8px; }
-    /* In print, the page must reduce to JUST the worksheet (one page), so the
-       inline .sample-worksheet rules above must be overridden with the same
-       tighter print rhythm the app uses. These selectors are more specific than
-       the app's generic .worksheet rules, so without this block the sample would
-       keep its roomy on-screen spacing and spill onto a second page. */
+    .sample-cert { text-align: center; color: #0f6e56; background: #e1f5ee; border: 1px solid #9fe1cb; border-radius: 8px; font-size: 12.5px; font-weight: 600; padding: 7px 12px; margin: 14px auto 0; max-width: 620px; }
+    /* In print the page must reduce to JUST the worksheet. The landing page's
+       own inline .sample-worksheet rules (above) are roomier than the app's
+       print rhythm, so they must be overridden here. We qualify every selector
+       with .sample-block so it OUT-SPECIFIES the app's generic .worksheet print
+       rules no matter the source order - the previous equal-specificity rules
+       only worked because this <style> happened to come after the <link>, which
+       would silently break if that order ever changed. */
     @media print {
-      .sample-worksheet { padding: 0; border: none; box-shadow: none; font-size: 15px; }
-      .sample-worksheet .ws-questions > li { padding-bottom: 7px; margin-bottom: 8px; line-height: 1.8; font-size: 15px; padding-left: 22px; }
-      .sample-worksheet .ws-answers > li { margin-bottom: 4px; font-size: 14px; }
-      .sample-worksheet .ws-name { margin-bottom: 12px; font-size: 13px; }
-      .sample-worksheet .ws-instructions { margin-bottom: 10px; font-size: 14px; }
-      .sample-worksheet .ws-title { margin-bottom: 4px; font-size: 17px; }
-      .sample-worksheet .ws-visual { margin: 5px 0 8px; }
-      .sample-worksheet .viz-numline { height: 64px; }
-      .sample-worksheet .viz-bar .bar { width: 220px; height: 30px; }
+      .sample-block .sample-worksheet { padding: 0; border: none; box-shadow: none; font-size: 15px; }
+      .sample-block .sample-worksheet .ws-questions > li { padding-bottom: 7px; margin-bottom: 8px; line-height: 1.8; font-size: 15px; padding-left: 22px; }
+      .sample-block .sample-worksheet .ws-answers > li { margin-bottom: 4px; font-size: 14px; }
+      .sample-block .sample-worksheet .ws-name { margin-bottom: 12px; font-size: 13px; }
+      .sample-block .sample-worksheet .ws-instructions { margin-bottom: 10px; font-size: 14px; }
+      .sample-block .sample-worksheet .ws-title { margin-bottom: 4px; font-size: 17px; }
+      .sample-block .sample-worksheet .ws-visual { margin: 5px 0 8px; }
+      .sample-block .sample-worksheet .viz-numline { height: 64px; }
+      .sample-block .sample-worksheet .viz-bar .bar { width: 220px; height: 30px; }
     }
   </style>
 </head>
@@ -113,6 +116,7 @@
   <li>Example: “The consequence of forgetting to do homework was losing recess time.” (Any correct sentence that uses “consequence” earns full credit.)</li>
 </ol></div></details>
       <p class="sample-print no-print"><button type="button" onclick="window.print()">Print this worksheet</button><span>Or press Ctrl/⌘ + P — everything except this worksheet is already hidden from the printout.</span></p>
+      <p class="sample-cert no-print">Every answer key is checked before it reaches you — arithmetic is recomputed and reading answers are proofread against the passage.</p>
       <p class="sample-cta no-print">Want a different topic? <a href="#genForm">Type it above</a> and press Generate — the first 1 each day is free.</p>
     </section>
 
@@ -198,6 +202,6 @@
       <button id="closeModal" class="link-btn" type="button">Close</button>
     </div>
   </div>
-  <script src="/app.js?v=22" defer></script>
+  <script src="/app.js?v=23" defer></script>
 </body>
 </html>

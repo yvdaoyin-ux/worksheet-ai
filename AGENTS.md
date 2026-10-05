@@ -15,8 +15,7 @@
 ## 硬规矩（改代码前必看）
 
 1. **根目录绝不能有 `server.js`，`package.json` 不能有 `start` 脚本**——否则 Vercel 会把项目当 Node 服务器，所有页面 404。（本地服务器叫 `dev-server.js`。）
-2. **改了 `app.css`/`app.js` → 必须 bump 前端版本号 `?v=N`**（当前 v=20），否则用户吃旧缓存。改 `index.html`/`generator` 后：
-   `sed -i 's|/app\.css?v=20|/app.css?v=21|g; s|/app\.js?v=20|/app.js?v=21|g' index.html privacy.html terms.html og-card.html scripts/gen-seo.js && node scripts/gen-seo.js`
+2. **改了 `app.css`/`app.js` → 必须 bump 前端版本号 `?v=N`**（当前 **v=23**），否则用户吃旧缓存。要同步的文件：`index.html`、`privacy.html`、`terms.html`、`scripts/gen-seo.js`（后者改完要 `node scripts/gen-seo.js` 重生成 60 页）。**用 Edit 工具改**（别用 PowerShell `Get-Content`，见第 8 条）。
 3. **`git push` 走代理会偶发 TLS 失败** → `git config --local http.sslBackend openssl` + **失败重试几次**。
 4. **改 Vercel 环境变量 / `api/*.js` → 要 Redeploy。**
 5. **别把密钥**写进代码或提交 `.env`。
@@ -71,6 +70,13 @@
 - **售后自动激活**：Gumroad 占位符是 **`__license_key__`**（双下划线，不是 `{license_key}`），只能用在**产品内容页**的链接/按钮里。填 `https://worksheet-ai-l1td.vercel.app/?license_key=__license_key__`。前端 `autoActivateFromUrl()` 会自动校验、弹框显示结果、并清掉地址栏里的 key。
 - 单题 🔄 重写**免费且不耗额度**；✏️ 编辑同样免费。
 - 价格数字散落在 `index.html` + `scripts/gen-seo.js`（搜 `$13.30`），Gumroad 是第三处，**改价必须三处同步**。
+
+## 落地页样例（60 页的真实内容）
+
+`scripts/gen-samples.js` 生成 `samples/<slug>.html`（一张真实练习纸）；`scripts/gen-seo.js` 通过 `scripts/visuals.js` 的 `hydrate()` 在**构建期**把它烘焙进 60 个 `/worksheets/` 页。
+- **`visuals.js` 与 `app.js` 是重复实现**（app.js 是浏览器 IIFE，无法 `require`）——**改一个必须同步另一个**。`hydrate()` 除了渲染 `data-visual` 图形，现在还会调 `renderMathString()` 把 `\frac` 等 LaTeX 变成 `<span class="frac">`，并**剥除渲染器不认识的宏**（如 `\underline{\hspace{1cm}}` → 空格）。**不加这个，落地页会原样印出 `\frac{1}{2}`**（2026-10-05 修，当时 60 页全中）。
+- 落地页**打印只输出那张练习纸**：装饰元素带 `no-print`，`@media print` 用 `.sample-block .sample-worksheet …` 覆盖（**特异性高于 app 的 `.worksheet` 规则，不再依赖 `<style>`/`<link>` 的先后顺序**）。实测 60 页里 **57 页 = 1 页**，3 个超长阅读/词汇页 = 2 页（内容确实超过一页，接受）。
+- 结果页会显示 **✔ Answer key checked** 徽标（`renderResult(…, checked)`，样式 `.ws-checked`），把“答案已校对”这个隐形卖点变成可见的信任信号。
 
 ## 课标锚点（年级对齐）
 

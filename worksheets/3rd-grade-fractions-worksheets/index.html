@@ -12,7 +12,7 @@
   <meta property="og:url" content="https://worksheet-ai-l1td.vercel.app/worksheets/3rd-grade-fractions-worksheets/" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="https://worksheet-ai-l1td.vercel.app/worksheets/3rd-grade-fractions-worksheets/" />
-  <link rel="stylesheet" href="/app.css?v=22" />
+  <link rel="stylesheet" href="/app.css?v=23" />
   <style>
     .sample-block { margin: 26px 0 6px; }
     .sample-block h2 { text-align: center; font-size: 20px; margin: 0 0 4px; }
@@ -34,21 +34,24 @@
     .sample-print { text-align: center; margin: 18px 0 0; }
     .sample-print button { font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; border: none; border-radius: 12px; padding: 12px 22px; color: #fff; background: #2f6fed; }
     .sample-print span { display: block; color: var(--muted); font-size: 12px; margin-top: 8px; }
-    /* In print, the page must reduce to JUST the worksheet (one page), so the
-       inline .sample-worksheet rules above must be overridden with the same
-       tighter print rhythm the app uses. These selectors are more specific than
-       the app's generic .worksheet rules, so without this block the sample would
-       keep its roomy on-screen spacing and spill onto a second page. */
+    .sample-cert { text-align: center; color: #0f6e56; background: #e1f5ee; border: 1px solid #9fe1cb; border-radius: 8px; font-size: 12.5px; font-weight: 600; padding: 7px 12px; margin: 14px auto 0; max-width: 620px; }
+    /* In print the page must reduce to JUST the worksheet. The landing page's
+       own inline .sample-worksheet rules (above) are roomier than the app's
+       print rhythm, so they must be overridden here. We qualify every selector
+       with .sample-block so it OUT-SPECIFIES the app's generic .worksheet print
+       rules no matter the source order - the previous equal-specificity rules
+       only worked because this <style> happened to come after the <link>, which
+       would silently break if that order ever changed. */
     @media print {
-      .sample-worksheet { padding: 0; border: none; box-shadow: none; font-size: 15px; }
-      .sample-worksheet .ws-questions > li { padding-bottom: 7px; margin-bottom: 8px; line-height: 1.8; font-size: 15px; padding-left: 22px; }
-      .sample-worksheet .ws-answers > li { margin-bottom: 4px; font-size: 14px; }
-      .sample-worksheet .ws-name { margin-bottom: 12px; font-size: 13px; }
-      .sample-worksheet .ws-instructions { margin-bottom: 10px; font-size: 14px; }
-      .sample-worksheet .ws-title { margin-bottom: 4px; font-size: 17px; }
-      .sample-worksheet .ws-visual { margin: 5px 0 8px; }
-      .sample-worksheet .viz-numline { height: 64px; }
-      .sample-worksheet .viz-bar .bar { width: 220px; height: 30px; }
+      .sample-block .sample-worksheet { padding: 0; border: none; box-shadow: none; font-size: 15px; }
+      .sample-block .sample-worksheet .ws-questions > li { padding-bottom: 7px; margin-bottom: 8px; line-height: 1.8; font-size: 15px; padding-left: 22px; }
+      .sample-block .sample-worksheet .ws-answers > li { margin-bottom: 4px; font-size: 14px; }
+      .sample-block .sample-worksheet .ws-name { margin-bottom: 12px; font-size: 13px; }
+      .sample-block .sample-worksheet .ws-instructions { margin-bottom: 10px; font-size: 14px; }
+      .sample-block .sample-worksheet .ws-title { margin-bottom: 4px; font-size: 17px; }
+      .sample-block .sample-worksheet .ws-visual { margin: 5px 0 8px; }
+      .sample-block .sample-worksheet .viz-numline { height: 64px; }
+      .sample-block .sample-worksheet .viz-bar .bar { width: 220px; height: 30px; }
     }
   </style>
 </head>
@@ -69,34 +72,33 @@
 <p class="ws-name"><span>Name: ____________</span><span>Date: ____________</span><span>Score: ______</span></p>
 <ol class="ws-questions">
   <li>Write the fraction that represents one quarter.</li>
-  <li>What is the equivalent fraction of \frac{1}{2} with denominator 4?</li>
-  <li>Which is larger, \frac{3}{5} or \frac{3}{8}?</li>
-  <li>Which is smaller, \frac{2}{7} or \frac{5}{7}?</li>
-  <li>Fill in the missing numerator: \frac{?}{6} = \frac{3}{9}.</li>
-  <li>Mark the point that shows \frac{1}{2} on the number line.<div class="viz viz-numline"><span class="nl-line"></span><span class="nl-tick" style="left:0%"></span><span class="nl-label" style="left:0%">0</span><span class="nl-tick" style="left:10%"></span><span class="nl-label" style="left:10%"><span class="frac"><span class="num">1</span><span class="den">10</span></span></span><span class="nl-tick" style="left:20%"></span><span class="nl-label" style="left:20%"><span class="frac"><span class="num">1</span><span class="den">5</span></span></span><span class="nl-tick" style="left:30%"></span><span class="nl-label" style="left:30%"><span class="frac"><span class="num">3</span><span class="den">10</span></span></span><span class="nl-tick" style="left:40%"></span><span class="nl-label" style="left:40%"><span class="frac"><span class="num">2</span><span class="den">5</span></span></span><span class="nl-tick" style="left:50%"></span><span class="nl-label" style="left:50%"><span class="frac"><span class="num">1</span><span class="den">2</span></span></span><span class="nl-tick" style="left:60%"></span><span class="nl-label" style="left:60%"><span class="frac"><span class="num">3</span><span class="den">5</span></span></span><span class="nl-tick" style="left:70%"></span><span class="nl-label" style="left:70%"><span class="frac"><span class="num">7</span><span class="den">10</span></span></span><span class="nl-tick" style="left:80%"></span><span class="nl-label" style="left:80%"><span class="frac"><span class="num">4</span><span class="den">5</span></span></span><span class="nl-tick" style="left:90%"></span><span class="nl-label" style="left:90%"><span class="frac"><span class="num">9</span><span class="den">10</span></span></span><span class="nl-tick" style="left:100%"></span><span class="nl-label" style="left:100%">1</span></div></li>
+  <li>What is the equivalent fraction of <span class="frac"><span class="num">1</span><span class="den">2</span></span> with denominator 4?</li>
+  <li>Which is larger, <span class="frac"><span class="num">3</span><span class="den">5</span></span> or <span class="frac"><span class="num">3</span><span class="den">8</span></span>?</li>
+  <li>Which is smaller, <span class="frac"><span class="num">2</span><span class="den">7</span></span> or <span class="frac"><span class="num">5</span><span class="den">7</span></span>?</li>
+  <li>Fill in the missing numerator: <span class="frac"><span class="num">?</span><span class="den">6</span></span> = <span class="frac"><span class="num">3</span><span class="den">9</span></span>.</li>
+  <li>Mark the point that shows <span class="frac"><span class="num">1</span><span class="den">2</span></span> on the number line.<div class="viz viz-numline"><span class="nl-line"></span><span class="nl-tick" style="left:0%"></span><span class="nl-label" style="left:0%">0</span><span class="nl-tick" style="left:10%"></span><span class="nl-label" style="left:10%"><span class="frac"><span class="num">1</span><span class="den">10</span></span></span><span class="nl-tick" style="left:20%"></span><span class="nl-label" style="left:20%"><span class="frac"><span class="num">1</span><span class="den">5</span></span></span><span class="nl-tick" style="left:30%"></span><span class="nl-label" style="left:30%"><span class="frac"><span class="num">3</span><span class="den">10</span></span></span><span class="nl-tick" style="left:40%"></span><span class="nl-label" style="left:40%"><span class="frac"><span class="num">2</span><span class="den">5</span></span></span><span class="nl-tick" style="left:50%"></span><span class="nl-label" style="left:50%"><span class="frac"><span class="num">1</span><span class="den">2</span></span></span><span class="nl-tick" style="left:60%"></span><span class="nl-label" style="left:60%"><span class="frac"><span class="num">3</span><span class="den">5</span></span></span><span class="nl-tick" style="left:70%"></span><span class="nl-label" style="left:70%"><span class="frac"><span class="num">7</span><span class="den">10</span></span></span><span class="nl-tick" style="left:80%"></span><span class="nl-label" style="left:80%"><span class="frac"><span class="num">4</span><span class="den">5</span></span></span><span class="nl-tick" style="left:90%"></span><span class="nl-label" style="left:90%"><span class="frac"><span class="num">9</span><span class="den">10</span></span></span><span class="nl-tick" style="left:100%"></span><span class="nl-label" style="left:100%">1</span></div></li>
   <li>Maya has 12 apples. She puts the same number of apples into each of 4 bags. What fraction of the apples are in one bag?</li>
   <li>Sam has a chocolate bar divided into 5 equal pieces. He gives 2 pieces to his friend. What fraction of the bar did Sam give away?</li>
   <li>What fraction of the bar is shaded?<div class="viz viz-bar"><div class="bar"><span class="bar-seg filled"></span><span class="bar-seg filled"></span><span class="bar-seg filled"></span><span class="bar-seg"></span></div></div></li>
-  <li>Solve the addition problem.<div class="viz viz-vertical"><pre>  237
-+ 158
-  ----</pre></div></li>
+  <li>Which fraction is greater, <span class="frac"><span class="num">2</span><span class="den">4</span></span> or <span class="frac"><span class="num">2</span><span class="den">3</span></span>? Explain how you know.</li>
 </ol>
 </div>
       <details class="sample-key no-print"><summary>Show the answer key</summary><div class="worksheet sample-worksheet">
 <h3 class="ws-answers-title">Answer Key</h3>
 <ol class="ws-answers">
-  <li>\frac{1}{4} — one quarter is one part of four equal parts.</li>
-  <li>\frac{2}{4} — multiply numerator and denominator of \frac{1}{2} by 2.</li>
-  <li>\frac{3}{5} is larger — same numerator, larger denominator makes a smaller fraction, so \frac{3}{5} > \frac{3}{8}.</li>
-  <li>\frac{2}{7} is smaller — same denominator, smaller numerator gives the smaller fraction.</li>
-  <li>2 — \frac{3}{9} simplifies to \frac{1}{3}; to get denominator 6 multiply numerator and denominator by 2, giving \frac{2}{6}.</li>
-  <li>\frac{1}{2} — the point halfway between 0 and 1 on the number line represents one half.</li>
-  <li>\frac{1}{4} — each bag gets 3 apples; 3/12 = 1/4 of the total.</li>
-  <li>\frac{2}{5} — two of the five equal pieces are given away.</li>
-  <li>\frac{3}{4} — three of the four equal sections are shaded.</li>
-  <li>395 — add ones (7+8=15, write 5 carry 1), tens (3+5+1=9), hundreds (2+1=3).</li>
+  <li><span class="frac"><span class="num">1</span><span class="den">4</span></span> — one quarter is one part of four equal parts.</li>
+  <li><span class="frac"><span class="num">2</span><span class="den">4</span></span> — multiply numerator and denominator of <span class="frac"><span class="num">1</span><span class="den">2</span></span> by 2.</li>
+  <li><span class="frac"><span class="num">3</span><span class="den">5</span></span> is larger — same numerator, larger denominator makes a smaller fraction, so <span class="frac"><span class="num">3</span><span class="den">5</span></span> > <span class="frac"><span class="num">3</span><span class="den">8</span></span>.</li>
+  <li><span class="frac"><span class="num">2</span><span class="den">7</span></span> is smaller — same denominator, smaller numerator gives the smaller fraction.</li>
+  <li>2 — <span class="frac"><span class="num">3</span><span class="den">9</span></span> simplifies to <span class="frac"><span class="num">1</span><span class="den">3</span></span>; to get denominator 6 multiply numerator and denominator by 2, giving <span class="frac"><span class="num">2</span><span class="den">6</span></span>.</li>
+  <li><span class="frac"><span class="num">1</span><span class="den">2</span></span> — the point halfway between 0 and 1 on the number line represents one half.</li>
+  <li><span class="frac"><span class="num">1</span><span class="den">4</span></span> — each bag gets 3 apples; <span class="frac"><span class="num">3</span><span class="den">12</span></span> = <span class="frac"><span class="num">1</span><span class="den">4</span></span> of the total.</li>
+  <li><span class="frac"><span class="num">2</span><span class="den">5</span></span> — two of the five equal pieces are given away.</li>
+  <li><span class="frac"><span class="num">3</span><span class="den">4</span></span> — three of the four equal sections are shaded.</li>
+  <li><span class="frac"><span class="num">2</span><span class="den">3</span></span> is greater — the numerators are the same, and thirds are larger parts than fourths, so <span class="frac"><span class="num">2</span><span class="den">3</span></span> &gt; <span class="frac"><span class="num">2</span><span class="den">4</span></span>.</li>
 </ol></div></details>
       <p class="sample-print no-print"><button type="button" onclick="window.print()">Print this worksheet</button><span>Or press Ctrl/⌘ + P — everything except this worksheet is already hidden from the printout.</span></p>
+      <p class="sample-cert no-print">Every answer key is checked before it reaches you — arithmetic is recomputed and reading answers are proofread against the passage.</p>
       <p class="sample-cta no-print">Want a different topic? <a href="#genForm">Type it above</a> and press Generate — the first 2 each day is free.</p>
     </section>
 
@@ -182,6 +184,6 @@
       <button id="closeModal" class="link-btn" type="button">Close</button>
     </div>
   </div>
-  <script src="/app.js?v=22" defer></script>
+  <script src="/app.js?v=23" defer></script>
 </body>
 </html>

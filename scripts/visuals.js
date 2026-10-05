@@ -145,9 +145,42 @@ function build(type, p, kind) {
   return "";
 }
 
-// Replaces every <div class="ws-visual" data-*=...></div> with rendered markup.
+// Mirrors renderMathString() in app.js. The model writes math in LaTeX
+// (\frac, \times, \div, \le, \ge, \cdot ...). The browser converts that at
+// runtime, but a BAKED sample never goes through the browser - which is exactly
+// why the SEO landing pages showed a literal "\frac{1}{2}" instead of a
+// fraction. We also strip macros the renderer does not understand (e.g.
+// \underline{\hspace{1cm}}) so a stray macro can never leak as raw text.
+function renderMathString(input) {
+  let t = String(input == null ? "" : input);
+  t = t.replace(/\\[\(\)\[\]]/g, "");
+  t = t.replace(/\$([^$]+)\$/g, (m, inner) =>
+    /[\\=+\u00d7\u00f7]/.test(inner) || /^[\s\d.,]+$/.test(inner) ? inner : m
+  );
+  t = t.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, (m, a, b) => fracSpan(a, b));
+  t = t.replace(/(\d+)\s+(\d+)\s*\/\s*(\d+)/g, (m, w, a, b) => w + " " + fracSpan(a, b));
+  t = t.replace(/(^|[^\d/])(\d+)\s*\/\s*(\d+)(?![\d/])/g, (m, pre, a, b) => pre + fracSpan(a, b));
+  t = t
+    .replace(/\\times/g, "\u00d7")
+    .replace(/\\div(?![a-zA-Z])/g, "\u00f7")
+    .replace(/\\cdot/g, "\u00b7")
+    .replace(/\\le(?![a-zA-Z])/g, "\u2264")
+    .replace(/\\ge(?![a-zA-Z])/g, "\u2265")
+    .replace(/\\neq/g, "\u2260")
+    .replace(/\\pm(?![a-zA-Z])/g, "\u00b1");
+  // Spacers first (they nest inside \underline, so they must go before it),
+  // then keep the payload of \underline{X}, then drop any leftover command.
+  t = t.replace(/\\(?:hspace|vspace|hskip|vskip|quad|qquad|thinspace|enspace|medspace|thickspace)\*?(?:\{[^{}]*\})?/g, " ");
+  t = t.replace(/\\(?:underline|textbf|textit|emph|mathrm|text|mbox)\{([^{}]*)\}/g, "$1");
+  t = t.replace(/\\(?:left|right|displaystyle|textstyle)\b/g, "");
+  t = t.replace(/\\[a-zA-Z]+/g, "");
+  return t;
+}
+
+// Replaces every <div class="ws-visual" data-*=...></div> with rendered markup,
+// then renders any LaTeX in the surrounding text.
 function hydrate(html) {
-  return String(html || "").replace(
+  const withVisuals = String(html || "").replace(
     /<div([^>]*?)class="ws-visual"([^>]*?)>\s*<\/div>/gi,
     (whole, pre, post) => {
       const attrs = pre + " " + post;
@@ -167,6 +200,9 @@ function hydrate(html) {
       return out || whole; // unknown type: leave as-is
     }
   );
+  // Render LaTeX AFTER the visual placeholders are gone, so the fraction rules
+  // never touch a data-* attribute (e.g. a number-line point label like "1/2").
+  return renderMathString(withVisuals);
 }
 
-module.exports = { hydrate };
+module.exports = { hydrate, renderMathString };

@@ -12,7 +12,7 @@
   <meta property="og:url" content="https://worksheet-ai-l1td.vercel.app/worksheets/5th-grade-fractions-worksheets/" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="https://worksheet-ai-l1td.vercel.app/worksheets/5th-grade-fractions-worksheets/" />
-  <link rel="stylesheet" href="/app.css?v=22" />
+  <link rel="stylesheet" href="/app.css?v=23" />
   <style>
     .sample-block { margin: 26px 0 6px; }
     .sample-block h2 { text-align: center; font-size: 20px; margin: 0 0 4px; }
@@ -34,21 +34,24 @@
     .sample-print { text-align: center; margin: 18px 0 0; }
     .sample-print button { font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; border: none; border-radius: 12px; padding: 12px 22px; color: #fff; background: #2f6fed; }
     .sample-print span { display: block; color: var(--muted); font-size: 12px; margin-top: 8px; }
-    /* In print, the page must reduce to JUST the worksheet (one page), so the
-       inline .sample-worksheet rules above must be overridden with the same
-       tighter print rhythm the app uses. These selectors are more specific than
-       the app's generic .worksheet rules, so without this block the sample would
-       keep its roomy on-screen spacing and spill onto a second page. */
+    .sample-cert { text-align: center; color: #0f6e56; background: #e1f5ee; border: 1px solid #9fe1cb; border-radius: 8px; font-size: 12.5px; font-weight: 600; padding: 7px 12px; margin: 14px auto 0; max-width: 620px; }
+    /* In print the page must reduce to JUST the worksheet. The landing page's
+       own inline .sample-worksheet rules (above) are roomier than the app's
+       print rhythm, so they must be overridden here. We qualify every selector
+       with .sample-block so it OUT-SPECIFIES the app's generic .worksheet print
+       rules no matter the source order - the previous equal-specificity rules
+       only worked because this <style> happened to come after the <link>, which
+       would silently break if that order ever changed. */
     @media print {
-      .sample-worksheet { padding: 0; border: none; box-shadow: none; font-size: 15px; }
-      .sample-worksheet .ws-questions > li { padding-bottom: 7px; margin-bottom: 8px; line-height: 1.8; font-size: 15px; padding-left: 22px; }
-      .sample-worksheet .ws-answers > li { margin-bottom: 4px; font-size: 14px; }
-      .sample-worksheet .ws-name { margin-bottom: 12px; font-size: 13px; }
-      .sample-worksheet .ws-instructions { margin-bottom: 10px; font-size: 14px; }
-      .sample-worksheet .ws-title { margin-bottom: 4px; font-size: 17px; }
-      .sample-worksheet .ws-visual { margin: 5px 0 8px; }
-      .sample-worksheet .viz-numline { height: 64px; }
-      .sample-worksheet .viz-bar .bar { width: 220px; height: 30px; }
+      .sample-block .sample-worksheet { padding: 0; border: none; box-shadow: none; font-size: 15px; }
+      .sample-block .sample-worksheet .ws-questions > li { padding-bottom: 7px; margin-bottom: 8px; line-height: 1.8; font-size: 15px; padding-left: 22px; }
+      .sample-block .sample-worksheet .ws-answers > li { margin-bottom: 4px; font-size: 14px; }
+      .sample-block .sample-worksheet .ws-name { margin-bottom: 12px; font-size: 13px; }
+      .sample-block .sample-worksheet .ws-instructions { margin-bottom: 10px; font-size: 14px; }
+      .sample-block .sample-worksheet .ws-title { margin-bottom: 4px; font-size: 17px; }
+      .sample-block .sample-worksheet .ws-visual { margin: 5px 0 8px; }
+      .sample-block .sample-worksheet .viz-numline { height: 64px; }
+      .sample-block .sample-worksheet .viz-bar .bar { width: 220px; height: 30px; }
     }
   </style>
 </head>
@@ -68,13 +71,13 @@
 <p class="ws-instructions">Solve each problem. Show your work where indicated.</p>
 <p class="ws-name"><span>Name: ____________</span><span>Date: ____________</span><span>Score: ______</span></p>
 <ol class="ws-questions">
-  <li>3\frac{1}{4} + 2\frac{1}{5} = _____</li>
-  <li>7\frac{1}{8} - 1\frac{1}{3} = _____</li>
-  <li>5 \times \frac{2}{3} = _____</li>
-  <li>\frac{3}{4} \div 2 = _____</li>
-  <li>12 \times 0.375 = _____</li>
-  <li>145 \div 5 = _____</li>
-  <li>Mia baked 3\frac{1}{2} cups of cookies and used 1\frac{3}{4} cups of chocolate chips. How many cups of dough are left? _____</li>
+  <li>3<span class="frac"><span class="num">1</span><span class="den">4</span></span> + 2<span class="frac"><span class="num">1</span><span class="den">5</span></span> = _____</li>
+  <li>7<span class="frac"><span class="num">1</span><span class="den">8</span></span> - 1<span class="frac"><span class="num">1</span><span class="den">3</span></span> = _____</li>
+  <li>5 × <span class="frac"><span class="num">2</span><span class="den">3</span></span> = _____</li>
+  <li><span class="frac"><span class="num">3</span><span class="den">4</span></span> ÷ 2 = _____</li>
+  <li>12 × 0.375 = _____</li>
+  <li>145 ÷ 5 = _____</li>
+  <li>Mia baked 3<span class="frac"><span class="num">1</span><span class="den">2</span></span> cups of cookies and used 1<span class="frac"><span class="num">3</span><span class="den">4</span></span> cups of chocolate chips. How many cups of dough are left? _____</li>
   <li>A rectangular prism has length 4 ft, width 3 ft, and height 2.5 ft. What is its volume in cubic feet? _____</li>
   <li>What decimal is represented by the shaded part of the bar? <div class="viz viz-bar"><div class="bar"><span class="bar-seg filled"></span><span class="bar-seg filled"></span><span class="bar-seg filled"></span><span class="bar-seg"></span><span class="bar-seg"></span><span class="bar-seg"></span><span class="bar-seg"></span><span class="bar-seg"></span></div></div> _____</li>
   <li>Solve using the column method. <div class="viz viz-vertical"><pre>  236
@@ -85,18 +88,19 @@
       <details class="sample-key no-print"><summary>Show the answer key</summary><div class="worksheet sample-worksheet">
 <h3 class="ws-answers-title">Answer Key</h3>
 <ol class="ws-answers">
-  <li>5\frac{9}{20}. Convert to common denominator 20, add: 65/20 + 44/20 = 109/20 = 5\frac{9}{20}.</li>
-  <li>5\frac{19}{24}. Common denominator 24, subtract: 171/24 - 32/24 = 139/24 = 5\frac{19}{24}.</li>
-  <li>3\frac{1}{3}. Multiply: 5 × 2/3 = 10/3 = 3\frac{1}{3}.</li>
-  <li>\frac{3}{8}. Divide by 2 = multiply by 1/2: (3/4) × (1/2) = 3/8.</li>
+  <li>5<span class="frac"><span class="num">9</span><span class="den">20</span></span>. Convert to common denominator 20, add: <span class="frac"><span class="num">65</span><span class="den">20</span></span> + <span class="frac"><span class="num">44</span><span class="den">20</span></span> = <span class="frac"><span class="num">109</span><span class="den">20</span></span> = 5<span class="frac"><span class="num">9</span><span class="den">20</span></span>.</li>
+  <li>5<span class="frac"><span class="num">19</span><span class="den">24</span></span>. Common denominator 24, subtract: <span class="frac"><span class="num">171</span><span class="den">24</span></span> - <span class="frac"><span class="num">32</span><span class="den">24</span></span> = <span class="frac"><span class="num">139</span><span class="den">24</span></span> = 5<span class="frac"><span class="num">19</span><span class="den">24</span></span>.</li>
+  <li>3<span class="frac"><span class="num">1</span><span class="den">3</span></span>. Multiply: 5 × <span class="frac"><span class="num">2</span><span class="den">3</span></span> = <span class="frac"><span class="num">10</span><span class="den">3</span></span> = 3<span class="frac"><span class="num">1</span><span class="den">3</span></span>.</li>
+  <li><span class="frac"><span class="num">3</span><span class="den">8</span></span>. Divide by 2 = multiply by <span class="frac"><span class="num">1</span><span class="den">2</span></span>: (<span class="frac"><span class="num">3</span><span class="den">4</span></span>) × (<span class="frac"><span class="num">1</span><span class="den">2</span></span>) = <span class="frac"><span class="num">3</span><span class="den">8</span></span>.</li>
   <li>4.5. Multiply: 12 × 0.375 = 4.5.</li>
   <li>29. Divide: 145 ÷ 5 = 29.</li>
-  <li>1\frac{3}{4} cups. Subtract: 3\frac{1}{2} - 1\frac{3}{4} = 7/2 - 7/4 = 7/4 = 1\frac{3}{4}.</li>
+  <li>1<span class="frac"><span class="num">3</span><span class="den">4</span></span> cups. Subtract: 3<span class="frac"><span class="num">1</span><span class="den">2</span></span> - 1<span class="frac"><span class="num">3</span><span class="den">4</span></span> = <span class="frac"><span class="num">7</span><span class="den">2</span></span> - <span class="frac"><span class="num">7</span><span class="den">4</span></span> = <span class="frac"><span class="num">7</span><span class="den">4</span></span> = 1<span class="frac"><span class="num">3</span><span class="den">4</span></span>.</li>
   <li>30 cubic feet. Volume = 4 × 3 × 2.5 = 30.</li>
-  <li>0.375. Convert \frac{3}{8} to decimal: 3 ÷ 8 = 0.375.</li>
+  <li>0.375. Convert <span class="frac"><span class="num">3</span><span class="den">8</span></span> to decimal: 3 ÷ 8 = 0.375.</li>
   <li>385. Add columnwise: 236 + 149 = 385.</li>
 </ol></div></details>
       <p class="sample-print no-print"><button type="button" onclick="window.print()">Print this worksheet</button><span>Or press Ctrl/⌘ + P — everything except this worksheet is already hidden from the printout.</span></p>
+      <p class="sample-cert no-print">Every answer key is checked before it reaches you — arithmetic is recomputed and reading answers are proofread against the passage.</p>
       <p class="sample-cta no-print">Want a different topic? <a href="#genForm">Type it above</a> and press Generate — the first 2 each day is free.</p>
     </section>
 
@@ -182,6 +186,6 @@
       <button id="closeModal" class="link-btn" type="button">Close</button>
     </div>
   </div>
-  <script src="/app.js?v=22" defer></script>
+  <script src="/app.js?v=23" defer></script>
 </body>
 </html>

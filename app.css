@@ -116,6 +116,9 @@ button { font: inherit; cursor: pointer; }
 .toolbar button { padding: 10px 16px; border-radius: 10px; border: 1px solid var(--line); background: #fff; font-weight: 700; }
 .toolbar button:hover { border-color: var(--accent); color: var(--accent); }
 .toolbar .note { font-size: 12px; color: var(--muted); }
+/* Turns the invisible "answers are proofread" feature into a visible trust
+   signal right where the parent is looking at the sheet. */
+.ws-checked { color: #0f6e56; font-weight: 700; white-space: nowrap; }
 
 /* ---------- The worksheet ---------- */
 .worksheet {

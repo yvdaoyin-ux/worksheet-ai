@@ -261,8 +261,21 @@
     t = t.replace(/(\d+)\s+(\d+)\s*\/\s*(\d+)/g, (m, w, a, b) => w + " " + fracSpan(a, b));
     t = t.replace(/(^|[^\d/])(\d+)\s*\/\s*(\d+)(?![\d/])/g, (m, pre, a, b) => pre + fracSpan(a, b));
     t = t
-      .replace(/\\times/g, "\u00d7").replace(/\\div/g, "\u00f7").replace(/\\cdot/g, "\u00b7")
-      .replace(/\\le/g, "\u2264").replace(/\\ge/g, "\u2265");
+      .replace(/\\times/g, "\u00d7")
+      .replace(/\\div(?![a-zA-Z])/g, "\u00f7")
+      .replace(/\\cdot/g, "\u00b7")
+      .replace(/\\le(?![a-zA-Z])/g, "\u2264")
+      .replace(/\\ge(?![a-zA-Z])/g, "\u2265")
+      .replace(/\\neq/g, "\u2260")
+      .replace(/\\pm(?![a-zA-Z])/g, "\u00b1");
+    // Never let a macro the renderer does not understand leak as raw text
+    // (e.g. \underline{\hspace{1cm}}). Spacers first (they nest inside
+    // \underline), then keep the payload of \underline{X}, then drop any
+    // leftover command. Mirrors scripts/visuals.js for baked samples.
+    t = t.replace(/\\(?:hspace|vspace|hskip|vskip|quad|qquad|thinspace|enspace|medspace|thickspace)\\*?(?:\{[^{}]*\})?/g, " ");
+    t = t.replace(/\\(?:underline|textbf|textit|emph|mathrm|text|mbox)\{([^{}]*)\}/g, "$1");
+    t = t.replace(/\\(?:left|right|displaystyle|textstyle)\\b/g, "");
+    t = t.replace(/\\[a-zA-Z]+/g, "");
     return t;
   }
   function renderMath(root) {
@@ -273,7 +286,7 @@
     while ((n = walker.nextNode())) texts.push(n);
     for (const node of texts) {
       const t = node.nodeValue;
-      if (!/(\\frac|\\times|\\div|\\cdot|\\\(|\$|\d\s*\/\s*\d)/.test(t)) continue;
+      if (!/(\\[a-zA-Z]|\$|\d\s*\/\s*\d)/.test(t)) continue;
       const out = renderMathString(t);
       if (out !== t) {
         const span = document.createElement("span");
@@ -639,11 +652,16 @@
     $("resultWrap").hidden = false;
   }
 
-  function renderResult(html, demo) {
+  function renderResult(html, demo, checked) {
     paintWorksheet(html);
     const note = $("note");
     if (demo) note.textContent = "Demo mode (no API key set on server)";
-    else note.textContent = isUnlocked() ? "Pro — watermark removed" : "Free preview";
+    else {
+      // Make the (otherwise invisible) answer-key check a visible trust signal.
+      const badge = checked ? '<span class="ws-checked">&#10004; Answer key checked</span>' : "";
+      const planTxt = isUnlocked() ? "Pro — watermark removed" : "Free preview";
+      note.innerHTML = badge ? badge + " &middot; " + planTxt : planTxt;
+    }
     $("resultWrap").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -919,7 +937,7 @@
       lastSheetHtml = data.html; // kept so "easier + harder" can re-level THIS sheet
       lastIsSingle = true;
       lastCtx = { grade: $("grade").value, subject: $("subject").value, topic: topic };
-      renderResult(data.html, data.demo);
+      renderResult(data.html, data.demo, data.checked);
       try { saveHist({ topic: topic, subject: $("subject").value, grade: $("grade").value, html: data.html }); } catch (e) { /* ignore */ }
       renderHist();
       if (plan() !== "pro") {
