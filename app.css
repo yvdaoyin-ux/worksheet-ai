@@ -270,6 +270,12 @@ button { font: inherit; cursor: pointer; }
 footer.site { text-align: center; color: var(--muted); font-size: 13px; margin-top: 44px; border-top: 1px solid var(--line); padding-top: 20px; }
 footer.site strong { color: var(--ink); }
 
+/* Print setup. Without an explicit @page the sheet inherits whatever default
+   margin the browser/printer has, which is how a 10-question sheet silently
+   spilled onto a second page. Letter is the US default; the A4 variant belongs
+   with the planned UK region option. */
+@page { size: Letter; margin: 12mm; }
+
 @media print {
   body { background: #fff; }
   .no-print { display: none !important; }
@@ -277,7 +283,42 @@ footer.site strong { color: var(--ink); }
   .result-wrap { margin: 0; }
   .worksheet { border: none; box-shadow: none; padding: 0; font-size: 15px; }
   .worksheet .ws-pagebreak { page-break-before: always; border-top: none; }
-  .ws-visual { break-inside: avoid; }
+
+  /* Never let a question, its answer space, or a graphic organizer be split
+     across two pages. Previously only .ws-visual had this, so a question could
+     be cut in half. */
+  .worksheet .ws-questions > li,
+  .worksheet .ws-answers > li,
+  .worksheet .ws-passage,
+  .worksheet .viz-organizer,
+  .worksheet .answer-lines { break-inside: avoid; page-break-inside: avoid; }
+
+  /* Tighter vertical rhythm in print only: the web spacing (16px padding +
+     20px margin + 2.15 line-height per question) is comfortable on screen but
+     pushed a 12-question sheet onto a second page. Only the whitespace is
+     reduced — the font size is left alone, because a child needs large text
+     far more than it needs airy gaps. */
+  .worksheet .ws-questions > li { padding-bottom: 7px; margin-bottom: 8px; line-height: 1.8; }
+  .worksheet .ws-answers > li { margin-bottom: 4px; }
+  .worksheet .ws-name { margin-bottom: 12px; }
+  .worksheet .ws-instructions { margin-bottom: 10px; }
+  .worksheet .ws-title { margin-bottom: 4px; }
+  .worksheet .ws-visual { margin: 5px 0 8px; }
+  .worksheet .viz-numline { height: 64px; }
+}
+
+/* Ruled writing space injected under questions that ask for a written answer
+   (reading / science / social studies / grammar). ~2 lines. */
+.worksheet .answer-lines {
+  margin: 7px 0 0;
+  height: 42px;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 20px,
+    #cbd5e1 20px,
+    #cbd5e1 21px
+  );
 }
 
 /* recent worksheets */

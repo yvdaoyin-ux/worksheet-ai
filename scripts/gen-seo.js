@@ -99,8 +99,8 @@ const subjectOptions = subjects
 const resultModal = `
     <section id="resultWrap" class="result-wrap" hidden>
       <div id="upsellBar" class="upsell no-print" hidden>
-        <span>\u{1F513} Free plan — watermarked · 2 math worksheets a day</span>
-        <button id="upsellBtn" type="button">Upgrade — unlimited math from $6.93</button>
+        <span>\u{1F513} Free plan 鈥?watermarked 路 2 math worksheets a day</span>
+        <button id="upsellBtn" type="button">Upgrade 鈥?unlimited math from $6.93</button>
       </div>
       <div class="toolbar no-print">
         <button id="printBtn" type="button">\u{1F5A8}\u{FE0F} Print / Save as PDF</button>
@@ -115,24 +115,24 @@ const paywall = `
       <h2>Choose a plan</h2>
       <p class="price">Free forever: 2 math worksheets a day + 1 in any other subject.</p>
 
-      <p class="plan-head"><strong>Basic — $6.93 once</strong> <s>$9.90</s> (30% off)</p>
+      <p class="plan-head"><strong>Basic 鈥?$6.93 once</strong> <s>$9.90</s> (30% off)</p>
       <ul>
         <li><strong>Unlimited math worksheets</strong>, every day</li>
         <li>3 worksheets a day in reading, spelling, science &amp; the rest</li>
         <li>No watermark</li>
       </ul>
-      <a id="gumroadBtn" class="buy-btn" href="#" target="_blank" rel="noopener">Get Basic — $6.93 once (30% off)</a>
+      <a id="gumroadBtn" class="buy-btn" href="#" target="_blank" rel="noopener">Get Basic 鈥?$6.93 once (30% off)</a>
 
-      <p class="plan-head"><strong>Pro — monthly</strong></p>
+      <p class="plan-head"><strong>Pro 鈥?monthly</strong></p>
       <ul>
-        <li><strong>All 8 subjects, unlimited</strong> — no daily limits at all</li>
+        <li><strong>All 8 subjects, unlimited</strong> 鈥?no daily limits at all</li>
         <li>Every new feature we ship, included</li>
         <li>No watermark</li>
       </ul>
       <a id="gumroadMonthlyBtn" class="buy-btn buy-btn-alt" href="#" target="_blank" rel="noopener">Go Pro monthly</a>
 
       <p class="plan-note">Both plans keep math unlimited. Cancel Pro any time.</p>
-      <p class="trust">Secure checkout via Gumroad · no account needed</p>
+      <p class="trust">Secure checkout via Gumroad 路 no account needed</p>
       <div class="divider">Already purchased? Enter your key below</div>
       <input id="licenseInput" type="text" placeholder="Paste your license key" autocomplete="off" />
       <button id="activateBtn" class="btn-secondary" type="button">Activate</button>
@@ -143,13 +143,13 @@ const paywall = `
 
 function renderPage(p) {
   const url = `${DOMAIN}/worksheets/${p.slug}/`;
-  const title = `${p.h1} — Printable with Answer Keys | WorksheetAI`;
+  const title = `${p.h1} 鈥?Printable with Answer Keys | WorksheetAI`;
   const desc = `Create free ${p.h1
     .replace(/^Free /, "")
-    .toLowerCase()} with instant answer keys. Type any topic and print in 30 seconds — free to try, no signup.`;
+    .toLowerCase()} with instant answer keys. Type any topic and print in 30 seconds 鈥?free to try, no signup.`;
   const lede = `Need ${p.h1
     .replace(/^Free /, "")
-    .toLowerCase()} fast? Type a topic below and WorksheetAI writes a clean, printable worksheet with an answer key in about 30 seconds — perfect for ${p.gradeLabel.toLowerCase()} homeschool practice.`;
+    .toLowerCase()} fast? Type a topic below and WorksheetAI writes a clean, printable worksheet with an answer key in about 30 seconds 鈥?perfect for ${p.gradeLabel.toLowerCase()} homeschool practice.`;
 
   const siblings = pages.filter((x) => x.grade === p.grade && x.slug !== p.slug).slice(0, 8);
   const related = siblings
@@ -170,7 +170,7 @@ function renderPage(p) {
   <meta property="og:url" content="${url}" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="${url}" />
-  <link rel="stylesheet" href="/app.css?v=19" />
+  <link rel="stylesheet" href="/app.css?v=20" />
 </head>
 <body>
   <div class="wrap">
@@ -194,11 +194,11 @@ ${resultModal}
 
     <section class="related no-print">
       <h2>More ${p.gradeLabel} worksheets</h2>
-      <ul>${related}<li><a href="/">All worksheets →</a></li></ul>
+      <ul>${related}<li><a href="/">All worksheets 鈫?/a></li></ul>
     </section>
 
     <section id="homeSubBox" class="sub-box no-print">
-      <p class="sub-title">📩 Get a free ${p.gradeLabel} worksheet pack every Friday</p>
+      <p class="sub-title">馃摡 Get a free ${p.gradeLabel} worksheet pack every Friday</p>
       <p class="sub-sub">Five printables with answer keys, straight to your inbox. No spam, unsubscribe anytime.</p>
       <form id="homeSubForm" class="sub-form">
         <input id="homeSubEmail" type="email" placeholder="you@email.com" autocomplete="email" required />
@@ -207,16 +207,16 @@ ${resultModal}
       <p id="homeSubMsg" class="msg"></p>
     </section>
 
-    <p class="trustbar">2 math worksheets a day free · 1 in other subjects · no signup · Basic (unlimited math) $6.93 once · Pro (all subjects) monthly</p>
+    <p class="trustbar">2 math worksheets a day free 路 1 in other subjects 路 no signup 路 Basic (unlimited math) $6.93 once 路 Pro (all subjects) monthly</p>
 
     <footer class="site no-print">
-      <p><strong>Unlimited printable worksheets — $6.93 once (30% off).</strong></p>
-      <p class="about">Made by an independent developer — every purchase keeps the servers running and funds new features. Thank you for the support!</p>
-      <p><a href="/">WorksheetAI home</a> · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a></p>
+      <p><strong>Unlimited printable worksheets 鈥?$6.93 once (30% off).</strong></p>
+      <p class="about">Made by an independent developer 鈥?every purchase keeps the servers running and funds new features. Thank you for the support!</p>
+      <p><a href="/">WorksheetAI home</a> 路 <a href="/privacy.html">Privacy</a> 路 <a href="/terms.html">Terms</a></p>
     </footer>
   </div>
 ${paywall}
-  <script src="/app.js?v=19" defer></script>
+  <script src="/app.js?v=20" defer></script>
 </body>
 </html>
 `;

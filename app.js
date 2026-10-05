@@ -551,12 +551,34 @@
     }
   }
 
+  // Subjects whose questions ask for a written answer ("answer in complete
+  // sentences", "rewrite each sentence"). Spelling / vocabulary get a word list
+  // instead and writing has its own .ws-lines block, so they are excluded.
+  const NEEDS_LINES = ["reading", "science", "social", "grammar"];
+
+  // Give children somewhere to actually write. The AI is asked to say
+  // "answer in complete sentences" but nothing in the sheet provided any ruled
+  // space, so a printed sheet left nowhere to put the answer.
+  function addAnswerSpace(box) {
+    const subj = (($("subject") && $("subject").value) || "").toLowerCase();
+    if (!NEEDS_LINES.some((k) => subj.indexOf(k) >= 0)) return;
+    const items = box.querySelectorAll(".ws-questions > li");
+    for (const li of items) {
+      if (li.querySelector(".answer-lines") || li.querySelector(".ws-visual")) continue;
+      const d = document.createElement("div");
+      d.className = "answer-lines";
+      d.setAttribute("contenteditable", "false");
+      li.appendChild(d);
+    }
+  }
+
   function paintWorksheet(html) {
     const box = $("result");
     box.innerHTML = html || "<p>No content was returned.</p>";
     renderMath(box);
     hydrateVisuals(box);
     ensureOrganizer(box);
+    addAnswerSpace(box);
     attachItemTools(box);
     if ($("font")) { box.classList.remove("font-andika", "font-comic", "font-lexend", "font-nunito"); box.classList.add("font-" + $("font").value); }
     if ($("size")) { box.classList.remove("size-s", "size-m", "size-l", "size-xl"); box.classList.add("size-" + $("size").value); }
