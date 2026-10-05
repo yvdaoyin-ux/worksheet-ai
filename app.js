@@ -643,7 +643,7 @@
     let wm = box.querySelector(".watermark");
     if (!isUnlocked()) {
       if (!wm) { wm = document.createElement("p"); wm.className = "watermark"; box.appendChild(wm); }
-      wm.textContent = "Made with WorksheetAI — upgrade to remove";
+      wm.textContent = "Free preview · upgrade to remove the watermark — unlimited math for $13.30 once";
     } else if (wm) {
       wm.remove();
     }
@@ -935,6 +935,9 @@
     const btn = $("genBtn");
     btn.disabled = true;
     btn.textContent = "Generating…";
+    const note = $("note");
+    const stageTimer = note ? setTimeout(() => { note.textContent = "Checking every answer before it reaches you…"; }, 4500) : null;
+    if (note) note.textContent = "Writing your questions and answer key…";
     try {
       const data = await generateOnce(topic);
       lastSheetHtml = data.html; // kept so "easier + harder" can re-level THIS sheet
@@ -957,6 +960,7 @@
       track("generate_err", { message: String(err.message || err).slice(0, 120) });
       alert("Something went wrong: " + err.message + "\nFree models can be busy — please try again in a few seconds.");
     } finally {
+      if (stageTimer) clearTimeout(stageTimer);
       btn.disabled = false;
       btn.textContent = genLabel();
     }

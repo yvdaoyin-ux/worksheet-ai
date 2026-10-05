@@ -144,7 +144,7 @@ function renderPage(p) {
   <meta property="og:url" content="${url}" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="${url}" />
-  <link rel="stylesheet" href="/app.css?v=24" />
+  <link rel="stylesheet" href="/app.css?v=25" />
   <style>
     .sample-block { margin: 26px 0 6px; }
     .sample-block h2 { text-align: center; font-size: 20px; margin: 0 0 4px; }
@@ -195,6 +195,7 @@ function renderPage(p) {
 
     <h1 class="page-h1 no-print">${p.h1}</h1>
     <p class="lede no-print">${lede}</p>
+    ${p.subject === "Math" ? "" : '<p class="lede no-print">Math is where we shine — this subject is included on Pro and gets better every week.</p>'}
 ${sampleBlock(p)}
 
     <form id="genForm" class="card no-print" data-grade="${p.grade}" data-subject="${p.subject}" data-topic="${p.genTopic}">
@@ -232,7 +233,7 @@ ${resultModal}
     </footer>
   </div>
 ${paywall}
-  <script src="/app.js?v=24" defer></script>
+  <script src="/app.js?v=25" defer></script>
 </body>
 </html>
 `;
