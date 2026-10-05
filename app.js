@@ -199,6 +199,8 @@
       '<select id="size"><option value="s">Small</option><option value="m" selected>Normal</option><option value="l">Large</option><option value="xl">Extra large</option></select></div>' +
       '<div class="field" id="styleField"><label for="style">Math style</label>' +
       '<select id="style"><option value="mixed" selected>Mixed</option><option value="computation">Computation</option><option value="word">Word problems</option></select></div>' +
+      '<div class="field"><label for="studentName">Student name (optional)</label>' +
+      '<input id="studentName" type="text" placeholder="e.g. Leo" autocomplete="off" /></div>' +
       '<div class="field"><label for="pack">Pack size</label>' +
       '<select id="pack"><option value="1" selected>1 sheet</option><option value="5">5 sheets</option><option value="10">10 sheets</option></select></div>';
     $("genForm").insertBefore(opts, $("genBtn"));
@@ -694,6 +696,7 @@
         level: $("level") ? $("level").value : "standard",
         size: $("size") ? $("size").value : "normal",
         style: $("style") ? $("style").value : "mixed",
+        student: $("studentName") ? $("studentName").value.trim() : "",
       }),
     });
     const data = await res.json();

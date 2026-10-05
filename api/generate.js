@@ -30,7 +30,11 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const { grade = "", subject = "", topic = "", count = 10, level = "standard", style = "mixed" } = req.body || {};
+  const { grade = "", subject = "", topic = "", count = 10, level = "standard", style = "mixed", student = "" } = req.body || {};
+  // Optional "personalize for my child" first name. Sanitized to letters / space /
+  // apostrophe / hyphen and capped, so it can never become a prompt-injection or
+  // markup vector (it is interpolated into the prompt below).
+  const studentName = String(student || "").replace(/[^A-Za-z '-]/g, "").replace(/\s+/g, " ").trim().slice(0, 24);
   if (!topic) {
     res.status(400).json({ error: "Please enter a topic." });
     return;
@@ -89,7 +93,7 @@ module.exports = async (req, res) => {
   }
 
   const qCount = Math.min(20, Math.max(3, parseInt(count, 10) || 10));
-  const prompt = buildPrompt(grade, subject, topic, qCount, level, style);
+  const prompt = buildPrompt(grade, subject, topic, qCount, level, style, studentName);
   const attempts = buildAttempts();
 
   if (!attempts.length) {
@@ -567,7 +571,7 @@ WORKSHEET TO RE-LEVEL
 ${source}`;
 }
 
-function buildPrompt(grade, subject, topic, count, level, style) {
+function buildPrompt(grade, subject, topic, count, level, style, student) {
   const s = String(subject || "").toLowerCase();
   const head = `You are an experienced U.S. elementary school teacher creating a printable worksheet for a homeschool family.
 
@@ -575,7 +579,8 @@ Grade level: ${grade} (U.S. grade level). Subject: ${subject}. Topic: ${topic}.
 
 GENERAL RULES
 - Match the concepts and difficulty to U.S. standards for this grade (Common Core / NGSS style).
-- Use U.S. contexts and conventions (U.S. names, U.S. spelling).
+- Use U.S. contexts and conventions (U.S. names, U.S. spelling).${student ? `
+- PERSONALIZE: this worksheet is for a specific child. Use the first name "${student}" as the main character in EVERY word problem, story and reading passage (instead of generic names). Use ONLY that first name, spelled exactly like that.` : ""}
 - Grades K–2: keep wording very short and concrete.${levelLine(level)}
 - The output MUST be a ${subject} worksheet. Follow the SUBJECT strictly, even if the topic wording could also fit another subject.
 - In the Answer Key, give a brief step or reason for each answer (parents find this very useful).

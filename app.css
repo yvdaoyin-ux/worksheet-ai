@@ -250,7 +250,7 @@ button { font: inherit; cursor: pointer; }
 .related a:hover { border-color: var(--accent); }
 
 .modal-backdrop { position: fixed; inset: 0; background: rgba(18, 24, 38, 0.55); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
-.modal { background: #fff; border-radius: 18px; padding: 26px; max-width: 420px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.modal { background: #fff; border-radius: 18px; padding: 26px; max-width: 420px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-height: 92vh; overflow-y: auto; }
 .modal h2 { margin: 0 0 4px; font-size: 21px; }
 .modal .price { color: var(--accent); font-weight: 800; margin: 2px 0 10px; }
 .modal ul { padding-left: 20px; color: #333; margin: 10px 0; }
@@ -368,6 +368,23 @@ footer.site strong { color: var(--ink); }
 .why-cheap p { margin: 0 0 10px; }
 .why-cheap p:last-child { margin-bottom: 0; }
 .why-cheap strong { color: #16202e; }
+
+/* Trust badges under the buy button - risk reversal at the point of doubt.
+   All four claims are true: US Letter only (A4 is NOT supported), Gumroad checkout. */
+.modal .trust-badges { list-style: none; margin: 12px 0 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+.modal .trust-badges li { margin: 0; font-size: 12px; color: #44506a; display: flex; gap: 6px; align-items: flex-start; line-height: 1.45; }
+@media (max-width: 520px) { .modal .trust-badges { grid-template-columns: 1fr; } }
+
+/* Anonymized value comparison. Deliberately does NOT name competitors (the
+   owner's rule) - it says "Typical worksheet sites" instead. */
+.compare { margin: 14px 0 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; font-size: 12.5px; }
+.compare-title { margin: 0; padding: 8px 10px; font-weight: 700; background: #f1f5fb; color: #16202e; }
+.compare-row { display: grid; grid-template-columns: 1.1fr 1.3fr 1.3fr; }
+.compare-row > span { padding: 7px 10px; border-top: 1px solid var(--line); }
+.compare-row > span:first-child { font-weight: 600; color: #55617a; }
+.compare-row > span + span { border-left: 1px solid var(--line); }
+.compare-head > span { font-weight: 700; color: #16202e; background: #f8fafc; }
+.compare-row > span:last-child { color: #0f6e56; font-weight: 600; }
 
 /* ---------- multi-page packs ---------- */
 /* A pack is assembled as "all sheets, then all answer keys" so a 5-sheet pack
