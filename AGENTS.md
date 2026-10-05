@@ -32,13 +32,20 @@
 1. **免费额度 = 每天 2 份**（`app.js` 的 `FREE_DAILY_LIMIT = 2`）。
 2. **价格 = $9.90，折扣码 `LAUNCH30` → 实付 $6.93**（一次性）。
 
-在此之上的分层（当前实现）：
-- **免费**：每天 2 份 **Math** + 每天 **1 次**其他科目的"体验"（`FREE_OTHER_DAILY = 1`）。非 Math 科目在下拉里标 `(Pro)`。
-- **Pro**：8 个科目全开、无数量限制、无水印 —— $6.93 买断（现有 Gumroad 产品）。
-- **Pro 月付**（用户已同意做）：`app.js` 的 `PRO_MONTHLY_URL`（**当前是占位店铺首页，拿到 Gumroad 订阅产品链接后替换；置空则按钮自动隐藏**）与 `PRO_MONTHLY_LABEL`（价格文案，默认 `$4.99/month`，**必须与实际一致**）。
-- 单题 🔄 重写**免费且不耗额度**（已恢复，别再改成 Pro 专属）；✏️ 编辑同样免费。
+在此之上的**三档分层（v=17 现行）**：
+
+| | Math | 其他 7 个科目 | 水印 | 价格 |
+|---|---|---|---|---|
+| **Free** | 2 份/天 | 1 份/天 | 有 | $0 |
+| **Basic** | **无限** | 3 份/天 | 无 | $6.93 一次性（码 LAUNCH30） |
+| **Pro** | 无限 | **无限** | 无 | 月付（$4.99/月）+ 后续新功能都包含 |
+
+- 常量在 `app.js` 顶部：`FREE_MATH_DAILY=2`、`FREE_OTHER_DAILY=1`、`BASIC_OTHER_DAILY=3`、`PRO_MONTHLY_URL`、`PRO_MONTHLY_LABEL`。
+- 档位存 `localStorage["wsai_plan"]` = `free` | `basic` | `pro`；旧的单标志 `wsai_unlocked=1` 会自动迁移为 **basic**。
+- `api/verify-license.js` 现在**返回档位**：env `GUMROAD_PRODUCT_ID` = Basic 产品 id（逗号分隔多个），`GUMROAD_PRO_PRODUCT_ID` = Pro 订阅产品 id（逗号分隔多个）。**会先试 Pro 再试 Basic**，避免 Pro 用户被降级。
+- `PRO_MONTHLY_URL` 当前是**占位店铺首页**，拿到 Gumroad 订阅产品链接后替换；置空则月付按钮自动隐藏（不会留死链）。价格文案 `PRO_MONTHLY_LABEL` 必须与实际一致。
+- 单题 🔄 重写**免费且不耗额度**；✏️ 编辑同样免费。
 - 价格数字散落在 `index.html` + `scripts/gen-seo.js`（搜 `$6.93`），Gumroad 是第三处，**改价必须三处同步**。
-- 订阅产品开好后：把它的 `product_id` 追加进 Vercel 环境变量 `GUMROAD_PRODUCT_ID`（**支持逗号分隔多个**，见 `api/verify-license.js`），否则月付用户的 key 校验不过。
 
 ## 详细资料
 

@@ -2,13 +2,17 @@
 // Optional prefill: put data-grade / data-subject / data-topic on the <form id="genForm">.
 (function () {
   const GUMROAD_URL = "https://219809065360.gumroad.com/l/orqxtr?code=LAUNCH30";
-  // ---- plan rules (agreed with the owner: the free allowance and the price are promises) ----
-  // Free: 2 Math worksheets per day (unchanged, as promised) + ONE daily preview of
-  // any other subject (experience only). Pro: all 8 subjects, unlimited, no watermark.
-  const FREE_DAILY_LIMIT = 2; // free Math worksheets per day — do not lower this
-  const FREE_OTHER_DAILY = 1; // free previews per day for non-Math subjects
-  const PRO_MONTHLY_URL = "https://219809065360.gumroad.com/"; // TODO: replace with the Gumroad subscription product URL; set "" to hide the monthly button
-  const PRO_MONTHLY_LABEL = "$4.99/month"; // keep in sync with the Gumroad subscription price
+  // ---- plan rules (agreed with the owner; the free allowance and prices are promises) ----
+  // Free   : 2 Math/day + 1 other-subject worksheet/day
+  // Basic  : one-time $6.93 -> unlimited MATH + 3 other-subject worksheets/day
+  // Pro    : monthly subscription -> ALL subjects unlimited + every new feature we ship
+  const FREE_MATH_DAILY = 2; // promised — do not lower
+  const FREE_OTHER_DAILY = 1;
+  const BASIC_OTHER_DAILY = 3;
+  const PRO_MONTHLY_URL = "https://219809065360.gumroad.com/"; // TODO: replace with the Gumroad subscription URL; "" hides the button
+  const PRO_MONTHLY_LABEL = "$4.99/month"; // keep in sync with Gumroad
+  const PLAN_KEY = "wsai_plan"; // "basic" | "pro"
+  const LEGACY_KEY = "wsai_unlocked"; // old unlock flag -> treated as Basic
   const PREF_KEY = "wsai_pref";
   const SUB_KEY = "wsai_subbed";
 
@@ -17,7 +21,21 @@
 
   const today = () => new Date().toISOString().slice(0, 10);
   const countKey = () => "wsai_count_" + today();
-  const isUnlocked = () => localStorage.getItem("wsai_unlocked") === "1";
+
+  // plan: "free" | "basic" | "pro" (old single-flag installs are migrated to "basic")
+  function plan() {
+    let p = localStorage.getItem(PLAN_KEY);
+    if (p !== "basic" && p !== "pro") {
+      if (localStorage.getItem(LEGACY_KEY) === "1") {
+        p = "basic";
+        try { localStorage.setItem(PLAN_KEY, p); } catch (e) { /* ignore */ }
+      } else {
+        p = "free";
+      }
+    }
+    return p;
+  }
+  const isUnlocked = () => plan() !== "free";
   const getCount = () => parseInt(localStorage.getItem(countKey()) || "0", 10);
   const setCount = (n) => localStorage.setItem(countKey(), String(n));
   const otherKey = () => "wsai_count_other_" + today();
@@ -26,13 +44,23 @@
 
   const isMath = () => ($("subject") ? $("subject").value : "Math") === "Math";
 
+  // Infinity = unlimited for this subject on the current plan
+  function dailyLimit(math) {
+    const p = plan();
+    if (p === "pro") return Infinity;
+    if (math) return p === "basic" ? Infinity : FREE_MATH_DAILY;
+    return p === "basic" ? BASIC_OTHER_DAILY : FREE_OTHER_DAILY;
+  }
+  function usedCount(math) {
+    return math ? getCount() : getCountOther();
+  }
   function freeLeft() {
-    return isMath()
-      ? Math.max(0, FREE_DAILY_LIMIT - getCount())
-      : Math.max(0, FREE_OTHER_DAILY - getCountOther());
+    const lim = dailyLimit(isMath());
+    return lim === Infinity ? Infinity : Math.max(0, lim - usedCount(isMath()));
   }
   function canGenerate() {
-    return isUnlocked() || freeLeft() > 0;
+    const lim = dailyLimit(isMath());
+    return lim === Infinity ? true : usedCount(isMath()) < lim;
   }
 
   // ---------------- analytics (no vendor needed; logs to /api/track) ----------------
@@ -364,19 +392,33 @@
   function updateQuota() {
     const q = $("quota");
     if (!q) return;
-    if (isUnlocked()) {
+    const p = plan();
+    const subj = $("subject") ? $("subject").value : "";
+
+    if (p === "pro") {
       q.textContent = "Pro: unlimited worksheets, all subjects \u2714";
       return;
     }
+    if (p === "basic") {
+      if (isMath()) {
+        q.textContent = "Basic plan: unlimited Math \u2714";
+      } else {
+        const left = Math.max(0, BASIC_OTHER_DAILY - getCountOther());
+        q.textContent = left > 0
+          ? "Basic plan: " + left + " of " + BASIC_OTHER_DAILY + " other-subject worksheets left today \u2014 Math is unlimited"
+          : "That's today's " + BASIC_OTHER_DAILY + " " + subj + " worksheets \u2014 Math is still unlimited, or go Pro for all subjects.";
+      }
+      return;
+    }
     if (isMath()) {
-      q.textContent = "Free plan: " + Math.max(0, FREE_DAILY_LIMIT - getCount()) +
-        " of " + FREE_DAILY_LIMIT + " worksheets left today";
+      q.textContent = "Free plan: " + Math.max(0, FREE_MATH_DAILY - getCount()) +
+        " of " + FREE_MATH_DAILY + " math worksheets left today";
     } else {
       const left = Math.max(0, FREE_OTHER_DAILY - getCountOther());
       q.textContent = left > 0
-        ? "Free preview: " + left + " of " + FREE_OTHER_DAILY + " " + $("subject").value +
-          " preview" + (FREE_OTHER_DAILY > 1 ? "s" : "") + " left today \u2014 Math is free (2/day), all subjects with Pro"
-        : "That was today's " + $("subject").value + " preview \u2014 Pro unlocks all subjects. Math stays free (2/day).";
+        ? "Free plan: " + left + " of " + FREE_OTHER_DAILY + " " + subj +
+          " worksheet" + (FREE_OTHER_DAILY > 1 ? "s" : "") + " left today \u2014 Math is free (2/day)"
+        : "That was today's " + subj + " worksheet \u2014 Math is still free (2/day), or upgrade for more.";
     }
   }
   function openPaywall(reason) {
@@ -540,8 +582,8 @@
     const topic = $("topic").value.trim();
     if (!topic) { alert("Please enter a topic (or tap a suggestion)."); return; }
     if (!canGenerate()) { openPaywall(isMath() ? "quota" : "subject_gate"); return; }
+    track("generate_start", { subject: $("subject").value, grade: $("grade").value, plan: plan() });
     savePref();
-    track("generate_start", { subject: $("subject").value, grade: $("grade").value, pro: isUnlocked() });
 
     const btn = $("genBtn");
     btn.disabled = true;
@@ -565,9 +607,12 @@
       renderResult(data.html, data.demo);
       try { saveHist({ topic: topic, subject: $("subject").value, grade: $("grade").value, html: data.html }); } catch (e) { /* ignore */ }
       renderHist();
-      if (!isUnlocked()) {
-        if (isMath()) setCount(getCount() + 1);
-        else setCountOther(getCountOther() + 1);
+      if (plan() !== "pro") {
+        if (isMath()) {
+          if (plan() === "free") setCount(getCount() + 1); // Basic: Math is unlimited
+        } else {
+          setCountOther(getCountOther() + 1);
+        }
       }
       updateQuota();
       maybeShowSubscribe();
@@ -597,8 +642,12 @@
       });
       const data = await res.json();
       if (data.valid) {
-        localStorage.setItem("wsai_unlocked", "1");
-        msg.textContent = "\u2714 Unlocked! Enjoy unlimited worksheets.";
+        const pl = data.plan === "pro" ? "pro" : "basic";
+        localStorage.setItem(PLAN_KEY, pl);
+        try { localStorage.setItem(LEGACY_KEY, "1"); } catch (e) { /* ignore */ }
+        msg.textContent = pl === "pro"
+          ? "\u2714 Pro activated \u2014 all subjects, unlimited."
+          : "\u2714 Basic activated \u2014 unlimited Math, 3 other-subject worksheets a day.";
         updateQuota();
         const box = $("result");
         const wm = box && box.querySelector(".watermark");
