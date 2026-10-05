@@ -69,7 +69,12 @@ module.exports = async (req, res) => {
       const raw = await callChat(a.url, a.key, a.model, prompt);
       const html = stripCodeFences(raw);
       if (html && looksComplete(html)) {
-        res.status(200).json({ html, model: a.model });
+        // Second pass: proofread the answer key before the sheet reaches a paying
+        // customer. Parents grade WITH this answer key, so a wrong answer is the
+        // most expensive kind of defect. Fail-open: if the check cannot run, we
+        // still return the worksheet rather than an error.
+        const checked = await proofread(html, grade, subject, topic);
+        res.status(200).json({ html: checked.html, model: a.model, checked: checked.ran });
         return;
       }
       lastError = html ? "Model returned an incomplete worksheet." : "Model returned an empty response.";
@@ -90,6 +95,290 @@ function looksComplete(html) {
   if (html.indexOf("ws-questions") < 0 && html.indexOf("ws-prompt") < 0) return false;
   if (html.indexOf("</ol>") < 0 && html.indexOf("</div>") < 0) return false;
   return true;
+}
+
+// ===========================================================================
+// ANSWER-KEY PROOFREADING (second pass)
+// ===========================================================================
+// WHY THIS EXISTS
+// A 2026-10-05 audit of live output found the answer key can be flatly wrong.
+// Real example: a Grade 2 reading sheet whose answer key said the water cycle
+// has three steps "evaporation, condensation, precipitation" — but the passage
+// never used the word "precipitation" and it is far above Grade 2 vocabulary.
+// Parents grade their children WITH this key, so a wrong answer is the most
+// expensive defect the product can ship. Before this there was no check at all:
+// the only guard was one line in the prompt ("Double-check every answer").
+//
+// TWO LAYERS
+//  1. checkMath() — deterministic. Parses pure-computation items, recomputes
+//     them in integer/fraction arithmetic and flags mismatches. Exact, but only
+//     covers questions it can parse unambiguously.
+//  2. proofread() — asks the model to re-check every question/answer pair with
+//     a proofreader framing, and patch what it finds. Broad, but a safety net
+//     rather than a proof.
+// Both fail open: if anything goes wrong we return the original worksheet
+// rather than an error, so the product never gets worse because of a check.
+
+const SKIP_CHECK = () => !!process.env.SKIP_ANSWER_CHECK;
+
+async function proofread(html, grade, subject, topic) {
+  if (SKIP_CHECK()) return { html, ran: false };
+  try {
+    const calc = checkMath(html); // deterministic arithmetic pass (no network)
+
+    const pairs = extractQA(calc.html);
+    if (pairs.length < 2) return { html: calc.html, ran: calc.wrong.length > 0 };
+
+    const source = extractPassage(calc.html) || extractWordlist(calc.html);
+    const prompt = buildProofreadPrompt(grade, subject, topic, pairs, calc.wrong, source);
+    for (const a of buildAttempts()) {
+      try {
+        const raw = await callChat(a.url, a.key, a.model, prompt);
+        const wrong = parseWrong(raw);
+        if (wrong) {
+          return { html: applyFixes(calc.html, mergeWrong(calc.wrong, wrong)), ran: true };
+        }
+      } catch (e) { /* try the next provider */ }
+    }
+    // Model pass unavailable — still apply what arithmetic proved for certain.
+    return { html: applyFixes(calc.html, calc.wrong), ran: true };
+  } catch (e) {
+    return { html, ran: false };
+  }
+}
+
+// Deterministic check for pure-computation items. Never touches word problems:
+// if either operand cannot be parsed exactly, the question is skipped.
+function checkMath(html) {
+  const wrong = [];
+  try {
+    const qBlock = olInner(html, "ws-questions");
+    const aBlock = olInner(html, "ws-answers");
+    if (!qBlock || !aBlock) return { html, wrong };
+
+    const qs = listItems(qBlock);
+    const as = listItems(aBlock);
+    const n = Math.min(qs.length, as.length);
+
+    for (let i = 0; i < n; i++) {
+      const val = computeFromQuestion(plainText(qs[i]));
+      if (!val) continue;
+      const shown = leadingValue(plainText(as[i]));
+      if (!shown) continue;
+      if (!numEq(fSimp(val), fSimp(shown))) {
+        wrong.push({ n: i + 1, answer: fracTex(fSimp(val)) });
+      }
+    }
+  } catch (e) { /* fail open */ }
+  return { html, wrong };
+}
+
+function normMath(s) {
+  return String(s == null ? "" : s)
+    .replace(/\u2212/g, "-")
+    .replace(/\u00d7/g, "\\times")
+    .replace(/\u00f7/g, "\\div");
+}
+
+// Returns {n,d} or null. Accepts \frac{a}{b}, mixed a\frac{b}{c}, a/b, and integers.
+function parseNum(s) {
+  const t = normMath(s).replace(/\s+/g, " ").trim();
+  let m = t.match(/^(-?\d+)\s*\\frac\{(-?\d+)\}\{(-?\d+)\}$/);
+  if (m && +m[3]) return { n: +m[1] * +m[3] + +m[2], d: +m[3] };
+  m = t.match(/^\\frac\{(-?\d+)\}\{(-?\d+)\}$/);
+  if (m && +m[2]) return { n: +m[1], d: +m[2] };
+  m = t.match(/^(-?\d+)\s*\/\s*(-?\d+)$/);
+  if (m && +m[2]) return { n: +m[1], d: +m[2] };
+  m = t.match(/^(-?\d+)$/);
+  if (m) return { n: +m[1], d: 1 };
+  return null;
+}
+
+function gcdInt(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) { const t = a % b; a = b; b = t; } return a; }
+
+function fSimp(f) {
+  if (!f || !f.d) return f;
+  const g = gcdInt(f.n, f.d) || 1;
+  let n = f.n / g, d = f.d / g;
+  if (d < 0) { n = -n; d = -d; }
+  return { n, d };
+}
+function fAdd(x, y) { return { n: x.n * y.d + y.n * x.d, d: x.d * y.d }; }
+function fSub(x, y) { return { n: x.n * y.d - y.n * x.d, d: x.d * y.d }; }
+function fMul(x, y) { return { n: x.n * y.n, d: x.d * y.d }; }
+function fDiv(x, y) { return y.n === 0 ? null : { n: x.n * y.d, d: x.d * y.n }; }
+function numEq(a, b) { return !!a && !!b && a.n * b.d === b.n * a.d; }
+function fracTex(f) { return !f || f.d === 1 ? String(f ? f.n : "") : "\\frac{" + f.n + "}{" + f.d + "}"; }
+
+// Only returns a value when the item is UNAMBIGUOUSLY a bare computation:
+// the right-hand side of "=" must be blank (or absent) and both operands must
+// parse exactly. Anything wordy is skipped rather than guessed at.
+function computeFromQuestion(q) {
+  const t = normMath(q).replace(/\s+/g, " ").trim();
+  const eq = t.indexOf("=");
+  const left = eq < 0 ? t : t.slice(0, eq);
+  if (eq >= 0) {
+    // strip answer-slot markup, then reject if a real word follows the "="
+    const right = t.slice(eq + 1)
+      .replace(/\\[a-zA-Z]+\{[^{}]*\}/g, "")
+      .replace(/[\\{}_?.!]/g, "")
+      .replace(/\s+/g, "");
+    if (/[a-zA-Z]/.test(right)) return null;
+  }
+  return computeFromLeft(left);
+}
+
+function computeFromLeft(leftRaw) {
+  let s = normMath(leftRaw).replace(/\s+/g, " ").trim();
+  s = s.replace(/^(solve|compute|calculate|find|add|subtract|multiply|divide)\s*[:.]?\s*/i, "");
+  s = s.replace(/^[^0-9\\-]+/, "");
+  s = s.replace(/[?.]+\s*$/, "");
+  if (!s) return null;
+
+  const ops = [
+    [/\\times/, fMul],
+    [/\\div/, fDiv],
+    [/\+/, fAdd],
+    [/[-]/, fSub],
+  ];
+  for (const [sep, fn] of ops) {
+    const m = s.match(sep);
+    if (!m || m.index === 0) continue;
+    const x = parseNum(s.slice(0, m.index));
+    const y = parseNum(s.slice(m.index + m[0].length));
+    if (x && y) {
+      const r = fn(x, y);
+      if (r && r.d) return r;
+    }
+  }
+  return null;
+}
+
+// Leading numeric value of an answer, e.g. "\frac{3}{5} - add the numerators" -> 3/5
+function leadingValue(t) {
+  const s = normMath(t).replace(/\s+/g, " ").trim();
+  const m = s.match(/^(-?\d+\s*\\frac\{-?\d+\}\{-?\d+\}|\\frac\{-?\d+\}\{-?\d+\}|-?\d+\s*\/\s*-?\d+|-?\d+)/);
+  return m ? parseNum(m[1]) : null;
+}
+
+function olInner(html, cls) {
+  const re = new RegExp('<ol[^>]*class="' + cls + '"[^>]*>([\\s\\S]*?)</ol>', "i");
+  const m = String(html).match(re);
+  return m ? m[1] : "";
+}
+
+function listItems(block) {
+  const out = [];
+  const re = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+  let m;
+  while ((m = re.exec(block))) out.push(m[1]);
+  return out;
+}
+
+function plainText(html) {
+  return String(html == null ? "" : html)
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractQA(html) {
+  const qs = listItems(olInner(html, "ws-questions"));
+  const as = listItems(olInner(html, "ws-answers"));
+  const n = Math.min(qs.length, as.length);
+  const pairs = [];
+  for (let i = 0; i < n; i++) pairs.push({ n: i + 1, q: plainText(qs[i]), a: plainText(as[i]) });
+  return pairs;
+}
+
+// Reading / science / social answers can only be checked against the source
+// text, so the passage must travel with the question list. (First version of
+// this code forgot to send it, and the proofreader silently passed a reading
+// answer that used a word the passage never contained.)
+function extractPassage(html) {
+  const m = String(html).match(/<div[^>]*class="ws-passage"[^>]*>([\s\S]*?)<\/div>/i);
+  return m ? plainText(m[1]) : "";
+}
+
+function extractWordlist(html) {
+  const m = String(html).match(/<div[^>]*class="ws-wordlist"[^>]*>([\s\S]*?)<\/div>/i);
+  if (!m) return "";
+  const words = [];
+  const re = /<span[^>]*class="word"[^>]*>([\s\S]*?)<\/span>/gi;
+  let x;
+  while ((x = re.exec(m[1]))) words.push(plainText(x[1]));
+  return words.join(", ");
+}
+
+function buildProofreadPrompt(grade, subject, topic, pairs, knownWrong, source) {
+  const body = pairs.map((p) => p.n + ". Q: " + p.q + "\n   A: " + p.a).join("\n");
+  const known = (knownWrong || []).length
+    ? "\nALREADY CONFIRMED WRONG by an exact arithmetic check — you MUST correct these, keeping the same brief-reasoning style:\n" +
+      knownWrong.map((w) => "  #" + w.n + " correct value is " + w.answer).join("\n") + "\n"
+    : "";
+  const src = source
+    ? "\nTHE ONLY SOURCE TEXT THE STUDENT WAS GIVEN\n\"\"\"\n" + source + "\n\"\"\"\n" +
+      "An answer that relies on a fact, word or term THAT DOES NOT APPEAR in the source text above is WRONG —\n" +
+      "rewrite it so it can be answered from the source text alone, at the stated grade level.\n"
+    : "";
+  return `You are a meticulous proofreader checking the answer key of a Grade ${grade} ${subject} worksheet on "${topic}".
+
+Check EVERY answer below:
+- Recompute any arithmetic yourself. Do not trust the stated answer.
+- Does the answer actually answer the question that was asked?
+- Is the answer right for this grade level? A word or idea far above the grade is a defect.
+- Check every answer against the source text and the word list, if given, not against your own general knowledge.
+${src}${known}
+QUESTIONS AND ANSWERS
+${body}
+
+Return ONLY minified JSON — no prose, no markdown, no code fence:
+{"wrong":[{"n":<question number>,"answer":"<the corrected answer, same brief-reasoning style as the original>"}]}
+If every answer is correct, return exactly: {"wrong":[]}`;
+}
+
+function parseWrong(raw) {
+  const t = stripCodeFences(raw);
+  const m = t.match(/\{[\s\S]*\}/);
+  if (!m) return null;
+  try {
+    const o = JSON.parse(m[0]);
+    if (!o || !Array.isArray(o.wrong)) return null;
+    return o.wrong
+      .filter((w) => w && Number.isFinite(Number(w.n)) && typeof w.answer === "string" && w.answer.trim())
+      .map((w) => ({ n: Number(w.n), answer: w.answer.trim() }));
+  } catch (e) {
+    return null;
+  }
+}
+
+// Deterministic findings and model findings merged; the model's version wins
+// because it carries the reasoning text.
+function mergeWrong(det, llm) {
+  const m = new Map();
+  for (const w of det || []) m.set(w.n, w.answer);
+  for (const w of llm || []) m.set(w.n, w.answer);
+  return Array.from(m.entries()).map(([n, answer]) => ({ n, answer }));
+}
+
+function applyFixes(html, wrong) {
+  if (!wrong || !wrong.length) return html;
+  const byN = new Map(wrong.map((w) => [w.n, w.answer]));
+  return String(html).replace(
+    /(<ol[^>]*class="ws-answers"[^>]*>)([\s\S]*?)(<\/ol>)/i,
+    (all, open, inner, close) => {
+      let i = 0;
+      const fixed = inner.replace(/<li([^>]*)>([\s\S]*?)<\/li>/gi, (m, attrs, _content) => {
+        i += 1;
+        return byN.has(i) ? "<li" + attrs + ">" + esc(byN.get(i)) + "</li>" : m;
+      });
+      return open + fixed + close;
+    }
+  );
 }
 
 function getClientIp(req) {
@@ -478,6 +767,10 @@ function esc(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-// Exposed only so local tooling (prompt benchmarks) can reuse the EXACT prompt
-// the server builds. Vercel uses the default export above and ignores this.
+// Exposed only so local tooling (prompt benchmarks + answer-check tests) can
+// reuse the EXACT logic the server runs. Vercel uses the default export above.
 module.exports._buildPrompt = buildPrompt;
+module.exports._checkMath = checkMath;
+module.exports._proofread = proofread;
+module.exports._applyFixes = applyFixes;
+module.exports._parseWrong = parseWrong;

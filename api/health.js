@@ -8,6 +8,7 @@ module.exports = (req, res) => {
     gumroadProductId: !!process.env.GUMROAD_PRODUCT_ID, // Basic ($6.93)
     gumroadProProductId: !!process.env.GUMROAD_PRO_PRODUCT_ID, // Pro monthly
     track: true,
+    answerCheck: process.env.SKIP_ANSWER_CHECK ? "off" : "on", // second-pass answer-key proofread
     subscribe: process.env.BUTTONDOWN_API_KEY || process.env.MAILERLITE_API_KEY ? true : "log-only",
     rateLimit: process.env.UPSTASH_REDIS_REST_URL ? "upstash" : "memory",
   });
