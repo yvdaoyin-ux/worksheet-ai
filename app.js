@@ -9,7 +9,7 @@
   const FREE_MATH_DAILY = 2; // promised — do not lower
   const FREE_OTHER_DAILY = 1;
   const BASIC_OTHER_DAILY = 3;
-  const PRO_MONTHLY_URL = "https://219809065360.gumroad.com/"; // TODO: replace with the Gumroad subscription URL; "" hides the button
+  const PRO_MONTHLY_URL = "https://219809065360.gumroad.com/l/scrywy"; // Pro monthly (Gumroad product "scrywy"); "" hides the button
   const PRO_MONTHLY_LABEL = "$4.99/month"; // keep in sync with Gumroad
   const PLAN_KEY = "wsai_plan"; // "basic" | "pro"
   const LEGACY_KEY = "wsai_unlocked"; // old unlock flag -> treated as Basic

@@ -170,7 +170,7 @@ function renderPage(p) {
   <meta property="og:url" content="${url}" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="${url}" />
-  <link rel="stylesheet" href="/app.css?v=17" />
+  <link rel="stylesheet" href="/app.css?v=18" />
 </head>
 <body>
   <div class="wrap">
@@ -216,7 +216,7 @@ ${resultModal}
     </footer>
   </div>
 ${paywall}
-  <script src="/app.js?v=17" defer></script>
+  <script src="/app.js?v=18" defer></script>
 </body>
 </html>
 `;

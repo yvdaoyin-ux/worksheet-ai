@@ -44,7 +44,8 @@
 - 档位存 `localStorage["wsai_plan"]` = `free` | `basic` | `pro`；旧的单标志 `wsai_unlocked=1` 会自动迁移为 **basic**。
 - `api/verify-license.js` 现在**返回档位**：env `GUMROAD_PRODUCT_ID` = Basic 产品 id（逗号分隔多个），`GUMROAD_PRO_PRODUCT_ID` = Pro 订阅产品 id（逗号分隔多个）。**会先试 Pro 再试 Basic**，避免 Pro 用户被降级。
 - `PRO_MONTHLY_URL` 当前是**占位店铺首页**，拿到 Gumroad 订阅产品链接后替换；置空则月付按钮自动隐藏（不会留死链）。价格文案 `PRO_MONTHLY_LABEL` 必须与实际一致。
-- **Pro 必须是另一个 Gumroad 产品**（Membership/订阅型），一个产品不能既一次性又订阅；它同样支持 license key。`verify-license` 已检查退订/失效字段，前端每天静默复检一次，退订后自动回落档位。
+- **Pro 是另一个 Gumroad 产品**（Membership/订阅型）：permalink `scrywy`，`product_id = poNRKhKHkoG_Etcw2o5F-A==`，$4.99/月；已填进 `PRO_MONTHLY_URL`。**Vercel 环境变量 `GUMROAD_PRO_PRODUCT_ID` 必须补上这个值并 Redeploy**，否则 Pro 激活不了（我改不了线上 env）。
+- 一个 Gumroad 产品不能既一次性又订阅，所以 Basic/Pro 永远是两个产品。`verify-license` 已检查退订/失效字段，前端每天静默复检一次，退订后自动回落档位。
 - 单题 🔄 重写**免费且不耗额度**；✏️ 编辑同样免费。
 - 价格数字散落在 `index.html` + `scripts/gen-seo.js`（搜 `$6.93`），Gumroad 是第三处，**改价必须三处同步**。
 
