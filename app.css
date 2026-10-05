@@ -305,6 +305,17 @@ footer.site strong { color: var(--ink); }
   .worksheet .ws-title { margin-bottom: 4px; }
   .worksheet .ws-visual { margin: 5px 0 8px; }
   .worksheet .viz-numline { height: 64px; }
+
+  /* Packs: one sheet per page. The last sheet in the body gets no break, because
+     the existing .ws-pagebreak <hr> already pushes the answer keys to a new page
+     (adding both would print a blank page). */
+  .ws-pack-head { margin-bottom: 12px; }
+  .ws-pack-body .ws-pack-sheet:not(:last-child) {
+    break-after: page; page-break-after: always;
+    border-bottom: none; margin-bottom: 0; padding-bottom: 0;
+  }
+  .ws-pack-key:not(:last-child) { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .ws-pack-key { break-inside: avoid; page-break-inside: avoid; }
 }
 
 /* Ruled writing space injected under questions that ask for a written answer
@@ -354,6 +365,20 @@ footer.site strong { color: var(--ink); }
 .why-cheap p { margin: 0 0 10px; }
 .why-cheap p:last-child { margin-bottom: 0; }
 .why-cheap strong { color: #16202e; }
+
+/* ---------- multi-page packs ---------- */
+/* A pack is assembled as "all sheets, then all answer keys" so a 5-sheet pack
+   prints as 5 usable pages followed by the keys, not sheet-key-sheet-key. */
+.ws-pack-head {
+  text-align: center; font-size: 13px; font-weight: 700; color: #5b6b80;
+  margin: 0 0 18px; letter-spacing: 0.02em;
+}
+.ws-pack-sheet:not(:last-child) {
+  padding-bottom: 20px; margin-bottom: 24px; border-bottom: 1px dashed #c9d2e0;
+}
+.ws-pack-key:not(:last-child) {
+  padding-bottom: 14px; margin-bottom: 16px; border-bottom: 1px dashed #dbe3ef;
+}
 
 /* recent worksheets */
 .recent { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 14px 0 0; }

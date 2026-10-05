@@ -119,8 +119,10 @@ const paywall = `
       <ul>
         <li><strong>Unlimited math worksheets</strong>, every day — forever</li>
         <li>3 worksheets a day in reading, spelling, science &amp; the rest</li>
+        <li><strong>Packs:</strong> build 5 or 10 sheets on one topic and print them as a set</li>
         <li>No watermark</li>
         <li><strong>One payment.</strong> No subscription, no renewal, no recurring charge.</li>
+        <li>30-day money-back guarantee</li>
       </ul>
       <a id="gumroadBtn" class="buy-btn" href="#" target="_blank" rel="noopener">Get Basic — $6.93 once (30% off)</a>
       <p class="plan-note">Worksheet libraries usually cost $25–150 <em>every year</em>. Basic is a one-time payment — under 2¢ a day for the first year, and nothing after that.</p>
@@ -173,7 +175,7 @@ function renderPage(p) {
   <meta property="og:url" content="${url}" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="${url}" />
-  <link rel="stylesheet" href="/app.css?v=21" />
+  <link rel="stylesheet" href="/app.css?v=22" />
 </head>
 <body>
   <div class="wrap">
@@ -219,7 +221,7 @@ ${resultModal}
     </footer>
   </div>
 ${paywall}
-  <script src="/app.js?v=21" defer></script>
+  <script src="/app.js?v=22" defer></script>
 </body>
 </html>
 `;

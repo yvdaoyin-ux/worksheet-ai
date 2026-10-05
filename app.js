@@ -186,10 +186,17 @@
       '<div class="field"><label for="size">Text size</label>' +
       '<select id="size"><option value="s">Small</option><option value="m" selected>Normal</option><option value="l">Large</option><option value="xl">Extra large</option></select></div>' +
       '<div class="field" id="styleField"><label for="style">Math style</label>' +
-      '<select id="style"><option value="mixed" selected>Mixed</option><option value="computation">Computation</option><option value="word">Word problems</option></select></div>';
+      '<select id="style"><option value="mixed" selected>Mixed</option><option value="computation">Computation</option><option value="word">Word problems</option></select></div>' +
+      '<div class="field"><label for="pack">Pack size</label>' +
+      '<select id="pack"><option value="1" selected>1 sheet</option><option value="5">5 sheets</option><option value="10">10 sheets</option></select></div>';
     $("genForm").insertBefore(opts, $("genBtn"));
 
     if ($("subject")) $("subject").addEventListener("change", function () { renderChips(); syncMathStyle(); updateQuota(); });
+    if ($("pack")) $("pack").addEventListener("change", function () {
+      if ($("genBtn")) $("genBtn").textContent = genLabel();
+      updateQuota();
+    });
+    if ($("genBtn") && $("pack")) $("genBtn").textContent = genLabel();
     renderChips();
     syncMathStyle();
 
@@ -200,7 +207,7 @@
       rg.id = "regenBtn";
       rg.hidden = true;
       rg.textContent = "\u{1F504} Another version";
-      rg.addEventListener("click", runGenerate);
+      rg.addEventListener("click", () => runGenerate(true));
       toolbar.insertBefore(rg, toolbar.firstChild);
     }
 
@@ -392,6 +399,20 @@
 
   // ================= UI =================
   function updateQuota() {
+    updateQuotaBase();
+    // If a pack is selected that today's allowance can't cover, say so up front
+    // instead of silently handing back a short stack.
+    const n = $("pack") ? parseInt($("pack").value, 10) : 1;
+    if (n <= 1) return;
+    const left = freeLeft();
+    const q = $("quota");
+    if (q && left !== Infinity && left < n) {
+      q.textContent = "Only " + left + " left today \u2014 a " + n + "-sheet pack will stop at " +
+        left + ". Upgrade to make the whole pack.";
+    }
+  }
+
+  function updateQuotaBase() {
     const q = $("quota");
     if (!q) return;
     const p = plan();
@@ -602,7 +623,150 @@
     $("resultWrap").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  async function runGenerate() {
+  // ================= multi-page packs =================
+  // Why this exists: TPT data shows bundles are the highest-revenue product
+  // type, and Etsy data shows $18-28 bundles outsell $3-5 singles about 5x.
+  // Parents buy "a stack of worksheets to hand over", not "a generator". A
+  // single sheet also makes a paid plan feel small: one sheet from an
+  // "unlimited" product reads as a tenth of the value.
+  //
+  // Implementation note: each sheet is its OWN /api/generate request, run from
+  // the browser. One request can't build 10 sheets inside Vercel's 60s function
+  // limit, but 10 short requests are fine. The quota is consumed one credit per
+  // sheet, so a free user can make a 2-sheet pack and then hits the wall.
+
+  function genLabel() {
+    const n = $("pack") ? parseInt($("pack").value, 10) : 1;
+    return n > 1 ? "Make a " + n + "-sheet pack" : "Generate worksheet";
+  }
+
+  async function generateOnce(topic) {
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        grade: $("grade").value,
+        subject: $("subject").value,
+        topic,
+        count: $("count") ? parseInt($("count").value, 10) : 10,
+        level: $("level") ? $("level").value : "standard",
+        size: $("size") ? $("size").value : "normal",
+        style: $("style") ? $("style").value : "mixed",
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || "Request failed");
+    return data;
+  }
+
+  function consumeCredit() {
+    if (plan() === "pro") return;
+    if (isMath()) {
+      if (plan() === "free") setCount(getCount() + 1); // Basic: math is unlimited
+    } else {
+      setCountOther(getCountOther() + 1);
+    }
+  }
+
+  // One generated sheet = student pages, then <hr class="ws-pagebreak">, then
+  // its answer key. Split so a pack can be assembled as "all sheets, then all
+  // keys" instead of "sheet, key, sheet, key" (which doubles the printing).
+  function splitSheet(html) {
+    const m = String(html || "").match(/<hr[^>]*class="ws-pagebreak"[^>]*>/i);
+    if (!m) return { body: String(html || ""), key: "" };
+    return { body: html.slice(0, m.index), key: html.slice(m.index + m[0].length) };
+  }
+
+  // Label every sheet so the pack reads as a deliberate set, not 10 loose pages.
+  function numberTitle(body, i, n) {
+    return String(body).replace(
+      /(<h2[^>]*class="ws-title"[^>]*>)([\s\S]*?)(<\/h2>)/i,
+      (m, a, t, b) => a + t.trim() + " \u2014 Sheet " + i + " of " + n + b
+    );
+  }
+  function labelKey(key, i) {
+    return String(key).replace(
+      /(<h3[^>]*class="ws-answers-title"[^>]*>)([\s\S]*?)(<\/h3>)/i,
+      (m, a, t, b) => a + "Answer Key \u2014 Sheet " + i + b
+    );
+  }
+
+  function paintPack(sheets, stopped, requested) {
+    const parts = sheets.map((s) => splitSheet(s.html));
+    const n = parts.length;
+    const body = parts
+      .map((p, i) => '<section class="ws-pack-sheet">' + numberTitle(p.body, i + 1, n) + "</section>")
+      .join("");
+    const keys = parts
+      .map((p, i) => (p.key ? '<section class="ws-pack-key">' + labelKey(p.key, i + 1) + "</section>" : ""))
+      .join("");
+    const packHead =
+      '<p class="ws-pack-head">' + $("grade").value + " \u00b7 " + $("subject").value + " \u00b7 " +
+      $("topic").value.trim() + " \u2014 " + n + "-sheet pack</p>";
+    paintWorksheet(
+      packHead +
+        '<section class="ws-pack-body">' + body + "</section>" +
+        (keys ? '<hr class="ws-pagebreak">' + '<section class="ws-pack-keys">' + keys + "</section>" : "")
+    );
+    const note = $("note");
+    if (note) {
+      note.textContent = stopped
+        ? "Made " + n + " of " + requested + " sheets \u2014 you hit today's free limit. Upgrade to finish the pack."
+        : n + "-sheet pack ready \u2014 " + (n + Math.ceil(n / 3)) + " pages incl. answer keys";
+    }
+    if (stopped) { try { openPaywall("pack_limit"); } catch (e) { /* ignore */ } }
+  }
+
+  async function runPack(n) {
+    const topic = $("topic").value.trim();
+    if (!topic) { alert("Please enter a topic (or tap a suggestion)."); return; }
+    if (!canGenerate()) { openPaywall(isMath() ? "quota" : "subject_gate"); return; }
+    savePref();
+    track("pack_start", { subject: $("subject").value, grade: $("grade").value, size: n, plan: plan() });
+
+    const btn = $("genBtn");
+    const note = $("note");
+    const sheets = [];
+    let stopped = false;
+    btn.disabled = true;
+    $("resultWrap").hidden = false;
+    try {
+      for (let i = 1; i <= n; i++) {
+        if (!canGenerate()) { stopped = true; break; }
+        btn.textContent = "Making sheet " + i + " of " + n + "\u2026";
+        if (note) note.textContent = "Making sheet " + i + " of " + n + "\u2026 (this takes a moment)";
+        try {
+          sheets.push(await generateOnce(topic));
+          consumeCredit();
+          updateQuota();
+        } catch (e) {
+          // A single busy model shouldn't destroy a half-built pack.
+          if (!sheets.length) throw e;
+          break;
+        }
+      }
+      if (!sheets.length) throw new Error("The AI was busy \u2014 please try again in a few seconds.");
+      paintPack(sheets, stopped, n);
+      renderHist();
+      track("pack_ok", { made: sheets.length, requested: n, stopped: stopped });
+    } catch (err) {
+      track("pack_err", { message: String(err.message || err).slice(0, 120) });
+      $("resultWrap").hidden = sheets.length === 0;
+      alert("Something went wrong: " + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = genLabel();
+      updateQuota();
+    }
+  }
+
+  async function runGenerate(forceSingle) {
+    const packN = forceSingle || !$("pack") ? 1 : parseInt($("pack").value, 10) || 1;
+    if (packN > 1) {
+      $("upsellBar").hidden = isUnlocked();
+      $("regenBtn") && ($("regenBtn").hidden = false);
+      return runPack(packN);
+    }
     const topic = $("topic").value.trim();
     if (!topic) { alert("Please enter a topic (or tap a suggestion)."); return; }
     if (!canGenerate()) { openPaywall(isMath() ? "quota" : "subject_gate"); return; }
@@ -613,21 +777,7 @@
     btn.disabled = true;
     btn.textContent = "Generating…";
     try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          grade: $("grade").value,
-          subject: $("subject").value,
-          topic,
-          count: $("count") ? parseInt($("count").value, 10) : 10,
-          level: $("level") ? $("level").value : "standard",
-          size: $("size") ? $("size").value : "normal",
-          style: $("style") ? $("style").value : "mixed",
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.error) throw new Error(data.error || "Request failed");
+      const data = await generateOnce(topic);
       renderResult(data.html, data.demo);
       try { saveHist({ topic: topic, subject: $("subject").value, grade: $("grade").value, html: data.html }); } catch (e) { /* ignore */ }
       renderHist();
@@ -646,7 +796,7 @@
       alert("Something went wrong: " + err.message + "\nFree models can be busy — please try again in a few seconds.");
     } finally {
       btn.disabled = false;
-      btn.textContent = "Generate worksheet";
+      btn.textContent = genLabel();
     }
   }
 
