@@ -8,6 +8,8 @@
 // The model writes CONTENT; the client renders it. Each subject gets its own
 // output structure, aligned to US Common Core ELA / NGSS.
 
+const { mathScope } = require("../lib/curriculum");
+
 const PER_REQUEST_TIMEOUT_MS = 45000;
 
 const GROQ_MODELS = (process.env.GROQ_MODEL || "openai/gpt-oss-120b,openai/gpt-oss-20b")
@@ -200,7 +202,7 @@ GENERAL RULES
 - In the Answer Key, give a brief step or reason for each answer (parents find this very useful).
 - Return ONLY an HTML fragment (no <html>/<body>, no markdown or code fences), using EXACTLY the class names shown.`;
 
-  if (s.indexOf("math") >= 0) return head + mathBlock(count, style);
+  if (s.indexOf("math") >= 0) return head + mathScope(grade) + mathBlock(count, style);
   if (s.indexOf("read") >= 0) return head + readingBlock(count);
   if (s.indexOf("spell") >= 0 || s.indexOf("phonic") >= 0) return head + spellingBlock(count);
   if (s.indexOf("vocab") >= 0) return head + vocabBlock(count);
@@ -475,3 +477,7 @@ function demoSample(grade, subject, topic) {
 function esc(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
+
+// Exposed only so local tooling (prompt benchmarks) can reuse the EXACT prompt
+// the server builds. Vercel uses the default export above and ignores this.
+module.exports._buildPrompt = buildPrompt;
