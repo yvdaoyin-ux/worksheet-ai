@@ -2,6 +2,7 @@
 
 > 给任何接手本项目的 AI agent / 人的**一句话导航 + 硬规矩**。
 > 完整交接资料在桌面文件夹 **`C:\Users\fa'r\Desktop\worksheet-ai-交接\`**（先读 `00-先读我.md`）。
+> **变现改造（v15→v19）的增量交接包在 `C:\Users\fa'r\Desktop\worksheet-ai-交接-20261005\`**（先读它的 `00-先读我.md`）——改价格/档位/收款相关的东西**必须先看这个**。
 
 ## 这是什么
 
@@ -14,8 +15,8 @@
 ## 硬规矩（改代码前必看）
 
 1. **根目录绝不能有 `server.js`，`package.json` 不能有 `start` 脚本**——否则 Vercel 会把项目当 Node 服务器，所有页面 404。（本地服务器叫 `dev-server.js`。）
-2. **改了 `app.css`/`app.js` → 必须 bump 前端版本号 `?v=N`**（当前 v=15），否则用户吃旧缓存。改 `index.html`/`generator` 后：
-   `sed -i 's|/app\.css?v=15|/app.css?v=16|g; s|/app\.js?v=15|/app.js?v=16|g' index.html privacy.html terms.html og-card.html scripts/gen-seo.js && node scripts/gen-seo.js`
+2. **改了 `app.css`/`app.js` → 必须 bump 前端版本号 `?v=N`**（当前 v=19），否则用户吃旧缓存。改 `index.html`/`generator` 后：
+   `sed -i 's|/app\.css?v=19|/app.css?v=20|g; s|/app\.js?v=19|/app.js?v=20|g' index.html privacy.html terms.html og-card.html scripts/gen-seo.js && node scripts/gen-seo.js`
 3. **`git push` 走代理会偶发 TLS 失败** → `git config --local http.sslBackend openssl` + **失败重试几次**。
 4. **改 Vercel 环境变量 / `api/*.js` → 要 Redeploy。**
 5. **别把密钥**写进代码或提交 `.env`。
@@ -29,7 +30,7 @@
 ## 变现规则（承诺过的，别乱动 ⚠️）
 
 用户已对外承诺过，**以下两条不许擅自改**：
-1. **免费额度 = 每天 2 份**（`app.js` 的 `FREE_DAILY_LIMIT = 2`）。
+1. **免费额度 = 每天 2 份**（`app.js` 的 `FREE_MATH_DAILY = 2`）。
 2. **价格 = $9.90，折扣码 `LAUNCH30` → 实付 $6.93**（一次性）。
 
 在此之上的**三档分层（v=17 现行）**：
@@ -43,7 +44,7 @@
 - 常量在 `app.js` 顶部：`FREE_MATH_DAILY=2`、`FREE_OTHER_DAILY=1`、`BASIC_OTHER_DAILY=3`、`PRO_MONTHLY_URL`、`PRO_MONTHLY_LABEL`。
 - 档位存 `localStorage["wsai_plan"]` = `free` | `basic` | `pro`；旧的单标志 `wsai_unlocked=1` 会自动迁移为 **basic**。
 - `api/verify-license.js` 现在**返回档位**：env `GUMROAD_PRODUCT_ID` = Basic 产品 id（逗号分隔多个），`GUMROAD_PRO_PRODUCT_ID` = Pro 订阅产品 id（逗号分隔多个）。**会先试 Pro 再试 Basic**，避免 Pro 用户被降级。
-- `PRO_MONTHLY_URL` 当前是**占位店铺首页**，拿到 Gumroad 订阅产品链接后替换；置空则月付按钮自动隐藏（不会留死链）。价格文案 `PRO_MONTHLY_LABEL` 必须与实际一致。
+- `PRO_MONTHLY_URL` = `https://219809065360.gumroad.com/l/scrywy`（Pro 订阅产品）；置空则月付按钮自动隐藏（不会留死链）。价格文案 `PRO_MONTHLY_LABEL` 必须与实际一致。
 - **Pro 是另一个 Gumroad 产品**（Membership/订阅型）：permalink `scrywy`，`product_id = poNRKhKHkoG_Etcw2o5F-A==`，$4.99/月；已填进 `PRO_MONTHLY_URL`。**Vercel 环境变量 `GUMROAD_PRO_PRODUCT_ID` 必须补上这个值并 Redeploy**，否则 Pro 激活不了（我改不了线上 env）。
 - 一个 Gumroad 产品不能既一次性又订阅，所以 Basic/Pro 永远是两个产品。`verify-license` 已检查退订/失效字段，前端每天静默复检一次，退订后自动回落档位。
 - **售后自动激活**：Gumroad 占位符是 **`__license_key__`**（双下划线，不是 `{license_key}`），只能用在**产品内容页**的链接/按钮里。填 `https://worksheet-ai-l1td.vercel.app/?license_key=__license_key__`。前端 `autoActivateFromUrl()` 会自动校验、弹框显示结果、并清掉地址栏里的 key。
@@ -54,3 +55,6 @@
 
 桌面 `worksheet-ai-交接\`：
 `00-先读我` / `01-项目总览` / `02-架构与代码` / `03-关键决策与坑`(⭐) / `04-运维手册` / `05-路线图与待办` / `06-宣发与市场` / `07-资料与对话记录位置` / `项目记忆.md` / `对话记录/`。
+
+桌面 `worksheet-ai-交接-20261005\`（**变现改造增量包，v15→v19**）：
+`00-先读我` / `01-今天做了什么` / `02-三档变现规则` / `03-代码改动清单` / `04-Gumroad与收款` / `05-部署运维` / `06-坑与教训` / `07-待办与风险` / `08-对话纪要` / `WorksheetAI盈利分析报告.md` / `对话与决策/`。
