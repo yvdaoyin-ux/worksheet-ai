@@ -200,9 +200,13 @@ function hydrate(html) {
       return out || whole; // unknown type: leave as-is
     }
   );
-  // Render LaTeX AFTER the visual placeholders are gone, so the fraction rules
-  // never touch a data-* attribute (e.g. a number-line point label like "1/2").
-  return renderMathString(withVisuals);
+  // Render LaTeX on TEXT ONLY: split on tags and leave anything inside <...>
+  // untouched, so the fraction/macro regexes can never rewrite an attribute
+  // value. app.js achieves the same by walking text nodes.
+  return withVisuals
+    .split(/(<[^>]*>)/)
+    .map((seg) => (seg.charAt(0) === "<" ? seg : renderMathString(seg)))
+    .join("");
 }
 
 module.exports = { hydrate, renderMathString };
