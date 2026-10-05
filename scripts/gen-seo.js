@@ -93,14 +93,14 @@ const gradeOptions = Object.keys(gradeByNum)
   .map((g) => `<option>${g}</option>`)
   .join("");
 const subjectOptions = subjects
-  .map((s) => `<option value="${s[0]}">${s[0]}${s[0] === "Math" ? " \u2605" : " (beta)"}</option>`)
+  .map((s) => `<option value="${s[0]}">${s[0]}${s[0] === "Math" ? " \u2605" : " (Pro)"}</option>`)
   .join("");
 
 const resultModal = `
     <section id="resultWrap" class="result-wrap" hidden>
       <div id="upsellBar" class="upsell no-print" hidden>
-        <span>\u{1F513} Free preview — your worksheet has a watermark</span>
-        <button id="upsellBtn" type="button">Remove watermark &amp; go unlimited — $6.93 (30% off)</button>
+        <span>\u{1F513} Free preview — watermarked · Pro removes it and unlocks all subjects</span>
+        <button id="upsellBtn" type="button">Go Pro — all subjects, no limits — $6.93</button>
       </div>
       <div class="toolbar no-print">
         <button id="printBtn" type="button">\u{1F5A8}\u{FE0F} Print / Save as PDF</button>
@@ -112,16 +112,17 @@ const resultModal = `
 const paywall = `
   <div id="paywall" class="modal-backdrop no-print" hidden>
     <div class="modal">
-      <h2>Unlock unlimited worksheets</h2>
-      <p class="price"><s>$9.90</s> $6.93 — one-time. 30% off. No subscription.</p>
+      <h2>Go Pro — all subjects, no limits</h2>
+      <p class="price"><s>$9.90</s> $6.93 — one-time. 30% off.</p>
       <ul>
-        <li>Unlimited generation (no daily limit)</li>
-        <li>No watermark on any worksheet</li>
-        <li>Rewrite any single question with AI</li>
-        <li>Math, Reading &amp; Spelling, Grades K–5</li>
-        <li>Instant print / PDF — forever</li>
+        <li><strong>All 8 subjects</strong> — reading, spelling, science &amp; more (free plan is Math)</li>
+        <li>Unlimited worksheets, no daily limit</li>
+        <li>No watermark</li>
+        <li>Grades K–5, instant print / PDF — forever</li>
       </ul>
-      <a id="gumroadBtn" class="buy-btn" href="#" target="_blank" rel="noopener">Buy on Gumroad — $6.93 (30% off)</a>
+      <a id="gumroadBtn" class="buy-btn" href="#" target="_blank" rel="noopener">Get Pro for $6.93 once (30% off)</a>
+      <a id="gumroadMonthlyBtn" class="buy-btn buy-btn-alt" href="#" target="_blank" rel="noopener">Go Pro monthly</a>
+      <p class="plan-note">Free forever: 2 Math worksheets a day, plus one daily preview of any other subject.</p>
       <p class="trust">Secure checkout via Gumroad · no account needed</p>
       <div class="divider">Already purchased? Enter your key below</div>
       <input id="licenseInput" type="text" placeholder="Paste your license key" autocomplete="off" />
@@ -160,7 +161,7 @@ function renderPage(p) {
   <meta property="og:url" content="${url}" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="${url}" />
-  <link rel="stylesheet" href="/app.css?v=15" />
+  <link rel="stylesheet" href="/app.css?v=16" />
 </head>
 <body>
   <div class="wrap">
@@ -197,7 +198,7 @@ ${resultModal}
       <p id="homeSubMsg" class="msg"></p>
     </section>
 
-    <p class="trustbar">Free to try · 3 free worksheets · no signup · unlimited for $6.93 once</p>
+    <p class="trustbar">2 Math worksheets a day free · 1 daily preview of other subjects · no signup · Pro (all subjects, unlimited) $6.93 once</p>
 
     <footer class="site no-print">
       <p><strong>Unlimited printable worksheets — $6.93 once (30% off).</strong></p>
@@ -206,7 +207,7 @@ ${resultModal}
     </footer>
   </div>
 ${paywall}
-  <script src="/app.js?v=15" defer></script>
+  <script src="/app.js?v=16" defer></script>
 </body>
 </html>
 `;

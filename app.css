@@ -254,6 +254,9 @@ button { font: inherit; cursor: pointer; }
 .modal ul li { margin: 5px 0; }
 .buy-btn { display: block; text-align: center; text-decoration: none; background: var(--accent); color: #fff; font-weight: 800; padding: 13px; border-radius: 11px; margin-top: 12px; }
 .buy-btn:hover { background: var(--accent-dark); }
+.buy-btn-alt { background: #fff; color: var(--accent); border: 1.5px solid var(--accent); margin-top: 8px; }
+.buy-btn-alt:hover { background: #fff7ec; }
+.plan-note { text-align: center; font-size: 12px; color: var(--muted); margin: 8px 0 0; }
 .trust { text-align: center; color: var(--muted); font-size: 12px; margin: 10px 0 0; }
 .divider { text-align: center; color: var(--muted); font-size: 12px; margin: 18px 0 10px; }
 #licenseInput { margin-bottom: 10px; }

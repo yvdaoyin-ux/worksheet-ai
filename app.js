@@ -2,13 +2,14 @@
 // Optional prefill: put data-grade / data-subject / data-topic on the <form id="genForm">.
 (function () {
   const GUMROAD_URL = "https://219809065360.gumroad.com/l/orqxtr?code=LAUNCH30";
-  // Free tier: a small daily allowance AND a small lifetime allowance, whichever
-  // runs out first. Two worksheets a day was enough for real daily homeschool use,
-  // which left no reason to pay.
-  const FREE_DAILY_LIMIT = 1; // free worksheets per day
-  const FREE_TOTAL_LIMIT = 3; // free worksheets ever, per browser
+  // ---- plan rules (agreed with the owner: the free allowance and the price are promises) ----
+  // Free: 2 Math worksheets per day (unchanged, as promised) + ONE daily preview of
+  // any other subject (experience only). Pro: all 8 subjects, unlimited, no watermark.
+  const FREE_DAILY_LIMIT = 2; // free Math worksheets per day — do not lower this
+  const FREE_OTHER_DAILY = 1; // free previews per day for non-Math subjects
+  const PRO_MONTHLY_URL = "https://219809065360.gumroad.com/"; // TODO: replace with the Gumroad subscription product URL; set "" to hide the monthly button
+  const PRO_MONTHLY_LABEL = "$4.99/month"; // keep in sync with the Gumroad subscription price
   const PREF_KEY = "wsai_pref";
-  const TOTAL_KEY = "wsai_total";
   const SUB_KEY = "wsai_subbed";
 
   const $ = (id) => document.getElementById(id);
@@ -19,14 +20,16 @@
   const isUnlocked = () => localStorage.getItem("wsai_unlocked") === "1";
   const getCount = () => parseInt(localStorage.getItem(countKey()) || "0", 10);
   const setCount = (n) => localStorage.setItem(countKey(), String(n));
-  const getTotal = () => parseInt(localStorage.getItem(TOTAL_KEY) || "0", 10);
-  const setTotal = (n) => localStorage.setItem(TOTAL_KEY, String(n));
+  const otherKey = () => "wsai_count_other_" + today();
+  const getCountOther = () => parseInt(localStorage.getItem(otherKey()) || "0", 10);
+  const setCountOther = (n) => localStorage.setItem(otherKey(), String(n));
+
+  const isMath = () => ($("subject") ? $("subject").value : "Math") === "Math";
 
   function freeLeft() {
-    return Math.min(
-      Math.max(0, FREE_DAILY_LIMIT - getCount()),
-      Math.max(0, FREE_TOTAL_LIMIT - getTotal())
-    );
+    return isMath()
+      ? Math.max(0, FREE_DAILY_LIMIT - getCount())
+      : Math.max(0, FREE_OTHER_DAILY - getCountOther());
   }
   function canGenerate() {
     return isUnlocked() || freeLeft() > 0;
@@ -156,7 +159,7 @@
       '<select id="style"><option value="mixed" selected>Mixed</option><option value="computation">Computation</option><option value="word">Word problems</option></select></div>';
     $("genForm").insertBefore(opts, $("genBtn"));
 
-    if ($("subject")) $("subject").addEventListener("change", function () { renderChips(); syncMathStyle(); });
+    if ($("subject")) $("subject").addEventListener("change", function () { renderChips(); syncMathStyle(); updateQuota(); });
     renderChips();
     syncMathStyle();
 
@@ -361,12 +364,20 @@
   function updateQuota() {
     const q = $("quota");
     if (!q) return;
-    if (isUnlocked()) { q.textContent = "Pro: unlimited worksheets \u2714"; return; }
-    const totalLeft = Math.max(0, FREE_TOTAL_LIMIT - getTotal());
-    const todayLeft = Math.max(0, FREE_DAILY_LIMIT - getCount());
-    q.textContent =
-      "Free plan: " + totalLeft + " of " + FREE_TOTAL_LIMIT + " free worksheets left" +
-      (todayLeft > 0 ? " (\u2714 1 available today)" : " \u2014 come back tomorrow");
+    if (isUnlocked()) {
+      q.textContent = "Pro: unlimited worksheets, all subjects \u2714";
+      return;
+    }
+    if (isMath()) {
+      q.textContent = "Free plan: " + Math.max(0, FREE_DAILY_LIMIT - getCount()) +
+        " of " + FREE_DAILY_LIMIT + " worksheets left today";
+    } else {
+      const left = Math.max(0, FREE_OTHER_DAILY - getCountOther());
+      q.textContent = left > 0
+        ? "Free preview: " + left + " of " + FREE_OTHER_DAILY + " " + $("subject").value +
+          " preview" + (FREE_OTHER_DAILY > 1 ? "s" : "") + " left today \u2014 Math is free (2/day), all subjects with Pro"
+        : "That was today's " + $("subject").value + " preview \u2014 Pro unlocks all subjects. Math stays free (2/day).";
+    }
   }
   function openPaywall(reason) {
     track("paywall_open", { reason: reason || "unknown" });
@@ -385,14 +396,9 @@
     li.addEventListener("blur", () => { li.contentEditable = "false"; });
     const re = document.createElement("button");
     re.type = "button";
-    const pro = isUnlocked();
-    re.title = pro ? "Rewrite this question" : "Rewrite this question (Pro)";
+    re.title = "Rewrite this question (free — does not use your daily worksheets)";
     re.textContent = "\u{1F504}";
-    if (!pro) re.className = "pro-only";
-    re.addEventListener("click", () => {
-      if (!isUnlocked()) { openPaywall("rewrite"); return; }
-      rewriteItem(li, re);
-    });
+    re.addEventListener("click", () => rewriteItem(li, re));
     t.appendChild(edit); t.appendChild(re);
     li.appendChild(t);
   }
@@ -533,7 +539,7 @@
   async function runGenerate() {
     const topic = $("topic").value.trim();
     if (!topic) { alert("Please enter a topic (or tap a suggestion)."); return; }
-    if (!canGenerate()) { openPaywall("quota"); return; }
+    if (!canGenerate()) { openPaywall(isMath() ? "quota" : "subject_gate"); return; }
     savePref();
     track("generate_start", { subject: $("subject").value, grade: $("grade").value, pro: isUnlocked() });
 
@@ -559,7 +565,10 @@
       renderResult(data.html, data.demo);
       try { saveHist({ topic: topic, subject: $("subject").value, grade: $("grade").value, html: data.html }); } catch (e) { /* ignore */ }
       renderHist();
-      if (!isUnlocked()) { setCount(getCount() + 1); setTotal(getTotal() + 1); }
+      if (!isUnlocked()) {
+        if (isMath()) setCount(getCount() + 1);
+        else setCountOther(getCountOther() + 1);
+      }
       updateQuota();
       maybeShowSubscribe();
       track("generate_ok", { subject: $("subject").value, demo: !!data.demo });
@@ -645,7 +654,18 @@
   syncMathStyle();
 
   $("gumroadBtn").href = GUMROAD_URL;
-  $("gumroadBtn").addEventListener("click", () => track("buy_click", { from: "paywall" }));
+  $("gumroadBtn").addEventListener("click", () => track("buy_click", { from: "paywall", plan: "lifetime" }));
+
+  const monthlyBtn = $("gumroadMonthlyBtn");
+  if (monthlyBtn) {
+    if (PRO_MONTHLY_URL) {
+      monthlyBtn.href = PRO_MONTHLY_URL;
+      monthlyBtn.textContent = "Go Pro monthly — " + PRO_MONTHLY_LABEL;
+      monthlyBtn.addEventListener("click", () => track("buy_click", { from: "paywall", plan: "monthly" }));
+    } else {
+      monthlyBtn.hidden = true;
+    }
+  }
   if ($("upsellBtn")) $("upsellBtn").addEventListener("click", () => track("buy_click", { from: "upsell_bar" }));
 
   buildSubscribeBox();

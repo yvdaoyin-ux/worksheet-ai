@@ -26,11 +26,19 @@
 
 `index.html` / `app.css` / `app.js`（前端）｜ `api/generate.js`（AI，按科目分发 + 多供应商 + `looksComplete` 校验 + 按 IP 限流）/ `api/verify-license.js` / `api/health.js`（诊断）/ `api/track.js`（埋点）/ `api/subscribe.js`（邮箱）｜ `dev-server.js`（本地）｜ `scripts/gen-seo.js`（60 落地页）｜ `vercel.json`。
 
-## 变现相关常量（改前想清楚）
+## 变现规则（承诺过的，别乱动 ⚠️）
 
-- 免费额度：`app.js` 的 `FREE_DAILY_LIMIT = 1`、`FREE_TOTAL_LIMIT = 3`（每日 1 份 + 终身 3 份，先到先得）。别再调回"2 份/天"——那正好覆盖家长的真实日用量，等于没有付费理由。
-- 单题 🔄 重写是 **Pro 专属**（消耗 AI 成本）；✏️ 编辑免费。判断在 `makeTools()`。
-- 价格数字散落在 `index.html` + `scripts/gen-seo.js`（搜 `$6.93`），Gumroad 那边是另一处，**改价必须三处同步**。
+用户已对外承诺过，**以下两条不许擅自改**：
+1. **免费额度 = 每天 2 份**（`app.js` 的 `FREE_DAILY_LIMIT = 2`）。
+2. **价格 = $9.90，折扣码 `LAUNCH30` → 实付 $6.93**（一次性）。
+
+在此之上的分层（当前实现）：
+- **免费**：每天 2 份 **Math** + 每天 **1 次**其他科目的"体验"（`FREE_OTHER_DAILY = 1`）。非 Math 科目在下拉里标 `(Pro)`。
+- **Pro**：8 个科目全开、无数量限制、无水印 —— $6.93 买断（现有 Gumroad 产品）。
+- **Pro 月付**（用户已同意做）：`app.js` 的 `PRO_MONTHLY_URL`（**当前是占位店铺首页，拿到 Gumroad 订阅产品链接后替换；置空则按钮自动隐藏**）与 `PRO_MONTHLY_LABEL`（价格文案，默认 `$4.99/month`，**必须与实际一致**）。
+- 单题 🔄 重写**免费且不耗额度**（已恢复，别再改成 Pro 专属）；✏️ 编辑同样免费。
+- 价格数字散落在 `index.html` + `scripts/gen-seo.js`（搜 `$6.93`），Gumroad 是第三处，**改价必须三处同步**。
+- 订阅产品开好后：把它的 `product_id` 追加进 Vercel 环境变量 `GUMROAD_PRODUCT_ID`（**支持逗号分隔多个**，见 `api/verify-license.js`），否则月付用户的 key 校验不过。
 
 ## 详细资料
 

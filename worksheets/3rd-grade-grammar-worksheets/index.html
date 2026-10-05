@@ -12,7 +12,7 @@
   <meta property="og:url" content="https://worksheet-ai-l1td.vercel.app/worksheets/3rd-grade-grammar-worksheets/" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="https://worksheet-ai-l1td.vercel.app/worksheets/3rd-grade-grammar-worksheets/" />
-  <link rel="stylesheet" href="/app.css?v=15" />
+  <link rel="stylesheet" href="/app.css?v=16" />
 </head>
 <body>
   <div class="wrap">
@@ -26,7 +26,7 @@
     <form id="genForm" class="card no-print" data-grade="3" data-subject="Grammar" data-topic="3rd Grade grammar">
       <div class="grid">
         <div class="field"><label for="grade">Grade</label><select id="grade"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>K</option></select></div>
-        <div class="field"><label for="subject">Subject</label><select id="subject"><option value="Math">Math ★</option><option value="Reading">Reading (beta)</option><option value="Spelling">Spelling (beta)</option><option value="Vocabulary">Vocabulary (beta)</option><option value="Grammar">Grammar (beta)</option><option value="Writing">Writing (beta)</option><option value="Science">Science (beta)</option></select></div>
+        <div class="field"><label for="subject">Subject</label><select id="subject"><option value="Math">Math ★</option><option value="Reading">Reading (Pro)</option><option value="Spelling">Spelling (Pro)</option><option value="Vocabulary">Vocabulary (Pro)</option><option value="Grammar">Grammar (Pro)</option><option value="Writing">Writing (Pro)</option><option value="Science">Science (Pro)</option></select></div>
         <div class="field full"><label for="topic">Topic</label><input id="topic" type="text" autocomplete="off" /></div>
       </div>
       <button type="submit" id="genBtn" class="btn-primary">Generate worksheet</button>
@@ -35,8 +35,8 @@
 
     <section id="resultWrap" class="result-wrap" hidden>
       <div id="upsellBar" class="upsell no-print" hidden>
-        <span>🔓 Free preview — your worksheet has a watermark</span>
-        <button id="upsellBtn" type="button">Remove watermark &amp; go unlimited — $6.93 (30% off)</button>
+        <span>🔓 Free preview — watermarked · Pro removes it and unlocks all subjects</span>
+        <button id="upsellBtn" type="button">Go Pro — all subjects, no limits — $6.93</button>
       </div>
       <div class="toolbar no-print">
         <button id="printBtn" type="button">🖨️ Print / Save as PDF</button>
@@ -60,7 +60,7 @@
       <p id="homeSubMsg" class="msg"></p>
     </section>
 
-    <p class="trustbar">Free to try · 3 free worksheets · no signup · unlimited for $6.93 once</p>
+    <p class="trustbar">2 Math worksheets a day free · 1 daily preview of other subjects · no signup · Pro (all subjects, unlimited) $6.93 once</p>
 
     <footer class="site no-print">
       <p><strong>Unlimited printable worksheets — $6.93 once (30% off).</strong></p>
@@ -71,16 +71,17 @@
 
   <div id="paywall" class="modal-backdrop no-print" hidden>
     <div class="modal">
-      <h2>Unlock unlimited worksheets</h2>
-      <p class="price"><s>$9.90</s> $6.93 — one-time. 30% off. No subscription.</p>
+      <h2>Go Pro — all subjects, no limits</h2>
+      <p class="price"><s>$9.90</s> $6.93 — one-time. 30% off.</p>
       <ul>
-        <li>Unlimited generation (no daily limit)</li>
-        <li>No watermark on any worksheet</li>
-        <li>Rewrite any single question with AI</li>
-        <li>Math, Reading &amp; Spelling, Grades K–5</li>
-        <li>Instant print / PDF — forever</li>
+        <li><strong>All 8 subjects</strong> — reading, spelling, science &amp; more (free plan is Math)</li>
+        <li>Unlimited worksheets, no daily limit</li>
+        <li>No watermark</li>
+        <li>Grades K–5, instant print / PDF — forever</li>
       </ul>
-      <a id="gumroadBtn" class="buy-btn" href="#" target="_blank" rel="noopener">Buy on Gumroad — $6.93 (30% off)</a>
+      <a id="gumroadBtn" class="buy-btn" href="#" target="_blank" rel="noopener">Get Pro for $6.93 once (30% off)</a>
+      <a id="gumroadMonthlyBtn" class="buy-btn buy-btn-alt" href="#" target="_blank" rel="noopener">Go Pro monthly</a>
+      <p class="plan-note">Free forever: 2 Math worksheets a day, plus one daily preview of any other subject.</p>
       <p class="trust">Secure checkout via Gumroad · no account needed</p>
       <div class="divider">Already purchased? Enter your key below</div>
       <input id="licenseInput" type="text" placeholder="Paste your license key" autocomplete="off" />
@@ -89,6 +90,6 @@
       <button id="closeModal" class="link-btn" type="button">Close</button>
     </div>
   </div>
-  <script src="/app.js?v=15" defer></script>
+  <script src="/app.js?v=16" defer></script>
 </body>
 </html>
