@@ -152,12 +152,14 @@ function build(type, p, kind) {
 // fraction. We also strip macros the renderer does not understand (e.g.
 // \underline{\hspace{1cm}}) so a stray macro can never leak as raw text.
 function renderMathString(input) {
-  let t = String(input == null ? "" : input);
+  // Normalize Unicode fraction/division slashes to ASCII so every fraction
+  // form below matches. Mirrors renderMathString() in app.js.
+  let t = String(input == null ? "" : input).replace(/[\u2044\u2215]/g, "/");
   t = t.replace(/\\[\(\)\[\]]/g, "");
   t = t.replace(/\$([^$]+)\$/g, (m, inner) =>
-    /[\\=+\u00d7\u00f7]/.test(inner) || /^[\s\d.,]+$/.test(inner) ? inner : m
+    /[\\=+\u00d7\u00f7]/.test(inner) || /^[\s\d.,/]+$/.test(inner) ? inner : m
   );
-  t = t.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, (m, a, b) => fracSpan(a, b));
+  t = t.replace(/\\[dt]?frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g, (m, a, b) => fracSpan(a, b));
   t = t.replace(/(\d+)\s+(\d+)\s*\/\s*(\d+)/g, (m, w, a, b) => w + " " + fracSpan(a, b));
   t = t.replace(/(^|[^\d/])(\d+)\s*\/\s*(\d+)(?![\d/])/g, (m, pre, a, b) => pre + fracSpan(a, b));
   t = t
@@ -174,6 +176,10 @@ function renderMathString(input) {
   t = t.replace(/\\(?:underline|textbf|textit|emph|mathrm|text|mbox)\{([^{}]*)\}/g, "$1");
   t = t.replace(/\\(?:left|right|displaystyle|textstyle)\b/g, "");
   t = t.replace(/\\[a-zA-Z]+/g, "");
+  // Safety net: an unknown frac-like macro was stripped above and left an
+  // orphan digit pair like "{8}{3}" — stack it instead of leaking raw braces.
+  // Mirrors renderMathString() in app.js.
+  t = t.replace(/\{(-?\d+)\}\s*\{(-?\d+)\}/g, (m, a, b) => fracSpan(a, b));
   return t;
 }
 
