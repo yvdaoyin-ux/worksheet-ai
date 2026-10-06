@@ -75,6 +75,7 @@ const paywall = `
         <li><strong>Unlimited math worksheets</strong>, every day — forever</li>
         <li>3 worksheets a day in reading, spelling, science &amp; the rest</li>
         <li><strong>Packs:</strong> build 5 or 10 sheets on one topic and print them as a set</li>
+        <li><strong>Unlimited pinned favorites</strong> — keep your best sheets ready to reprint (3 on free)</li>
         <li>No watermark</li>
         <li><strong>One payment.</strong> No subscription, no renewal, no recurring charge.</li>
         <li>30-day money-back guarantee</li>
@@ -154,7 +155,7 @@ function renderPage(p) {
   <meta property="og:url" content="${url}" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="${url}" />
-  <link rel="stylesheet" href="/app.css?v=30" />
+  <link rel="stylesheet" href="/app.css?v=31" />
   <style>
     .sample-block { margin: 26px 0 6px; }
     .sample-block h2 { text-align: center; font-size: 20px; margin: 0 0 4px; }
@@ -243,7 +244,7 @@ ${resultModal}
     </footer>
   </div>
 ${paywall}
-  <script src="/app.js?v=30" defer></script>
+  <script src="/app.js?v=31" defer></script>
 </body>
 </html>
 `;

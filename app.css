@@ -288,6 +288,12 @@ footer.site strong { color: var(--ink); }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
   body { background: #fff; }
   .no-print { display: none !important; }
+  /* "Answer key" toggle OFF: print only the student sheet. The final pagebreak
+     goes too, or it would force a blank page after the hidden key. */
+  body.print-no-key .ws-answers-title,
+  body.print-no-key .ws-answers,
+  body.print-no-key .ws-pack-keys,
+  body.print-no-key hr.ws-pagebreak:last-of-type { display: none !important; }
   .wrap { max-width: none; padding: 0; }
   .result-wrap { margin: 0; }
   .worksheet { border: none; box-shadow: none; padding: 0; font-size: 15px; }
@@ -408,6 +414,13 @@ footer.site strong { color: var(--ink); }
 
 /* recent worksheets */
 .recent { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 14px 0 0; }
+.lib-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 2px 0; }
+.recent-note { color: #8a94a6; font-size: 12px; }
+.key-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #4a5a72; cursor: pointer; user-select: none; }
+.key-toggle input { accent-color: #2b6cb0; }
+#pinBtn.pinned { border-color: #f59e0b; background: #fff7ed; }
+.chip-season { border-color: #f59e0b; background: #fff7ed; }
+.chip-season:hover { border-color: #d97706; color: #b45309; }
 .recent-label { font-size: 13px; font-weight: 700; color: var(--muted); }
 
 /* reading/science graphic organizers */

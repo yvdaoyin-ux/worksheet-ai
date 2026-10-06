@@ -98,39 +98,98 @@
     } catch (e) { /* analytics must never break the product */ }
   }
 
-  // ---------------- recent worksheets (localStorage) ----------------
+  // ---------------- my worksheets (localStorage) ----------------
+  // Every generated sheet is kept WITH its content, so "history" is a real
+  // reprint library, not just topic shortcuts. Pinned sheets are kept forever;
+  // pinning beyond the free limit is the upgrade moment.
   const HIST_KEY = "wsai_hist";
-  function loadHist() { try { return JSON.parse(localStorage.getItem(HIST_KEY) || "[]"); } catch (e) { return []; } }
+  const FAV_KEY = "wsai_favs";
+  const HIST_MAX = 20;
+  const FREE_FAV_LIMIT = 3;
+  function loadList(key) { try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch (e) { return []; } }
+  function saveList(key, list) {
+    try { localStorage.setItem(key, JSON.stringify(list)); }
+    catch (e) { // storage full: keep the newest half and retry once
+      try { localStorage.setItem(key, JSON.stringify(list.slice(0, Math.ceil(list.length / 2)))); } catch (e2) { /* ignore */ }
+    }
+  }
+  function loadHist() { return loadList(HIST_KEY).filter((x) => x && x.html); } // legacy topic-only entries can't reopen
+  function loadFavs() { return loadList(FAV_KEY); }
   function saveHist(item) {
-    try {
-      const h = loadHist().filter((x) => !(x.topic === item.topic && x.subject === item.subject));
-      h.unshift(item);
-      localStorage.setItem(HIST_KEY, JSON.stringify(h.slice(0, 5)));
-    } catch (e) { /* ignore */ }
+    const h = loadHist().filter((x) => x.html !== item.html);
+    h.unshift(Object.assign({ t: Date.now() }, item));
+    saveList(HIST_KEY, h.slice(0, HIST_MAX));
+  }
+  function isPinned(item) { return !!item && item.html && loadFavs().some((x) => x.html === item.html); }
+  function togglePin() {
+    if (!lastSheetHtml) return;
+    const item = { t: Date.now(), html: lastSheetHtml, topic: (lastCtx && lastCtx.topic) || "", subject: (lastCtx && lastCtx.subject) || "", grade: (lastCtx && lastCtx.grade) || "" };
+    const favs = loadFavs();
+    const i = favs.findIndex((x) => x.html === item.html);
+    if (i >= 0) {
+      favs.splice(i, 1);
+      saveList(FAV_KEY, favs);
+    } else {
+      if (!isUnlocked() && favs.length >= FREE_FAV_LIMIT) { openPaywall("favorites"); return; }
+      favs.unshift(item);
+      saveList(FAV_KEY, favs.slice(0, 100));
+    }
+    updatePinBtn();
+    renderHist();
+  }
+  function updatePinBtn() {
+    const b = $("pinBtn");
+    if (!b) return;
+    const on = isPinned({ html: lastSheetHtml });
+    b.textContent = on ? "★ Pinned" : "☆ Pin";
+    b.title = on ? "Unpin this worksheet" : "Pin this worksheet so it never leaves your library";
+    b.classList.toggle("pinned", on);
   }
   function renderHist() {
     const box = $("recentBox");
     if (!box) return;
+    const favs = loadFavs();
     const h = loadHist();
-    if (!h.length) { box.hidden = true; return; }
+    if (!favs.length && !h.length) { box.hidden = true; return; }
     box.hidden = false;
-    box.innerHTML = '<span class="recent-label">\u{1F550} Recent:</span>';
-    h.forEach((it) => {
-      const b = document.createElement("button");
-      b.type = "button"; b.className = "chip";
-      b.textContent = (it.subject ? it.subject + ": " : "") + it.topic;
-      b.addEventListener("click", () => {
-        // Show a stored sheet AND make it the one the level-set button acts on.
-        // Without this the button would re-level whatever was generated last,
-        // i.e. the wrong worksheet.
-        lastSheetHtml = it.html;
-        lastIsSingle = true;
-        lastCtx = { grade: it.grade || "", subject: it.subject || "", topic: it.topic || "" };
-        paintWorksheet(it.html);
-        $("resultWrap").scrollIntoView({ behavior: "smooth", block: "start" });
+    box.innerHTML = "";
+    const mkRow = (label, list, emptyNote) => {
+      const row = document.createElement("div");
+      row.className = "lib-row";
+      const lab = document.createElement("span");
+      lab.className = "recent-label";
+      lab.textContent = label;
+      row.appendChild(lab);
+      if (!list.length && emptyNote) {
+        const n = document.createElement("span");
+        n.className = "recent-note";
+        n.textContent = emptyNote;
+        row.appendChild(n);
+      }
+      list.forEach((it) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "chip";
+        const d = it.t ? new Date(it.t) : null;
+        b.title = "Reprint this worksheet" + (d ? " (saved " + d.toLocaleDateString() + ")" : "");
+        b.textContent = (it.subject ? it.subject + " · " : "") + (it.topic || "worksheet");
+        b.addEventListener("click", () => {
+          // Show a stored sheet AND make it the one the level-set button acts on.
+          // Without this the button would re-level whatever was generated last,
+          // i.e. the wrong worksheet.
+          lastSheetHtml = it.html;
+          lastIsSingle = true;
+          lastCtx = { grade: it.grade || "", subject: it.subject || "", topic: it.topic || "" };
+          paintWorksheet(it.html);
+          updatePinBtn();
+          $("resultWrap").scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+        row.appendChild(b);
       });
-      box.appendChild(b);
-    });
+      return row;
+    };
+    box.appendChild(mkRow("\u2B50 Pinned:", favs, isUnlocked() ? "" : "pin a sheet to keep it forever \u2014 3 on the free plan"));
+    box.appendChild(mkRow("\u{1F552} Recent \u2014 click to reprint:", h.slice(0, 10), ""));
   }
 
   // ---------------- saved preferences ----------------
@@ -163,11 +222,36 @@
     "Social Studies": ["community helpers", "U.S. symbols", "map skills", "a famous American", "then and now"],
   };
 
+  // Seasonal suggestion, shown first for the current month (schools plan by
+  // the calendar: back-to-school, Halloween, Thanksgiving, holidays, summer).
+  const SEASONAL = {
+    1:  { Math: "snow day math", Writing: "my winter break story", Reading: "a snowy day story", Science: "snow and ice" },
+    9:  { Math: "back to school counting", Writing: "my summer story", Reading: "a first day of school story", Science: "apples and seasons", Vocabulary: "school words", Spelling: "school words" },
+    10: { Math: "halloween candy math", Science: "pumpkin life cycle", Writing: "a friendly ghost story", Reading: "trick-or-treat night", Vocabulary: "halloween words", Spelling: "spooky words" },
+    11: { Math: "thanksgiving dinner math", Writing: "what I am thankful for", Reading: "the first thanksgiving", Vocabulary: "gratitude words", "Social Studies": "the first thanksgiving" },
+    12: { Math: "holiday gift shop math", Writing: "my holiday wish", Reading: "a winter snow day", Science: "snow and ice", Vocabulary: "winter words" },
+    5:  { Math: "summer picnic math", Writing: "my perfect summer day", Science: "life cycles in summer", Reading: "a day at the beach" },
+    6:  { Math: "summer review math", Writing: "my summer bucket list", Reading: "a camping trip story", Science: "oceans in summer" },
+  };
+  const SEASONAL_EMOJI = { 1: "\u2744\uFE0F", 9: "\u{1F392}", 10: "\u{1F383}", 11: "\u{1F983}", 12: "\u{1F384}", 5: "\u2600\uFE0F", 6: "\u2600\uFE0F" };
+
   function renderChips() {
     const box = $("topicChips");
     if (!box) return;
-    const list = SUGGESTIONS[($("subject") && $("subject").value) || "Math"] || SUGGESTIONS.Math;
+    const subject = ($("subject") && $("subject").value) || "Math";
+    const list = SUGGESTIONS[subject] || SUGGESTIONS.Math;
     box.innerHTML = "";
+    const month = new Date().getMonth() + 1;
+    const season = (SEASONAL[month] || {})[subject];
+    if (season && list.indexOf(season) < 0) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip chip-season";
+      b.title = "Seasonal pick for this month";
+      b.textContent = (SEASONAL_EMOJI[month] || "\u2728") + " " + season;
+      b.addEventListener("click", () => { $("topic").value = season; $("topic").focus(); });
+      box.appendChild(b);
+    }
     list.forEach((t) => {
       const b = document.createElement("button");
       b.type = "button";
@@ -232,11 +316,30 @@
       // one direction doesn't pay the compute/time for both. "All 3 levels" stays
       // as an opt-in for families comparing the same sheet side by side.
       [
+        mk("pinBtn", "☆ Pin", "Pin this worksheet so it never leaves your library", togglePin),
         mk("levelEasierBtn", "⬇️ Easier version", "Make this same worksheet easier", () => runRelevelOne("easier")),
         mk("levelHarderBtn", "⬆️ Harder version", "Make this same worksheet harder", () => runRelevelOne("challenge")),
         mk("levelSetBtn", "🎚️ All 3 levels", "Make the Easier and Harder versions at once and compare them", runLevelSet),
         mk("regenBtn", "🔄 Another version", "Generate a brand-new worksheet on the same topic", () => runGenerate(true)),
       ].forEach((b) => toolbar.insertBefore(b, anchor));
+
+      // Answer-key print toggle: off = print ONLY the student sheet. The key
+      // still lives on screen; this only changes what the printer gets.
+      const keyTgl = document.createElement("label");
+      keyTgl.className = "key-toggle no-print";
+      keyTgl.title = "When on, the answer key prints on its own page. Turn off to print only the student sheet.";
+      keyTgl.innerHTML = '<input type="checkbox" id="keyToggle" checked /> Answer key';
+      toolbar.insertBefore(keyTgl, anchor);
+      const kt = $("keyToggle");
+      if (kt) {
+        try { kt.checked = localStorage.getItem("wsai_print_key") !== "0"; } catch (e) { /* default on */ }
+        const applyKeyPref = () => {
+          document.body.classList.toggle("print-no-key", !kt.checked);
+          try { localStorage.setItem("wsai_print_key", kt.checked ? "1" : "0"); } catch (e) { /* ignore */ }
+        };
+        kt.addEventListener("change", applyKeyPref);
+        applyKeyPref();
+      }
     }
 
     const recent = document.createElement("div");
@@ -661,7 +764,8 @@
     if ($("regenBtn")) $("regenBtn").hidden = false;
     // The level-set button only makes sense while ONE sheet is on screen.
     const showLevels = !!(lastIsSingle && lastSheetHtml);
-    ["levelEasierBtn", "levelHarderBtn", "levelSetBtn"].forEach((id) => { if ($(id)) $(id).hidden = !showLevels; });
+    ["levelEasierBtn", "levelHarderBtn", "levelSetBtn", "pinBtn"].forEach((id) => { if ($(id)) $(id).hidden = !showLevels; });
+    updatePinBtn();
     $("upsellBar").hidden = isUnlocked();
     $("resultWrap").hidden = false;
   }
@@ -903,6 +1007,8 @@
       lastSheetHtml = d.html;
       lastIsSingle = true;
       renderResult(d.html, false, d.checked);
+      try { saveHist({ topic: (lastCtx && lastCtx.topic) || "worksheet", subject: (lastCtx && lastCtx.subject) || "", grade: (lastCtx && lastCtx.grade) || "", html: d.html }); } catch (e) { /* ignore */ }
+      renderHist();
       if (note) note.textContent = label + " version ready — make it " + (level === "challenge" ? "easier" : "harder") + " or print it now.";
       consumeCredit();
       updateQuota();
@@ -947,6 +1053,9 @@
       }
       if (!sheets.length) throw new Error("The AI was busy \u2014 please try again in a few seconds.");
       paintPack(sheets, stopped, n);
+      // Every sheet of a pack is a real worksheet: file each one so it can be
+      // found and reprinted later from the library.
+      sheets.forEach((s) => { try { saveHist({ topic: topic, subject: $("subject").value, grade: $("grade").value, html: s.html }); } catch (e) { /* ignore */ } });
       renderHist();
       track("pack_ok", { made: sheets.length, requested: n, stopped: stopped });
     } catch (err) {
