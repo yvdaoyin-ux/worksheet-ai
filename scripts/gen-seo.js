@@ -155,7 +155,7 @@ function renderPage(p) {
   <meta property="og:url" content="${url}" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="${url}" />
-  <link rel="stylesheet" href="/app.css?v=36" />
+  <link rel="stylesheet" href="/app.css?v=37" />
   <style>
     .sample-block { margin: 26px 0 6px; }
     .sample-block h2 { text-align: center; font-size: 20px; margin: 0 0 4px; }
@@ -214,6 +214,7 @@ ${sampleBlock(p)}
         <div class="field"><label for="grade">Grade</label><select id="grade">${gradeOptions}</select></div>
         <div class="field"><label for="subject">Subject</label><select id="subject">${subjectOptions}</select></div>
         <div class="field full"><label for="topic">Topic</label><input id="topic" type="text" autocomplete="off" /></div>
+        <div class="field full"><label for="extra">Extra instructions <span class="hint">(optional · up to 200 characters)</span></label><textarea id="extra" maxlength="200" rows="2" placeholder="e.g. use two-digit numbers, add money problems, avoid animals"></textarea></div>
       </div>
       <button type="submit" id="genBtn" class="btn-primary">Generate worksheet</button>
       <p id="quota" class="quota"></p>
@@ -244,7 +245,7 @@ ${resultModal}
     </footer>
   </div>
 ${paywall}
-  <script src="/app.js?v=36" defer></script>
+  <script src="/app.js?v=37" defer></script>
 </body>
 </html>
 `;

@@ -101,6 +101,15 @@ const check = (qs, ans) => g._checkMath(sheet(qs, ans)).wrong;
   ok("wrong difference flagged", w.length === 1 && w[0].answer === "7");
 }
 
+// ---- [8] the parent's extra notes are injected as a NON-OVERRIDING layer ----
+{
+  const withExtra = g._buildPrompt("3", "Math", "multiplication", 8, "standard", "mixed", "", "use two-digit numbers; add money problems");
+  ok("extra notes are present in the prompt", withExtra.indexOf("use two-digit numbers; add money problems") >= 0);
+  ok("extra notes are labelled as requirements", /EXTRA REQUIREMENTS/i.test(withExtra));
+  const noExtra = g._buildPrompt("3", "Math", "multiplication", 8, "standard", "mixed", "", "");
+  ok("empty notes => no EXTRA REQUIREMENTS block", !/EXTRA REQUIREMENTS/i.test(noExtra));
+}
+
 // ================= summary =================
 const total = pass + fails.length;
 console.log("\n_checkMath unit tests: " + pass + "/" + total + " passed");

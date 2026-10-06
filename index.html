@@ -18,7 +18,7 @@
   <meta name="twitter:description" content="Type a topic → printable worksheet with answer key. Math K–5, free to try." />
   <meta name="twitter:image" content="https://worksheet-ai-l1td.vercel.app/og.png" />
   <link rel="canonical" href="https://worksheet-ai-l1td.vercel.app/" />
-  <link rel="stylesheet" href="/app.css?v=36" />
+  <link rel="stylesheet" href="/app.css?v=37" />
   <style>
     /* sample previews (homepage only) */
     .samples { margin-top: 36px; }
@@ -70,6 +70,10 @@
         <div class="field full">
           <label for="topic">Topic</label>
           <input id="topic" type="text" placeholder="e.g. grade 3 fractions" autocomplete="off" />
+        </div>
+        <div class="field full">
+          <label for="extra">Extra instructions <span class="hint">(optional · up to 200 characters)</span></label>
+          <textarea id="extra" maxlength="200" rows="2" placeholder="e.g. use two-digit numbers, add money problems, avoid animals"></textarea>
         </div>
       </div>
       <button type="submit" id="genBtn" class="btn-primary">Generate worksheet</button>
@@ -245,6 +249,6 @@
     </div>
   </div>
 
-  <script src="/app.js?v=36" defer></script>
+  <script src="/app.js?v=37" defer></script>
 </body>
 </html>

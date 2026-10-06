@@ -35,13 +35,17 @@ module.exports = async (req, res) => {
   // signed ticket from /api/gate; bare scripts get 403 before touching the AI.
   if (blocked(req, res)) return;
 
-  const { grade = "", subject = "", topic: topicRaw = "", count = 10, level = "standard", style = "mixed", student = "" } = req.body || {};
+  const { grade = "", subject = "", topic: topicRaw = "", count = 10, level = "standard", style = "mixed", student = "", notes = "" } = req.body || {};
   // Optional "personalize for my child" first name. Sanitized to letters / space /
   // apostrophe / hyphen and capped, so it can never become a prompt-injection or
   // markup vector (it is interpolated into the prompt below).
   const studentName = String(student || "").replace(/[^A-Za-z '-]/g, "").replace(/\s+/g, " ").trim().slice(0, 24);
   // Topic is capped so one request can never bloat the prompt (or the cost).
   const topic = String(topicRaw || "").replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, 120);
+  // Optional parent's own notes/preferences for THIS sheet. Same sanitation + a
+  // hard 200-char cap (short, so it can never bloat the prompt or become an abuse
+  // vector); injected as a NON-OVERRIDING rules layer in buildPrompt below.
+  const extra = String(notes || "").replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, 200);
   if (!topic) {
     res.status(400).json({ error: "Please enter a topic." });
     return;
@@ -101,7 +105,7 @@ module.exports = async (req, res) => {
 
   // The form offers 1 sheet-question; honor it (20 = Vercel 60s safety cap).
   const qCount = Math.min(20, Math.max(1, parseInt(count, 10) || 10));
-  const prompt = buildPrompt(grade, subject, topic, qCount, level, style, studentName);
+  const prompt = buildPrompt(grade, subject, topic, qCount, level, style, studentName, extra);
   const attempts = buildAttempts();
 
   // Streaming mode: the page asks for real pipeline stages as SSE events
@@ -660,7 +664,7 @@ WORKSHEET TO RE-LEVEL
 ${source}`;
 }
 
-function buildPrompt(grade, subject, topic, count, level, style, student) {
+function buildPrompt(grade, subject, topic, count, level, style, student, extra) {
   const s = String(subject || "").toLowerCase();
   const head = `You are an experienced U.S. elementary school teacher creating a printable worksheet for a homeschool family.
 
@@ -671,7 +675,8 @@ GENERAL RULES
 - Use U.S. contexts and conventions (U.S. names, U.S. spelling).
 - The worksheet is TEXT-ONLY: never ask students to match, circle, or point at pictures, images, maps or audio — those cannot be rendered on a printed page.
 - If the topic names a holiday, season, or theme, the WHOLE worksheet must feel themed at first glance: keep the theme in the title AND the instructions line, and thread it through every question you can — word problems obviously, and for bare computation prefer themed contexts ("Each bag holds 7 candies. 8 bags: 7 × 8 = ___") instead of generic "7 × 8 = ___". Never let a themed topic produce a sheet that looks like any other day.${student ? `
-- PERSONALIZE: this worksheet is for a specific child. Use the first name "${student}" as the main character in EVERY word problem, story and reading passage (instead of generic names). Use ONLY that first name, spelled exactly like that.` : ""}
+- PERSONALIZE: this worksheet is for a specific child. Use the first name "${student}" as the main character in EVERY word problem, story and reading passage (instead of generic names). Use ONLY that first name, spelled exactly like that.` : ""}${extra ? `
+- EXTRA REQUIREMENTS (the parent's own notes for THIS sheet; honor them whenever they do NOT conflict with the rules above. If a note conflicts with the grade level, the subject, the text-only rule, or the answer-key rules, the rules above ALWAYS win): ${extra}` : ""}
 - Grades K–2: keep wording very short and concrete.${levelLine(level)}
 - The output MUST be a ${subject} worksheet. Follow the SUBJECT strictly, even if the topic wording could also fit another subject.
 - In the Answer Key, give a brief step or reason for each answer (parents find this very useful).

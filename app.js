@@ -206,6 +206,7 @@
         font: $("font") ? $("font").value : "andika",
         size: $("size") ? $("size").value : "m",
         style: $("style") ? $("style").value : "mixed",
+        extra: $("extra") ? $("extra").value.slice(0, 200) : "",
       }));
     } catch (e) { /* ignore */ }
   }
@@ -906,6 +907,7 @@
         size: $("size") ? $("size").value : "normal",
         style: $("style") ? $("style").value : "mixed",
         student: $("studentName") ? $("studentName").value.trim() : "",
+        notes: $("extra") ? $("extra").value.trim().slice(0, 200) : "",
         stream: wantsStream ? 1 : 0,
       }),
     });
@@ -1370,6 +1372,7 @@
   if (pref.font && $("font")) $("font").value = pref.font;
   if (pref.size && $("size")) $("size").value = pref.size;
   if (pref.style && $("style")) $("style").value = pref.style;
+  if (pref.extra && $("extra")) $("extra").value = pref.extra;
   syncMathStyle();
 
   $("gumroadBtn").href = GUMROAD_URL;
