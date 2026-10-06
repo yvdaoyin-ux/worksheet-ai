@@ -15,7 +15,7 @@
 ## 硬规矩（改代码前必看）
 
 1. **根目录绝不能有 `server.js`，`package.json` 不能有 `start` 脚本**——否则 Vercel 会把项目当 Node 服务器，所有页面 404。（本地服务器叫 `dev-server.js`。）
-2. **改了 `app.css`/`app.js` → 必须 bump 前端版本号 `?v=N`**（当前 **v=29**），否则用户吃旧缓存。要同步的文件：`index.html`、`privacy.html`、`terms.html`、`scripts/gen-seo.js`（后者改完要 `node scripts/gen-seo.js` 重生成 60 页）。**用 Edit 工具改**（别用 PowerShell `Get-Content`，见第 8 条）。
+2. **改了 `app.css`/`app.js` → 必须 bump 前端版本号 `?v=N`**（当前 **v=30**），否则用户吃旧缓存。要同步的文件：`index.html`、`privacy.html`、`terms.html`、`scripts/gen-seo.js`（后者改完要 `node scripts/gen-seo.js` 重生成 60 页）。**用 Edit 工具改**（别用 PowerShell `Get-Content`，见第 8 条）。
 3. **`git push` 走代理会偶发 TLS 失败** → `git config --local http.sslBackend openssl` + **失败重试几次**。
 4. **改 Vercel 环境变量 / `api/*.js` → 要 Redeploy。**
 5. **别把密钥**写进代码或提交 `.env`。
@@ -53,31 +53,31 @@
 > **不要再把价格改回 $6.93。** 旧文档（`worksheet-ai-交接-20261005\02`、`04`、`07` 等）里写的 $6.93 是**历史记录**，以本条为准。
 > 价格散落在 4 处：**Gumroad 后台** · `index.html` · `scripts/gen-seo.js`（→60 个落地页）· `terms.html`。**改价必须四处同步。**
 
-在此之上的**档位分层（v=29 现行）**：
+在此之上的**档位分层（v=30 现行）**：
 
 | | Math | 其他 7 个科目 | 水印 | 价格 |
 |---|---|---|---|---|
 | **Free** | 2 份/天 | 1 份/天 | 有 | $0 |
 | **Basic** | **无限** | 3 份/天 | 无 | $13.30 一次性（码 LAUNCH30） |
 | **Pro** | 无限 | **无限** | 无 | 月付（$4.99/月）+ 后续新功能都包含 |
-| **Classroom** | 无限 | **无限** | 无 | $59 一次性——**一个老师自己班**（v=29 新增，产品待建） |
+| **Classroom** | 无限 | **无限** | 无 | $59 一次性——**一个老师自己班**（v=30 已上线） |
 
 - 常量在 `app.js` 顶部：`FREE_MATH_DAILY=2`、`FREE_OTHER_DAILY=1`、`BASIC_OTHER_DAILY=3`、`PRO_MONTHLY_URL`、`PRO_MONTHLY_LABEL`、`CLASSROOM_URL`、`CLASSROOM_LABEL`。
 - 档位存 `localStorage["wsai_plan"]` = `free` | `basic` | `pro`；旧的单标志 `wsai_unlocked=1` 会自动迁移为 **basic**。
 - `api/verify-license.js` 现在**返回档位**：env `GUMROAD_PRODUCT_ID` = Basic 产品 id（逗号分隔多个），`GUMROAD_PRO_PRODUCT_ID` = Pro 订阅产品 id（逗号分隔多个），`GUMROAD_CLASSROOM_PRODUCT_ID` = Classroom 产品 id（逗号分隔多个）。**会先试 Pro、再试 Classroom、最后 Basic**，避免高级用户被降级。**Classroom 在后端映射为 pro 级权益**（无限+无水印），"一个老师自己班"的范围约束写在条款里（`terms.html`），不在代码里。
 - `PRO_MONTHLY_URL` = `https://219809065360.gumroad.com/l/scrywy`（Pro 订阅产品）；置空则月付按钮自动隐藏（不会留死链）。价格文案 `PRO_MONTHLY_LABEL` 必须与实际一致。
 - **Pro 是另一个 Gumroad 产品**（Membership/订阅型）：permalink `scrywy`，`product_id = poNRKhKHkoG_Etcw2o5F-A==`，$4.99/月；已填进 `PRO_MONTHLY_URL`。**Vercel 环境变量 `GUMROAD_PRO_PRODUCT_ID` 必须补上这个值并 Redeploy**，否则 Pro 激活不了（我改不了线上 env）。
-- **Classroom（v=29）**：弹窗里 `#classroomBlock` 默认 `hidden`；`app.js` 的 `CLASSROOM_URL` 填了 Gumroad permalink 才会显示。**上线前要做**：Gumroad 建 $59 一次性产品 → permalink 填进 `CLASSROOM_URL`（app.js，bump 版本）→ 产品 id 填进 Vercel env `GUMROAD_CLASSROOM_PRODUCT_ID` 并 Redeploy → 产品内容页放 `__license_key__` 自动激活链接（同 Pro/Basic 玩法）。
+- **Classroom（v=30 已上线）**：Gumroad 产品已建——permalink `dzsahy`（https://219809065360.gumroad.com/l/dzsahy），**product_id = `sy0h5DqeDo4r5nvdh2sfKw==`**，$59 一次性、非订阅（2026-10-06 页面核实）。`app.js` 的 `CLASSROOM_URL` 已填。**Vercel 环境变量 `GUMROAD_CLASSROOM_PRODUCT_ID` = `sy0h5DqeDo4r5nvdh2sfKw==`**（加了要 Redeploy）。产品内容页需放 `__license_key__` 自动激活链接（同 Basic/Pro，见下条）。
 - 一个 Gumroad 产品不能既一次性又订阅，所以 Basic/Pro/Classroom 永远是不同产品。`verify-license` 已检查退订/失效字段，前端每天静默复检一次，退订后自动回落档位。
 - **售后自动激活**：Gumroad 占位符是 **`__license_key__`**（双下划线，不是 `{license_key}`），只能用在**产品内容页**的链接/按钮里。填 `https://worksheet-ai-l1td.vercel.app/?license_key=__license_key__`。前端 `autoActivateFromUrl()` 会自动校验、弹框显示结果、并清掉地址栏里的 key。
 - 单题 🔄 重写**免费且不耗额度**；✏️ 编辑同样免费。
 - 价格数字散落在 `index.html` + `scripts/gen-seo.js`（搜 `$13.30`），Gumroad 是第三处，**改价必须三处同步**。
 
-## Starter Pack 与邮箱订阅（v=29）
+## Starter Pack 与邮箱订阅（v=30）
 
 - **`starter-pack.pdf`**（仓库根目录，静态资产，~157KB / 21 页）：封面 + 10 张真实生成的卷（Math K–4 各 1 + Reading/Grammar/Spelling/Science/Writing 各 1），每张学生卷 + 答案卷。**重建方法**：起本地服务后跑 `node _bench/build_pack.cjs`（内部用 `/api/generate` 真实生成 → 拼一页 → 无头 Edge 打印）。
 - **领取路径**：订阅成功后前端直接给 `/starter-pack.pdf` 下载链接（`submitSubscribe` 成功分支），不等邮件、不依赖服务商——邮箱只是后续触达渠道。
-- **邮件服务商已选 MailerLite**（免费档 1,000 订阅者、可发正式邮件；比 Buttondown 免费档 100 人大方）。`api/subscribe.js` **早已内置** MailerLite 转发，无需改代码：**Vercel 加 `MAILERLITE_API_KEY` + `MAILERLITE_GROUP_ID` → Redeploy** 即生效；不配则维持 log-only（Vercel Logs 搜 `[wsai-sub]`，线索不丢）。订阅框文案承诺"每周五新包"——**配好 MailerLite 后要真的发**（先手动，量大了用 automation）。
+- **邮件服务商已选 MailerLite（v=30 已配置并实测打通）**：免费档 1,000 订阅者/月发 12,000 封。分组 `worksheet-ai`（group_id `200548002003158197`）。env `MAILERLITE_API_KEY` + `MAILERLITE_GROUP_ID` 本地 `.env` 与 Vercel 均已配置；本地实测 subscribe → 入组成功（测试订阅者已删）。**配好 MailerLite 后要真的发**（先手动，量大了用 automation）。
 - 同类可复用脚本在 `_bench/`：`test_frac_render.cjs`（分数/货币渲染回归）、`sweep.cjs`（全科目扫描）、`landing_check.py`（60 页完整性）、`cdp_shot.cjs`（CDP 截图）。
 
 ## 落地页样例（60 页的真实内容）

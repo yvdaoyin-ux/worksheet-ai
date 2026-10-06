@@ -16,7 +16,7 @@
   // Classroom license: one-time, everything in Pro for ONE teacher's class.
   // Paste the Gumroad permalink here after creating the product; "" hides the block.
   // verify-license.js must know the product id too (GUMROAD_CLASSROOM_PRODUCT_ID).
-  const CLASSROOM_URL = ""; // e.g. "https://219809065360.gumroad.com/l/xxxxx"
+  const CLASSROOM_URL = "https://219809065360.gumroad.com/l/dzsahy"; // Classroom license (one-time $59)
   const CLASSROOM_LABEL = "$59 once"; // keep in sync with Gumroad
   const PLAN_KEY = "wsai_plan"; // "basic" | "pro"
   const LEGACY_KEY = "wsai_unlocked"; // old unlock flag -> treated as Basic
