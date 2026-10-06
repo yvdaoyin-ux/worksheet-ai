@@ -643,7 +643,8 @@ Grade level: ${grade} (U.S. grade level). Subject: ${subject}. Topic: ${topic}.
 GENERAL RULES
 - Match the concepts and difficulty to U.S. standards for this grade (Common Core / NGSS style).
 - Use U.S. contexts and conventions (U.S. names, U.S. spelling).
-- The worksheet is TEXT-ONLY: never ask students to match, circle, or point at pictures, images, maps or audio — those cannot be rendered on a printed page.${student ? `
+- The worksheet is TEXT-ONLY: never ask students to match, circle, or point at pictures, images, maps or audio — those cannot be rendered on a printed page.
+- If the topic names a holiday, season, or theme, the WHOLE worksheet must feel themed at first glance: keep the theme in the title AND the instructions line, and thread it through every question you can — word problems obviously, and for bare computation prefer themed contexts ("Each bag holds 7 candies. 8 bags: 7 × 8 = ___") instead of generic "7 × 8 = ___". Never let a themed topic produce a sheet that looks like any other day.${student ? `
 - PERSONALIZE: this worksheet is for a specific child. Use the first name "${student}" as the main character in EVERY word problem, story and reading passage (instead of generic names). Use ONLY that first name, spelled exactly like that.` : ""}
 - Grades K–2: keep wording very short and concrete.${levelLine(level)}
 - The output MUST be a ${subject} worksheet. Follow the SUBJECT strictly, even if the topic wording could also fit another subject.
