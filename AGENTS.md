@@ -15,7 +15,7 @@
 ## 硬规矩（改代码前必看）
 
 1. **根目录绝不能有 `server.js`，`package.json` 不能有 `start` 脚本**——否则 Vercel 会把项目当 Node 服务器，所有页面 404。（本地服务器叫 `dev-server.js`。）
-2. **改了 `app.css`/`app.js` → 必须 bump 前端版本号 `?v=N`**（当前 **v=33**），否则用户吃旧缓存。要同步的文件：`index.html`、`privacy.html`、`terms.html`、`scripts/gen-seo.js`（后者改完要 `node scripts/gen-seo.js` 重生成 60 页）。**用 Edit 工具改**（别用 PowerShell `Get-Content`，见第 8 条）。**bump 后必须打印每个文件的替换计数核对**——2026-10-06 发生过一次"replace 的旧号不存在 → 静默落空 → 提交信息虚报版本"的事故；另外 bump 改的是 `index.html` 等**源文件**，60 个落地页要靠重跑 `gen-seo.js` 才带上新版本号。
+2. **改了 `app.css`/`app.js` → 必须 bump 前端版本号 `?v=N`**（当前 **v=38**；**bump 完请顺手回来把这个数字也改掉**），否则用户吃旧缓存。要同步的文件：`index.html`、`privacy.html`、`terms.html`、`scripts/gen-seo.js`（后者改完要 `node scripts/gen-seo.js` 重生成 60 页）。**用 Edit 工具改**（别用 PowerShell `Get-Content`，见第 8 条）。**bump 后必须打印每个文件的替换计数核对**——2026-10-06 发生过一次"replace 的旧号不存在 → 静默落空 → 提交信息虚报版本"的事故；另外 bump 改的是 `index.html` 等**源文件**，60 个落地页要靠重跑 `gen-seo.js` 才带上新版本号。
 3. **`git push` 走代理会偶发 TLS 失败** → `git config --local http.sslBackend openssl` + **失败重试几次**。
 4. **改 Vercel 环境变量 / `api/*.js` → 要 Redeploy。**
 5. **别把密钥**写进代码或提交 `.env`。
@@ -38,6 +38,7 @@
    [System.IO.File]::WriteAllText($p, $t, (New-Object System.Text.UTF8Encoding($false)))
    ```
    **2026-10-05 真实踩过两次**：`push-to-github.bat` 和 `start-local.bat` 被写成 LF，用户双击"没有反应"，排查了很久才想到是行尾。
+10. **用户自由文本入口（`Extra instructions` 文本框、🎯 单题微调指令）绝不许覆盖系统红线**——年级对齐 / 纯文本 / 不用 `$` 做定界符 / 答案键规则**永远优先**。改 `buildPrompt` / `buildTweakPrompt` 时**不许把这条"非覆盖"约束删掉**（代码里写的是"冲突时以上述规则为准"，详见「生成前偏好 / 生成后微调」一节）。
 
 ## 关键文件
 
@@ -66,11 +67,11 @@
 - 档位存 `localStorage["wsai_plan"]` = `free` | `basic` | `pro`；旧的单标志 `wsai_unlocked=1` 会自动迁移为 **basic**。
 - `api/verify-license.js` 现在**返回档位**：env `GUMROAD_PRODUCT_ID` = Basic 产品 id（逗号分隔多个），`GUMROAD_PRO_PRODUCT_ID` = Pro 订阅产品 id（逗号分隔多个），`GUMROAD_CLASSROOM_PRODUCT_ID` = Classroom 产品 id（逗号分隔多个）。**会先试 Pro、再试 Classroom、最后 Basic**，避免高级用户被降级。**Classroom 在后端映射为 pro 级权益**（无限+无水印），"一个老师自己班"的范围约束写在条款里（`terms.html`），不在代码里。
 - `PRO_MONTHLY_URL` = `https://219809065360.gumroad.com/l/scrywy`（Pro 订阅产品）；置空则月付按钮自动隐藏（不会留死链）。价格文案 `PRO_MONTHLY_LABEL` 必须与实际一致。
-- **Pro 是另一个 Gumroad 产品**（Membership/订阅型）：permalink `scrywy`，`product_id = poNRKhKHkoG_Etcw2o5F-A==`，$4.99/月；已填进 `PRO_MONTHLY_URL`。**Vercel 环境变量 `GUMROAD_PRO_PRODUCT_ID` 必须补上这个值并 Redeploy**，否则 Pro 激活不了（我改不了线上 env）。
-- **Classroom（v=33 已上线）**：Gumroad 产品已建——permalink `dzsahy`（https://219809065360.gumroad.com/l/dzsahy），**product_id = `sy0h5DqeDo4r5nvdh2sfKw==`**，$59 一次性、非订阅（2026-10-06 页面核实）。`app.js` 的 `CLASSROOM_URL` 已填。**Vercel 环境变量 `GUMROAD_CLASSROOM_PRODUCT_ID` = `sy0h5DqeDo4r5nvdh2sfKw==`**（加了要 Redeploy）。产品内容页需放 `__license_key__` 自动激活链接（同 Basic/Pro，见下条）。
+- **Pro 是另一个 Gumroad 产品**（Membership/订阅型）：permalink `scrywy`，`product_id = poNRKhKHkoG_Etcw2o5F-A==`，$4.99/月；已填进 `PRO_MONTHLY_URL`。**Vercel 环境变量 `GUMROAD_PRO_PRODUCT_ID`** = 这个 product_id（**2026-10-06 已确认配好**：线上 `/api/health` 返回 `gumroadProProductId:true`；**若将来换 Gumroad 产品，必须同步改这个 env 并 Redeploy**，否则 Pro 激活不了）。
+- **Classroom（v=33 已上线）**：Gumroad 产品已建——permalink `dzsahy`（https://219809065360.gumroad.com/l/dzsahy），**product_id = `sy0h5DqeDo4r5nvdh2sfKw==`**，$59 一次性、非订阅（2026-10-06 页面核实）。`app.js` 的 `CLASSROOM_URL` 已填。**Vercel 环境变量 `GUMROAD_CLASSROOM_PRODUCT_ID` = `sy0h5DqeDo4r5nvdh2sfKw==`**（**2026-10-06 已确认配好**：线上 `/api/health` 返回 `gumroadClassroomProductId:true`；将来换产品要同步改并 Redeploy）。产品内容页需放 `__license_key__` 自动激活链接（同 Basic/Pro，见下条）。
 - 一个 Gumroad 产品不能既一次性又订阅，所以 Basic/Pro/Classroom 永远是不同产品。`verify-license` 已检查退订/失效字段，前端每天静默复检一次，退订后自动回落档位。
 - **售后自动激活**：Gumroad 占位符是 **`__license_key__`**（双下划线，不是 `{license_key}`），只能用在**产品内容页**的链接/按钮里。填 `https://worksheet-ai-l1td.vercel.app/?license_key=__license_key__`。前端 `autoActivateFromUrl()` 会自动校验、弹框显示结果、并清掉地址栏里的 key。
-- 单题 🔄 重写**免费且不耗额度**；✏️ 编辑同样免费。
+- 单题 🔄 重写**免费且不耗额度**；✏️ 编辑同样免费；🎯 单题微调（v=38）**同样免费、不耗额度**。
 - 价格数字散落在 `index.html` + `scripts/gen-seo.js`（搜 `$13.30`）+ `terms.html`，Gumroad 后台是第四处，**改价必须四处同步**（与上面「变现规则」一节的 4 处一致）。
 
 ## Starter Pack 与邮箱订阅（v=33）
@@ -102,8 +103,36 @@
 - **答案键打印开关**：工具栏 "Answer key" 复选框（默认开，`wsai_print_key` 记忆）。关 → `body.print-no-key`，打印 CSS 隐藏 `.ws-answers-title/.ws-answers/.ws-pack-keys` 和最后一个 `.ws-pagebreak`（不藏会印出空白页）。屏幕上答案照常显示。
 - **季节标签**：`SEASONAL` 表按月给每个科目一条应景话题（10 月=🎃 halloween candy math / pumpkin life cycle…），`renderChips` 置顶展示。
 - **生成进度条（v=33）**：`/api/generate` 支持 `stream:1` → SSE 真实阶段（`writing` → `checking` → `done`），客户端 `startProgress()` 把阶段映射到百分比并在阶段内平滑推进（显示"Writing your questions… 37% · 6s"），完成/失败自动隐藏。**客户端有看门狗**（60s 无数据或 300s 总时长 → 取消并提示）——注意兜底链最坏可跑 4 分钟以上，看门狗总时长不能调小。**部署竞态保护**：服务端返回 JSON 而非 SSE 时（旧实例），客户端会直接采用其中的 `html`。
-- 功能测试：`node _bench/lib_check.cjs`（真实生成 2 张 + 14 项断言，CDP）；打印页数矩阵 + 落地页联动：`_bench/defect_hunt_a.cjs / a2.cjs`（套装页数用 pypdf 读，`/Count` 正则不可靠）；移动端 390px：`_bench/defect_hunt_b.cjs`；进度条：`_bench/progress_check.cjs`。
-- **已知限制（2026-10-06 实测）**：个别图形多的卷子学生页会溢出到第 2 页（约多 1 题），套装因此 5 张可能印 9 页而非 6 页——内容高度差异，不是套装分页逻辑问题（每张都从新页开始、答案键开关在套装下正常：关=0 页答案）。填空分数（½ = ▢/4）的空位渲染为纯空白，可选打磨。
+- 功能测试：`node _bench/lib_check.cjs`（真实生成 2 张 + 14 项断言，CDP）；打印页数矩阵 + 落地页联动：`_bench/defect_hunt_a.cjs / a2.cjs`（脚本读页数的实现是 `/Count` 正则 + zlib 解压兜底；**手工核对单份 PDF 时改用 `pypdf`**，裸 `/Count` 正则不可靠）；移动端 390px：`_bench/defect_hunt_b.cjs`；进度条：`_bench/progress_check.cjs`。
+- **已知限制（2026-10-06 实测）**：个别图形多的卷子学生页会溢出到第 2 页（约多 1 题），套装因此 5 张可能印 9 页而非 6 页——内容高度差异，不是套装分页逻辑问题（每张都从新页开始、答案键开关在套装下正常：关=0 页答案）。（原「填空分数（½ = ▢/4）的空位渲染为纯空白」这条限制**已在 v=34 修掉**，见下节。）
+
+## 生成前偏好 / 生成后微调（v=37–v=38 新功能）
+
+两个入口都**免费、不耗额度**、都走护栏（`x-gate`），且都是**用户自由文本输入，各限 200 字符**。
+
+- **`Extra instructions`（v=37，生成前）**：首页 + 60 个落地页的表单里都有 `<textarea id="extra" maxlength="200">`（`index.html` 与 `scripts/gen-seo.js` 模板），随其它偏好一起记忆（`savePref/readPref` 的 `extra`）。`app.js` 发请求时带上 `notes`（`.slice(0,200)`）；`api/generate.js` 清洗控制字符 + `slice(0,200)`，在 `buildPrompt` 的 `GENERAL RULES` 里追加一条**非覆盖**规则：
+  `EXTRA REQUIREMENTS (… honor them whenever they do NOT conflict with the rules above. If a note conflicts with the grade level, the subject, the text-only rule, or the answer-key rules, the rules above ALWAYS win)`
+  - ⚠️ **它是「偏好级软约束」，不是硬保证**：2026-10-06 线上实测（要求"每题都是买零食的钱应用题"）——标题和部分题确实被带动，但不保证每一题都遵守。**不要把它描述成"必定遵守"。**
+- **🎯 单题微调（v=38，生成后）**：单题工具栏在 `✏️ Edit` / `🔄 Rewrite` 之外多了 `🎯` 按钮 → `window.prompt()` 收一句要求（≤200）→ `mode:"tweak"`，**只重做这一题**。
+  - 后端 `buildTweakPrompt()` 要求"只改这一次、保留技能/题型/结构、Do NOT replace"，模型返回 minified JSON `{question, answer}`，由 `parseTweak()` 解析（取**首个 `{` 到末个 `}`** 再 `JSON.parse`，所以模型包上代码围栏或散文也能容忍；解析失败就换下一个模型）。
+  - **前端同时替换题目与被点题索引对应的答案键条目**（`.ws-questions > li[idx]` ↔ `.ws-answers > li[idx]`）——这是它和 `🔄 Rewrite` 的关键区别。
+
+三个单题入口的区别（**别弄重**）：
+
+| 入口 | 作用 | 是否同步答案键 |
+|---|---|---|
+| `✏️ Edit` | 手动 `contentEditable` 改题 | 手动 |
+| `🔄 Rewrite` | 换一道**全新**同技能题 | ⚠️ **不更新**（已知隐患，见下） |
+| `🎯 Tweak` | **保留原题**只按指令改一处 | **同步更新** |
+
+> ⚠️ **已知隐患（待修）**：`🔄 Rewrite`（`app.js` 的 `rewriteItem`）只换题目、**不更新答案键**——换题后答案键那条可能对不上，家长按答案键批改会出错。修法照 `🎯 tweakItem` 的思路（返回并更新对应答案项）。小改动、价值高。
+
+### v=34–v=38 修掉的三个 bug（都已在线上）
+
+1. **v=34 填空分数的空位渲染成空白**：`\frac{\square}{4}` 这类填空，分子原会被"删未知宏"规则 `\\[a-zA-Z]+` 删掉，只剩分数横线。修法：frac 正则 `[^{}]+` → `[^{}]*`（**接受空花括号**）+ `fracSpan()` 对空/`\square`/`\Box`/`\blacksquare`/`\filledsquare` 渲染成 `<span class="fill">`，`app.css` 加 `.worksheet .frac .fill`（浅色框，打印保留）。**双实现同步**：`app.js` + `scripts/visuals.js`。
+2. **v=35 模型输出的 LaTeX 转义标点泄漏**：`\_\_\_`（转义下划线）、`\%`、`\&`、`\#`、`\ `（转义空格）原来会**带着反斜杠原样印出**（用户报的"奇怪斜杠"）。修法：在 `renderMathString()` 早期加解包 —— `t.replace(/\\([_%&#])/g, "$1")` + `t.replace(/\\[ ,;:]/g, " ")`。**双实现同步**（`app.js:395` / `scripts/visuals.js:166`）。
+3. **v=36 首次生成看不到进度条**：`#genProgress` 原本被插在 `#note` 之后，而 `#note` 位于初始 `hidden` 的 `#resultWrap` **内部** → 第一次生成时祖先 `display:none`，进度条不可见；生成完 `#resultWrap` 才显示，而进度条已 `done` 隐藏。修法：挂载点改成 `$("genBtn") || $("note")`（落在**始终可见**的表单里）。
+   - **测试盲区一并补上**：`_bench/progress_check.cjs` 原来只查元素自身 `hidden`，抓不到"祖先隐藏"；现在加了 `getBoundingClientRect` / `offsetParent` 可见性断言。
 
 ## 本地测试的三个硬坑（2026-10-06 全部踩过）
 
@@ -149,9 +178,9 @@
 
 ## 本地验证方法（改动后必做）
 
-`api/generate.js` 末尾导出了 `_buildPrompt / _checkMath / _proofread / _applyFixes / _parseWrong`，**仅供本地脚本复用真实逻辑**（Vercel 只用默认导出）。
+`api/generate.js` 末尾导出了 `_buildPrompt / _buildRelevelPrompt / _checkMath / _proofread / _applyFixes / _parseWrong / _buildAttempts / _buildTweakPrompt`，**仅供本地脚本复用真实逻辑**（Vercel 只用默认导出）。
 
-**1) 单元测试**（20 个断言：算对不误报、算错报出正确值、跳过文字/主题计算题、容错不崩）
+**1) 单元测试**（27 个断言：算对不误报、算错报出正确值、跳过文字/主题计算题、容错不崩、`Extra instructions` 注入与非覆盖、`buildTweakPrompt` 4 项）
 ```
 node "<工作区>/_bench/test_check.cjs"
 ```
@@ -168,7 +197,7 @@ node "<工作区>/_bench/test_check.cjs"
   --no-pdf-header-footer --user-data-dir="$env:TEMP\edgeprof" `
   --print-to-pdf="$env:TEMP\t.pdf" "file:///C:/path/to/_pt.html"
 ```
-页数读 PDF 里的 `/Count N`。**目标：学生卷 1 页 + 答案页 1 页 = 2 页**（10 题、12 题、阅读+答题横线均已实测为 2 页）。⚠️ **必须加 `--user-data-dir`**，否则 PDF 不会生成。
+页数用 `pypdf` 读（裸 `/Count N` 正则不可靠；`_bench/defect_hunt_a*.cjs` 里的实现是 `/Count` + zlib 解压兜底）。**目标：学生卷 1 页 + 答案页 1 页 = 2 页**（10 题、12 题、阅读+答题横线均已实测为 2 页）。⚠️ **必须加 `--user-data-dir`**，否则 PDF 不会生成。
 
 ## 详细资料
 
