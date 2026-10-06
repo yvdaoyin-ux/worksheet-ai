@@ -92,7 +92,8 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const qCount = Math.min(20, Math.max(3, parseInt(count, 10) || 10));
+  // The form offers 1 sheet-question; honor it (20 = Vercel 60s safety cap).
+  const qCount = Math.min(20, Math.max(1, parseInt(count, 10) || 10));
   const prompt = buildPrompt(grade, subject, topic, qCount, level, style, studentName);
   const attempts = buildAttempts();
 
@@ -138,6 +139,11 @@ function looksComplete(html) {
   if (html.indexOf("ws-title") < 0) return false;
   if (html.indexOf("ws-questions") < 0 && html.indexOf("ws-prompt") < 0) return false;
   if (html.indexOf("</ol>") < 0 && html.indexOf("</div>") < 0) return false;
+  // Meta-commentary in the answer key means the model could not do the task.
+  // Seen live: "Answer cannot be verified; problem statement incomplete."
+  // Restrict to the answers block — questions may legitimately say "incomplete".
+  const a = String(html).match(/class="ws-answers"[\s\S]*?<\/ol>/i);
+  if (a && /cannot be verified|problem statement (is )?incomplete|as an AI\b|I cannot/i.test(a[0])) return false;
   return true;
 }
 
@@ -812,6 +818,9 @@ function stripCodeFences(text) {
   return String(text)
     .replace(/^\s*```(?:html)?\s*/i, "")
     .replace(/\s*```\s*$/i, "")
+    // Models sometimes leave their own notes in the markup ("<!-- Matching
+    // definitions answers -->"). Never print them to a parent.
+    .replace(/<!--[\s\S]*?-->/g, "")
     .trim();
 }
 

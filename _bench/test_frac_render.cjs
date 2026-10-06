@@ -45,6 +45,11 @@ const cases = [
   ["1) 8/3  2) 5/6", FRAC],
   // safety net: orphan digit pairs left by an unknown macro
   ["\\unknownmacro{8}{3}", FRAC],
+  // money: $ is currency, never a math delimiter when no macro is inside
+  ["Amy has $5. She finds $3 more.", null, "$5"],
+  ["$5 + $3 = $8", null, "$5 + $3 = $8"],
+  ["A book costs $12. You pay with $20.", null, "$12"],
+  ["$\\frac{1}{2}$", 'class="frac"'], // real LaTeX in $...$ still unwraps
   // must NOT become a fraction
   ["https://example.com/8/3", null],
   ["10/3/2026", null],
@@ -53,11 +58,11 @@ const cases = [
 ];
 
 let fail = 0;
-for (const [input, want] of cases) {
+for (const [input, want, mustContain] of cases) {
   for (const [label, fn] of [["browser", browserImpl], ["node", nodeImpl]]) {
     const out = fn(input);
     const ok = want ? out.includes(want) : !out.includes("class=\"frac\"");
-    if (!ok) {
+    if (!ok || (mustContain && !out.includes(mustContain))) {
       fail++;
       console.log("FAIL", label, JSON.stringify(input), "=>", JSON.stringify(out.slice(0, 120)));
     }

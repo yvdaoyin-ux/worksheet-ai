@@ -258,9 +258,9 @@
     // form below matches. Mirrors scripts/visuals.js.
     t = String(t == null ? "" : t).replace(/[\u2044\u2215]/g, "/");
     t = t.replace(/\\[\(\)\[\]]/g, "");
-    t = t.replace(/\$([^$]+)\$/g, (m, inner) =>
-      /[\\=+\u00d7\u00f7]/.test(inner) || /^[\s\d.,/]+$/.test(inner) ? inner : m
-    );
+    // Only treat $...$ as a LaTeX delimiter when it wraps a macro. Money uses
+    // the same glyph: "$5 + $3" must keep its dollar signs. Mirrors visuals.js.
+    t = t.replace(/\$([^$]+)\$/g, (m, inner) => (/\\/.test(inner) ? inner : m));
     t = t.replace(/\\[dt]?frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g, (m, a, b) => fracSpan(a, b));
     t = t.replace(/(\d+)\s+(\d+)\s*\/\s*(\d+)/g, (m, w, a, b) => w + " " + fracSpan(a, b));
     t = t.replace(/(^|[^\d/])(\d+)\s*\/\s*(\d+)(?![\d/])/g, (m, pre, a, b) => pre + fracSpan(a, b));
