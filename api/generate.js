@@ -18,10 +18,11 @@ const PER_REQUEST_TIMEOUT_MS = 45000;
 const GROQ_MODELS = (process.env.GROQ_MODEL || "openai/gpt-oss-120b,openai/gpt-oss-20b")
   .split(",").map((s) => s.trim()).filter(Boolean);
 const OPENROUTER_MODELS = ["nvidia/nemotron-3-super-120b-a12b:free", "openrouter/free"];
-// deepseek-v4-flash is the current cheapest DeepSeek tier ($0.14 in / $0.28 out
-// per 1M). The legacy aliases deepseek-chat / deepseek-reasoner were retired
-// 24 July 2026 and must NOT be used.
-const DEEPSEEK_MODELS = (process.env.DEEPSEEK_MODEL || "deepseek-v4-flash")
+// DeepSeek fallback: the official API name for V4.1 Flash (2026-09-10+) is
+// "deepseek-flash" — there is no model id literally called "deepseek-v4.1".
+// The retired V4 name "deepseek-v4-flash" stays as a second attempt in case
+// the transition keeps it alive; a wrong name just fails over to the next.
+const DEEPSEEK_MODELS = (process.env.DEEPSEEK_MODEL || "deepseek-flash,deepseek-v4-flash")
   .split(",").map((s) => s.trim()).filter(Boolean);
 
 module.exports = async (req, res) => {
@@ -966,3 +967,4 @@ module.exports._checkMath = checkMath;
 module.exports._proofread = proofread;
 module.exports._applyFixes = applyFixes;
 module.exports._parseWrong = parseWrong;
+module.exports._buildAttempts = buildAttempts;

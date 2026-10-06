@@ -10,7 +10,7 @@
 - 线上：https://worksheet-ai-l1td.vercel.app
 - 代码：本目录（`worksheet-ai/`）
 - 收款：Gumroad（$19 → 折扣码 `LAUNCH30` → 实付 **$13.30**）
-- AI：Groq（主）+ OpenRouter（备）；密钥在 `.env` / Vercel 环境变量
+- AI：Groq（主）→ OpenRouter（免费备）→ **DeepSeek V4.1 Flash（付费兜底，模型名 `deepseek-flash`，2026-09-10 起；旧名 `deepseek-v4-flash` 保留为第二尝试）**。链路顺序由 `buildAttempts()` 决定，三个密钥都在 `.env` / Vercel 环境变量（`GROQ_API_KEY` / `OPENROUTER_API_KEY` / `DEEPSEEK_API_KEY`，可选 `DEEPSEEK_MODEL` 覆盖）。**没有 `DEEPSEEK_API_KEY` 时兜底不生效**（`/api/health` 的 `deepseek:false`）。链路顺序测试：`node _bench/test_fallback_chain.cjs`
 
 ## 硬规矩（改代码前必看）
 

@@ -6,7 +6,7 @@ module.exports = (req, res) => {
     groqModels: process.env.GROQ_MODEL || "openai/gpt-oss-120b,openai/gpt-oss-20b",
     openrouter: !!process.env.OPENROUTER_API_KEY,
     deepseek: !!process.env.DEEPSEEK_API_KEY,
-    deepseekModel: process.env.DEEPSEEK_MODEL || "deepseek-v4-flash",
+    deepseekModel: process.env.DEEPSEEK_MODEL || "deepseek-flash,deepseek-v4-flash",
     gumroadProductId: !!process.env.GUMROAD_PRODUCT_ID, // Basic ($13.30)
     gumroadProProductId: !!process.env.GUMROAD_PRO_PRODUCT_ID, // Pro monthly
     gumroadClassroomProductId: !!process.env.GUMROAD_CLASSROOM_PRODUCT_ID, // Classroom ($59 once)
