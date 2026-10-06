@@ -9,3 +9,4 @@ samples/_*.txt
 # edge headless profiles from _bench CDP tools
 _bench/_edgeprof/
 _ep*/
+_dsv.log

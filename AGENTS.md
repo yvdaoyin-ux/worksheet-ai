@@ -80,6 +80,21 @@
 - **邮件服务商已选 MailerLite（v=32 已配置并实测打通）**：免费档 1,000 订阅者/月发 12,000 封。分组 `worksheet-ai`（group_id `200548002003158197`）。env `MAILERLITE_API_KEY` + `MAILERLITE_GROUP_ID` 本地 `.env` 与 Vercel 均已配置；本地实测 subscribe → 入组成功（测试订阅者已删）。**配好 MailerLite 后要真的发**（先手动，量大了用 automation）。
 - 同类可复用脚本在 `_bench/`：`test_frac_render.cjs`（分数/货币渲染回归）、`sweep.cjs`（全科目扫描）、`landing_check.py`（60 页完整性）、`cdp_shot.cjs`（CDP 截图）。
 
+## 防盗用护栏（v=32，lib/guard.js）
+
+**已经天然安全的部分**：所有 AI 密钥只在服务端环境变量里，浏览器拿不到——"密钥从网站泄露"不存在，现实风险是**接口被盗刷**（脚本批量生成烧免费额度/DeepSeek 余额）。
+
+**三层防线（无数据库、全 stateless）**：
+1. **来源校验**：POST 只接受自家页面的 Origin/Referer（白名单：生产域名 + localhost + `ALLOWED_ORIGINS` env 可加自定义域名）；
+2. **门票（gate ticket）**：页面先 `GET /api/gate` 领 HMAC 签名票据（90 分钟有效），后续请求带 `x-gate` 头；票据缺失/伪造/过期 → 403。app.js 自动领票、403 自动刷新重试一次，用户无感。HMAC 密钥用 `GATE_SECRET` env，不设则从三家供应商密钥推导（零配置）；
+3. **全站日预算**：`GLOBAL_DAILY_BUDGET`（默认 3000/天）封顶最坏情况的 API 花费——**配 Upstash（免费）才是全站硬顶**，不配则按实例内存近似。
+
+接线范围：generate/relevel/rewrite/subscribe 全要票；verify-license 只查来源（购买后激活时页面还没领票）。`GATE_OFF=1` 一键关闭。topic 限长 120 字符。vercel.json 加了 X-Frame-Options/nosniff/Referrer-Policy。
+
+**给站长（用户）的建议**：① 去 upstash.com 免费建一个 Redis，把 `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` 加进 Vercel → 全局限流和预算才真正全局生效（`/api/health` 的 `rateLimit: memory` 表示还是按实例近似）；② 有人滥用时看 Vercel 日志里的 403/429。
+
+测试：`node _bench/test_guard.cjs`（16 项）；裸 curl 必须 403、带票 200 已实测。**注意：dev-server 的路由是手工映射表，新增 api 端点要同步登记**（api/gate 这次就踩过）。
+
 ## 我的卷子库 / 收藏 / 打印开关（v=32 新功能）
 
 - **历史 = 重印库**：`wsai_hist`（localStorage，最多 20 条）每条存完整 `html`，点即重印（复用旧 `renderHist` 的 lastSheetHtml 机制）；Pack 的每一张、relevel 的结果都会入历史。旧版"只存主题"的 5 条记录无法重印，加载时被过滤掉。
