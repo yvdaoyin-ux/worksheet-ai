@@ -9,6 +9,8 @@ module.exports = (req, res) => {
     deepseekModel: process.env.DEEPSEEK_MODEL || "deepseek-v4-flash",
     gumroadProductId: !!process.env.GUMROAD_PRODUCT_ID, // Basic ($13.30)
     gumroadProProductId: !!process.env.GUMROAD_PRO_PRODUCT_ID, // Pro monthly
+    gumroadClassroomProductId: !!process.env.GUMROAD_CLASSROOM_PRODUCT_ID, // Classroom ($59 once)
+    mailerliteGroupId: !!process.env.MAILERLITE_GROUP_ID,
     track: true,
     answerCheck: process.env.SKIP_ANSWER_CHECK ? "off" : "on", // second-pass answer-key proofread
     subscribe: process.env.BUTTONDOWN_API_KEY || process.env.MAILERLITE_API_KEY ? true : "log-only",
