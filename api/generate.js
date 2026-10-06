@@ -86,17 +86,27 @@ module.exports = async (req, res) => {
   if (req.body.mode === "rewrite") {
     const item = String(req.body.item || "").slice(0, 800);
     if (!item) { res.status(400).json({ error: "Nothing to rewrite." }); return; }
+    // The matching answer-key entry travels with the question. A rewrite changes
+    // the numbers, so the old answer is now WRONG — without this the parent
+    // grades the new question against the previous answer.
+    const answer = String(req.body.answer || "").slice(0, 400);
     const rrl = await rateLimit(getClientIp(req));
     if (!rrl.ok) {
       res.status(429).json({ error: "You've reached today's limit. Please try again tomorrow." });
       return;
     }
-    const rPrompt = buildRewritePrompt(grade, subject, topic, item);
+    const rPrompt = buildRewritePrompt(grade, subject, topic, item, answer);
     for (const a of buildAttempts()) {
       try {
         const raw = await callChat(a.url, a.key, a.model, rPrompt);
-        const html = stripCodeFences(raw);
-        if (html) { res.status(200).json({ html, model: a.model }); return; }
+        const parsed = parseItemEdit(raw);
+        // Deliberately NOT falling back to "accept the raw text as HTML" here:
+        // that is exactly the silent desync this fix removes. A model that cannot
+        // follow the JSON contract gets replaced by the next one.
+        if (parsed) {
+          res.status(200).json({ html: parsed.question, answer: parsed.answer, model: a.model });
+          return;
+        }
       } catch (e) { /* try next */ }
     }
     res.status(502).json({ error: "Could not regenerate that question. Please try again." });
@@ -121,7 +131,7 @@ module.exports = async (req, res) => {
     for (const a of buildAttempts()) {
       try {
         const raw = await callChat(a.url, a.key, a.model, tPrompt);
-        const parsed = parseTweak(raw);
+        const parsed = parseItemEdit(raw);
         if (parsed) { res.status(200).json({ html: parsed.question, answer: parsed.answer, model: a.model }); return; }
       } catch (e) { /* try next */ }
     }
@@ -641,12 +651,24 @@ function levelLine(level) {
   return "";
 }
 
-function buildRewritePrompt(grade, subject, topic, item) {
+// Rewrite = replace the question with a DIFFERENT one on the same skill. Because
+// the numbers change, the old answer-key entry becomes wrong, so the model must
+// return the matching new entry in the same response. (This used to return the
+// question alone, which left the answer key describing a question that was no
+// longer on the page — a parent marking with it would mark a correct child wrong.)
+function buildRewritePrompt(grade, subject, topic, item, answer) {
   return `You are an experienced U.S. elementary school teacher. Here is ONE question from a Grade ${grade} ${subject} worksheet on "${topic}":
 
 ${item}
 
-Rewrite it as a SINGLE new question that tests the SAME skill but is clearer and different (new numbers or context). Return ONLY that one question as an HTML fragment using the SAME tags and class names as the original (do NOT wrap it in <li>). Keep math in LaTeX (\\frac, \\times, \\div) and never use $ as a math delimiter.`;
+Its current answer-key entry is:
+${answer || "(none)"}
+
+Rewrite it as a SINGLE new question that tests the SAME skill but is clearer and different (new numbers or context). Because the question changes, its answer almost always changes too — you MUST return the matching new answer-key entry as well.
+
+Return ONLY minified JSON with exactly two string fields:
+{"question":"<the new question as an HTML fragment using the SAME tags and class names as the original, NOT wrapped in <li>>","answer":"<the new answer-key entry as plain text or a short HTML fragment, in the same brief-reasoning style as the original>"}
+Keep math in LaTeX (\\frac, \\times, \\div); never use the dollar sign as a math delimiter; the sheet is text-only.`;
 }
 
 // Instruction-based tweak: keep THIS question, change only what the parent asks.
@@ -670,9 +692,9 @@ Return ONLY minified JSON with exactly two string fields:
 {"question":"<the revised question as an HTML fragment with the SAME tags/classes as the original, NOT wrapped in <li>>","answer":"<the revised answer-key entry as plain text or a short HTML fragment>"}`;
 }
 
-// Reads the {question, answer} JSON a tweak returns, tolerating ```json fences
-// or stray prose around it.
-function parseTweak(raw) {
+// Reads the {question, answer} JSON an item edit returns (both rewrite and
+// tweak use this contract), tolerating code fences or stray prose around it.
+function parseItemEdit(raw) {
   const s = String(raw == null ? "" : raw);
   const i = s.indexOf("{");
   const j = s.lastIndexOf("}");

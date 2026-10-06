@@ -15,7 +15,7 @@
 ## 硬规矩（改代码前必看）
 
 1. **根目录绝不能有 `server.js`，`package.json` 不能有 `start` 脚本**——否则 Vercel 会把项目当 Node 服务器，所有页面 404。（本地服务器叫 `dev-server.js`。）
-2. **改了 `app.css`/`app.js` → 必须 bump 前端版本号 `?v=N`**（当前 **v=40**；**bump 完请顺手回来把这个数字也改掉**），否则用户吃旧缓存。要同步的文件：`index.html`、`privacy.html`、`terms.html`、`scripts/gen-seo.js`（后者改完要 `node scripts/gen-seo.js` 重生成 60 页）。**用 Edit 工具改**（别用 PowerShell `Get-Content`，见第 8 条）。**bump 后必须打印每个文件的替换计数核对**——2026-10-06 发生过一次"replace 的旧号不存在 → 静默落空 → 提交信息虚报版本"的事故；另外 bump 改的是 `index.html` 等**源文件**，60 个落地页要靠重跑 `gen-seo.js` 才带上新版本号。
+2. **改了 `app.css`/`app.js` → 必须 bump 前端版本号 `?v=N`**（当前 **v=41**；**bump 完请顺手回来把这个数字也改掉**），否则用户吃旧缓存。要同步的文件：`index.html`、`privacy.html`、`terms.html`、`scripts/gen-seo.js`（后者改完要 `node scripts/gen-seo.js` 重生成 60 页）。**用 Edit 工具改**（别用 PowerShell `Get-Content`，见第 8 条）。**bump 后必须打印每个文件的替换计数核对**——2026-10-06 发生过一次"replace 的旧号不存在 → 静默落空 → 提交信息虚报版本"的事故；另外 bump 改的是 `index.html` 等**源文件**，60 个落地页要靠重跑 `gen-seo.js` 才带上新版本号。
 3. **`git push` 走代理会偶发 TLS 失败** → `git config --local http.sslBackend openssl` + **失败重试几次**。
 4. **改 Vercel 环境变量 / `api/*.js` → 要 Redeploy。**
 5. **别把密钥**写进代码或提交 `.env`。
@@ -103,7 +103,7 @@
 - **答案键打印开关**：工具栏 "Answer key" 复选框（默认开，`wsai_print_key` 记忆）。关 → `body.print-no-key`，打印 CSS 隐藏 `.ws-answers-title/.ws-answers/.ws-pack-keys` 和最后一个 `.ws-pagebreak`（不藏会印出空白页）。屏幕上答案照常显示。
 - **季节标签**：`SEASONAL` 表按月给每个科目一条应景话题（10 月=🎃 halloween candy math / pumpkin life cycle…），`renderChips` 置顶展示。
 - **生成进度条（v=33）**：`/api/generate` 支持 `stream:1` → SSE 真实阶段（`writing` → `checking` → `done`），客户端 `startProgress()` 把阶段映射到百分比并在阶段内平滑推进（显示"Writing your questions… 37% · 6s"），完成/失败自动隐藏。**客户端有看门狗**（60s 无数据或 300s 总时长 → 取消并提示）——注意兜底链最坏可跑 4 分钟以上，看门狗总时长不能调小。**部署竞态保护**：服务端返回 JSON 而非 SSE 时（旧实例），客户端会直接采用其中的 `html`。
-- 功能测试：`node _bench/lib_check.cjs`（真实生成 2 张 + 14 项断言，CDP）；打印页数矩阵 + 落地页联动：`_bench/defect_hunt_a.cjs / a2.cjs`（脚本读页数的实现是 `/Count` 正则 + zlib 解压兜底；**手工核对单份 PDF 时改用 `pypdf`**，裸 `/Count` 正则不可靠）；移动端 390px：`_bench/defect_hunt_b.cjs`；进度条：`_bench/progress_check.cjs`；**纯前端显示/体验：`_bench/ux_check.cjs`（13 项，自带静态服务 + 打桩 `/api`，不需要 dev-server、网络或密钥，`node _bench/ux_check.cjs` 直接跑）**；**双实现一致性：`_bench/test_visual_parity.cjs`（8 个图形构造器，`app.js` vs `scripts/visuals.js` 必须逐字节相同）**。
+- 功能测试：`node _bench/lib_check.cjs`（真实生成 2 张 + 14 项断言，CDP）；打印页数矩阵 + 落地页联动：`_bench/defect_hunt_a.cjs / a2.cjs`（脚本读页数的实现是 `/Count` 正则 + zlib 解压兜底；**手工核对单份 PDF 时改用 `pypdf`**，裸 `/Count` 正则不可靠）；移动端 390px：`_bench/defect_hunt_b.cjs`；进度条：`_bench/progress_check.cjs`；**纯前端显示/体验 + 单题编辑的答案同步：`_bench/ux_check.cjs`（24 项，自带静态服务 + 打桩 `/api/gate|generate|track|subscribe`，不需要 dev-server、网络或密钥，`node _bench/ux_check.cjs` 直接跑。打桩会记下每次 `/api/generate` 的请求体，所以能断言"前端到底发了什么"）**；**双实现一致性：`_bench/test_visual_parity.cjs`（8 个图形构造器，`app.js` vs `scripts/visuals.js` 必须逐字节相同）**。
 - **已知限制（2026-10-06 实测）**：个别图形多的卷子学生页会溢出到第 2 页（约多 1 题），套装因此 5 张可能印 9 页而非 6 页——内容高度差异，不是套装分页逻辑问题（每张都从新页开始、答案键开关在套装下正常：关=0 页答案）。（原「填空分数（½ = ▢/4）的空位渲染为纯空白」这条限制**已在 v=34 修掉**，见下节。）
 
 ## 生成前偏好 / 生成后微调（v=37–v=38 新功能）
@@ -114,20 +114,25 @@
   `EXTRA REQUIREMENTS (… honor them whenever they do NOT conflict with the rules above. If a note conflicts with the grade level, the subject, the text-only rule, or the answer-key rules, the rules above ALWAYS win)`
   - ⚠️ **它是「偏好级软约束」，不是硬保证**：2026-10-06 线上实测（要求"每题都是买零食的钱应用题"）——标题和部分题确实被带动，但不保证每一题都遵守。**不要把它描述成"必定遵守"。**
 - **🎯 单题微调（v=38，生成后）**：单题工具栏在 `✏️ Edit` / `🔄 Rewrite` 之外多了 `🎯` 按钮 → `window.prompt()` 收一句要求（≤200）→ `mode:"tweak"`，**只重做这一题**。
-  - 后端 `buildTweakPrompt()` 要求"只改这一次、保留技能/题型/结构、Do NOT replace"，模型返回 minified JSON `{question, answer}`，由 `parseTweak()` 解析（取**首个 `{` 到末个 `}`** 再 `JSON.parse`，所以模型包上代码围栏或散文也能容忍；解析失败就换下一个模型）。
-  - **前端同时替换题目与被点题索引对应的答案键条目**（`.ws-questions > li[idx]` ↔ `.ws-answers > li[idx]`）——这是它和 `🔄 Rewrite` 的关键区别。
+  - 后端 `buildTweakPrompt()` 要求"只改这一次、保留技能/题型/结构、Do NOT replace"，模型返回 minified JSON `{question, answer}`，由 `parseItemEdit()` 解析（取**首个 `{` 到末个 `}`** 再 `JSON.parse`，所以模型包上代码围栏或散文也能容忍；解析失败就换下一个模型）。
 
 三个单题入口的区别（**别弄重**）：
 
 | 入口 | 作用 | 是否同步答案键 |
 |---|---|---|
 | `✏️ Edit` | 手动 `contentEditable` 改题 | 手动 |
-| `🔄 Rewrite` | 换一道**全新**同技能题 | ⚠️ **不更新**（已知隐患，见下） |
+| `🔄 Rewrite` | 换一道**全新**同技能题 | **同步更新**（v=41 修好） |
 | `🎯 Tweak` | **保留原题**只按指令改一处 | **同步更新** |
 
-> ⚠️ **已知隐患（待修）**：`🔄 Rewrite`（`app.js` 的 `rewriteItem`）只换题目、**不更新答案键**——换题后答案键那条可能对不上，家长按答案键批改会出错。修法照 `🎯 tweakItem` 的思路（返回并更新对应答案项）。小改动、价值高。
+> ✅ **v=41 已修**：`🔄 Rewrite` 原来只换题目、**不更新答案键**——换题后答案键那条还描述着**旧题**，家长照它批改会把做对的孩子判错。
+> **实现方式（改这块前必读）**：`rewrite` 和 `tweak` 现在**共用一个协议和一个收口** ——
+> - 后端两个分支都用 `parseItemEdit()` 解 `{question, answer}`；`buildRewritePrompt(…, answer)` 也会把**旧答案**一起发过去，要求模型返回配套的新答案。
+> - **`rewrite` 分支刻意不做"解析失败就把原文当 HTML 用"的兜底**——那正是原来那个静默错位的来源。模型不守 JSON 契约就换下一个模型。
+> - 前端两个按钮都走 `runItemEdit()`，共用 `itemContext()`（拿 `li` 的序号 + 对应答案键文本）和 `applyAnswerEdit()`（写回**同一序号**的答案项）。**要改索引/答案逻辑，只改这两处**，别再在按钮里各写一份（当初就是这么分叉出 bug 的）。
+> - 没有答案键的卷子（写作提示）在 `aItems[idx]` 处为空 → `applyAnswerEdit` 自动空转，不算错。
+> - 回归：`_bench/ux_check.cjs` 里"rewrite updated the answer key"三连（打桩 `/api/generate` 返回 `{html, answer}`，真的点 🔄 按钮）——**这是唯一能锁住这个 bug 的测试**。
 
-### v=34–v=40 修掉的 bug（都已在线上）
+### v=34–v=41 修掉的 bug（都已在线上）
 
 1. **v=34 填空分数的空位渲染成空白**：`\frac{\square}{4}` 这类填空，分子原会被"删未知宏"规则 `\\[a-zA-Z]+` 删掉，只剩分数横线。修法：frac 正则 `[^{}]+` → `[^{}]*`（**接受空花括号**）+ `fracSpan()` 对空/`\square`/`\Box`/`\blacksquare`/`\filledsquare` 渲染成 `<span class="fill">`，`app.css` 加 `.worksheet .frac .fill`（浅色框，打印保留）。**双实现同步**：`app.js` + `scripts/visuals.js`。
 2. **v=35 模型输出的 LaTeX 转义标点泄漏**：`\_\_\_`（转义下划线）、`\%`、`\&`、`\#`、`\ `（转义空格）原来会**带着反斜杠原样印出**（用户报的"奇怪斜杠"）。修法：在 `renderMathString()` 早期加解包 —— `t.replace(/\\([_%&#])/g, "$1")` + `t.replace(/\\[ ,;:]/g, " ")`。**双实现同步**（`app.js:395` / `scripts/visuals.js:166`）。
@@ -145,6 +150,7 @@
    - **订阅框（`#subBox`）原来只在单张生成后出现**，做套装/三档难度/难度切换都不出现。修法：调用点从 `runGenerate()` 移到 `paintWorksheet()`——所有让新卷子上屏的路径都会走到。
    - **`_bench/test_guard.cjs` 有一条会随机报假失败的断言**（**教训**）：`tampered payload invalid` 那行原来用 `new Date()` 现造一个"被篡改"的 payload，但 `issueTicket()` 内部也是 `Date.now()` —— 两者**大概率落在同一毫秒**，于是"篡改后"的字符串和原字符串**逐字节相同**，签名当然验证通过，断言就红了。实测 **20 次跑挂 2 次**（紧循环里 3000 次有 2972 次是相同的）。修法：把时间戳写成 `Date.now() - 60000`，保证 payload 一定不同。修完连跑 **30/30 全过**。
      ⚠️ **看到测试红了，先确认它是不是在测真东西**——这条假红很容易把人骗去"修"完全正确的 `lib/guard.js`（我实测真篡改 500/500 都被正确拒绝）。
+6. **v=41：`🔄 Rewrite` 换题不同步答案键**（**正确性 bug，已修**）。详见上面「三个单题入口的区别」那一段——那里写清了新协议、为什么 `rewrite` 分支**故意不做** HTML 兜底、以及前端 `itemContext()/applyAnswerEdit()/runItemEdit()` 三个必须共用的收口。回归锁在 `_bench/ux_check.cjs`。
 
 ## 本地测试的三个硬坑（2026-10-06 全部踩过）
 

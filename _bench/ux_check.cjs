@@ -9,7 +9,13 @@
 //      used to be told "Pro".
 //   3. the per-question tools are hidden at rest, visible on :focus-within
 //      (keyboard), and visible + in-flow on a no-hover (touch) device.
-//   4. no horizontal overflow at 390px.
+//   4. 🔄 rewrite updates the matching ANSWER-KEY entry too (it used to leave the
+//      key describing the old question, so a parent marked a correct child wrong),
+//      and 🎯 tweak still does.
+//   5. the Questions control is hidden for spelling / vocabulary / writing,
+//      whose generator pins the item count.
+//   6. the email box appears after a PACK, not only after a single sheet.
+//   7. no horizontal overflow at 390px.
 //
 // Run: node _bench/ux_check.cjs     (needs Edge installed; nothing else)
 
@@ -48,6 +54,7 @@ const STUB_HTML =
   '<ol class="ws-answers"><li>5</li><li>9</li></ol>';
 
 function startServer() {
+  let lastEdit = null; // last /api/generate body, so the test can inspect the request
   const srv = http.createServer((req, res) => {
     const url = new URL(req.url, "http://127.0.0.1");
     const json = (obj) => {
@@ -58,10 +65,20 @@ function startServer() {
     if (url.pathname === "/api/gate") return json({ ticket: "stub.ticket", ttlMinutes: 90 });
     if (url.pathname === "/api/track") return json({ ok: true });
     if (url.pathname === "/api/subscribe") return json({ ok: true, provider: "log-only" });
+    if (url.pathname === "/api/_lastedit") return json(lastEdit || {});
     if (url.pathname === "/api/generate") {
       let body = "";
       req.on("data", (c) => (body += c));
-      req.on("end", () => json({ html: STUB_HTML, checked: true, model: "stub" }));
+      req.on("end", () => {
+        try { lastEdit = JSON.parse(body); } catch (e) { lastEdit = { parseError: true }; }
+        if (lastEdit.mode === "rewrite") {
+          return json({ html: '<span class="rw">Rewritten question?</span>', answer: "42 \u2014 rewritten key", model: "stub" });
+        }
+        if (lastEdit.mode === "tweak") {
+          return json({ html: '<span class="tw">Tweaked question?</span>', answer: "7 \u2014 tweaked key", model: "stub" });
+        }
+        json({ html: STUB_HTML, checked: true, model: "stub" });
+      });
       return;
     }
     // ---- static ----
@@ -207,7 +224,30 @@ function ok(name, cond, extra) {
     const notePro = await q('document.getElementById("note").textContent');
     ok("Pro buyer is told Pro", /Pro \u2014 watermark removed/.test(notePro || ""), JSON.stringify(notePro));
 
-    // ---------- 5. the Questions control is hidden where the generator ignores it ----------
+    // ---------- 5. rewrite must ALSO update the matching answer-key entry ----------
+    // The shipped bug: 🔄 replaced the question but left the key describing the
+    // OLD one, so a parent marking with the key marked a correct child wrong.
+    const beforeAnswer = await q('document.querySelector("' + R + '.ws-answers > li").innerHTML');
+    await q('document.querySelector("' + R + '.li-tools button:nth-of-type(2)").click()');
+    await sleep(2000);
+    const afterQ = await q('document.querySelector("' + R + '.ws-questions > li").innerHTML');
+    const afterA = await q('document.querySelector("' + R + '.ws-answers > li").innerHTML');
+    const sent = await q('fetch("/api/_lastedit").then(function(r){return r.json()})');
+    console.log("   [info] rewrite request: mode=" + (sent && sent.mode) + "  answer=" + JSON.stringify(sent && sent.answer));
+    ok("rewrite replaced the question", /Rewritten question/.test(afterQ || ""), JSON.stringify(afterQ));
+    ok("rewrite updated the answer key", /rewritten key/.test(afterA || "") && afterA !== beforeAnswer, JSON.stringify(afterA));
+    ok("rewrite sent the old answer to the server", !!(sent && sent.answer && sent.answer.indexOf("5") >= 0), JSON.stringify(sent && sent.answer));
+
+    // the tweak button shares that plumbing — prove it still works.
+    // tweakItem calls window.prompt(); the blanket stub returns undefined, which
+    // would make it bail out before sending anything.
+    await q('window.prompt = function(){ return "make the numbers smaller"; };');
+    await q('document.querySelector("' + R + '.li-tools button:nth-of-type(3)").click()');
+    await sleep(1200);
+    const afterTweakA = await q('document.querySelector("' + R + '.ws-answers > li").innerHTML');
+    ok("tweak still updates the answer key", /tweaked key/.test(afterTweakA || ""), JSON.stringify(afterTweakA));
+
+    // ---------- 6. the Questions control is hidden where the generator ignores it ----------
     // api/generate.js pins the item count for spelling (10 words + 2 tasks),
     // vocabulary (8 + 5 + 2) and writing (no questions at all), so showing a
     // "Questions" number there silently lied to the user.
@@ -221,7 +261,7 @@ function ok(name, cond, extra) {
     ok("Questions control hidden for Vocabulary", (await countDisplay("Vocabulary")) === "none");
     ok("Questions control hidden for Writing", (await countDisplay("Writing")) === "none");
 
-    // ---------- 6. the email box must appear after a PACK too (not just a single sheet) ----------
+    // ---------- 7. the email box must appear after a PACK too (not just a single sheet) ----------
     await q('localStorage.setItem("wsai_plan","pro"); localStorage.removeItem("wsai_subbed");');
     await go();
     await q('(function(){ localStorage.removeItem("wsai_subbed"); document.getElementById("subject").value="Math"; document.getElementById("topic").value="addition"; var p=document.getElementById("pack"); p.value="5"; p.dispatchEvent(new Event("change")); document.getElementById("genForm").dispatchEvent(new Event("submit",{cancelable:true})); })()');
@@ -232,7 +272,7 @@ function ok(name, cond, extra) {
     ok("a 5-sheet pack was built", /5-sheet pack ready/.test(packNote || ""), JSON.stringify(packNote));
     ok("email box appears after a pack", subHidden === false, String(subHidden));
 
-    // ---------- 7. touch emulation: no hover ----------
+    // ---------- 8. touch emulation: no hover ----------
     await send(ws, "Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
     await send(ws, "Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
     await q('localStorage.setItem("wsai_plan","free")');
@@ -250,7 +290,7 @@ function ok(name, cond, extra) {
       console.log("   [skip] this Edge build does not report hover:none under touch emulation");
     }
 
-    // ---------- 8. no horizontal overflow at 390px ----------
+    // ---------- 9. no horizontal overflow at 390px ----------
     const overflow = await q("({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth })");
     ok("390px: no horizontal overflow", overflow && overflow.sw <= overflow.cw + 1, JSON.stringify(overflow));
 

@@ -797,20 +797,52 @@
     }
   }
 
-  async function rewriteItem(li, btn) {
-    // Rewriting a single question does NOT consume the free daily quota.
+  // ---- shared plumbing for the two per-question AI edits ------------------
+  // Rewrite (new question) and tweak (adjust this one) send the same payload
+  // shape, must find the SAME answer-key entry, and must write the corrected
+  // answer back to it. Keeping that in one place is deliberate: the answer key
+  // going out of sync with the question was a real shipped bug, and the fix
+  // must not be able to drift apart between the two buttons again.
+  function itemContext(li) {
     const clone = li.cloneNode(true);
     const toolsInClone = clone.querySelector(".li-tools");
     if (toolsInClone) toolsInClone.remove();
-    const item = clone.innerHTML.trim();
-    const subject = $("subject") ? $("subject").value : "";
-    const topic = ($("topic") && $("topic").value.trim()) || "worksheet";
+    const box = $("result");
+    const qItems = box ? Array.from(box.querySelectorAll(".ws-questions > li")) : [];
+    const idx = qItems.indexOf(li);
+    const aItems = box ? box.querySelectorAll(".ws-answers > li") : [];
+    return {
+      item: clone.innerHTML.trim(),
+      idx: idx,
+      aItems: aItems,
+      answer: idx >= 0 && aItems[idx] ? aItems[idx].innerHTML.trim() : "",
+      subject: $("subject") ? $("subject").value : "",
+      topic: ($("topic") && $("topic").value.trim()) || "worksheet",
+    };
+  }
+
+  // Puts the model's revised answer into the SAME answer-key entry the question
+  // came from. Sheets with no answer key (writing prompts) simply have nothing
+  // at that index, so this is a no-op there.
+  function applyAnswerEdit(ctx, data) {
+    if (!data || !data.answer || ctx.idx < 0 || !ctx.aItems[ctx.idx]) return;
+    ctx.aItems[ctx.idx].innerHTML = data.answer;
+    renderMath(ctx.aItems[ctx.idx]);
+  }
+
+  async function runItemEdit(li, btn, mode, instruction, failLabel) {
+    const ctx = itemContext(li);
     const old = btn.textContent;
     btn.disabled = true; btn.textContent = "\u2026";
     try {
+      const payload = {
+        mode: mode, grade: $("grade").value, subject: ctx.subject, topic: ctx.topic,
+        item: ctx.item, answer: ctx.answer,
+      };
+      if (instruction) payload.instruction = instruction;
       const res = await apiFetch("/api/generate", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "rewrite", grade: $("grade").value, subject, topic, item }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok || !data.html) throw new Error(data.error || "failed");
@@ -818,52 +850,27 @@
       makeTools(li);
       renderMath(li);
       hydrateVisuals(li);
+      applyAnswerEdit(ctx, data);
     } catch (e) {
-      alert("Could not rewrite: " + e.message);
+      alert(failLabel + ": " + e.message);
     } finally {
       btn.disabled = false; btn.textContent = old;
     }
   }
 
-  async function tweakItem(li, btn) {
+  function rewriteItem(li, btn) {
+    // Free — does not consume the daily quota. Returns a brand-new question AND
+    // its matching answer, so the key can never be left describing the old one.
+    return runItemEdit(li, btn, "rewrite", "", "Could not rewrite");
+  }
+
+  function tweakItem(li, btn) {
     // Instruction-based tweak: keep THIS question, apply ONE requested change.
-    // Free, like rewrite — does not consume the daily quota. The matching
-    // answer-key entry is updated too, so a change to the numbers stays in sync.
+    // Free, like rewrite — does not consume the daily quota. Shares the answer-
+    // key bookkeeping with rewrite, so both stay in sync (see runItemEdit).
     const instruction = (window.prompt("How should I adjust this question? (e.g. \"make the numbers smaller\", \"use dollars\", \"change the animal to a cat\")", "") || "").trim().slice(0, 200);
     if (!instruction) return;
-    const clone = li.cloneNode(true);
-    const toolsInClone = clone.querySelector(".li-tools");
-    if (toolsInClone) toolsInClone.remove();
-    const item = clone.innerHTML.trim();
-    const box = $("result");
-    const qItems = box ? Array.from(box.querySelectorAll(".ws-questions > li")) : [];
-    const idx = qItems.indexOf(li);
-    const aItems = box ? box.querySelectorAll(".ws-answers > li") : [];
-    const answer = (idx >= 0 && aItems[idx]) ? aItems[idx].innerHTML.trim() : "";
-    const subject = $("subject") ? $("subject").value : "";
-    const topic = ($("topic") && $("topic").value.trim()) || "worksheet";
-    const old = btn.textContent;
-    btn.disabled = true; btn.textContent = "\u2026";
-    try {
-      const res = await apiFetch("/api/generate", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "tweak", grade: $("grade").value, subject, topic, item, instruction, answer }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.html) throw new Error(data.error || "failed");
-      li.innerHTML = data.html;
-      makeTools(li);
-      renderMath(li);
-      hydrateVisuals(li);
-      if (data.answer && idx >= 0 && aItems[idx]) {
-        aItems[idx].innerHTML = data.answer;
-        renderMath(aItems[idx]);
-      }
-    } catch (e) {
-      alert("Could not adjust: " + e.message);
-    } finally {
-      btn.disabled = false; btn.textContent = old;
-    }
+    return runItemEdit(li, btn, "tweak", instruction, "Could not adjust");
   }
 
   // Subjects whose questions ask for a written answer ("answer in complete
