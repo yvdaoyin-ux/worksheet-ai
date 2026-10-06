@@ -14,6 +14,7 @@ module.exports = (req, res) => {
     track: true,
     answerCheck: process.env.SKIP_ANSWER_CHECK ? "off" : "on", // second-pass answer-key proofread
     subscribe: process.env.BUTTONDOWN_API_KEY || process.env.MAILERLITE_API_KEY ? true : "log-only",
+    gate: String(process.env.GATE_OFF || "") === "1" ? "off" : "on",
     rateLimit: process.env.UPSTASH_REDIS_REST_URL ? "upstash" : "memory",
   });
 };

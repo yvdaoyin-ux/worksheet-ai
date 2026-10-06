@@ -2,6 +2,10 @@
 // Verifies a Gumroad license key and reports WHICH plan it unlocks.
 // POST { license_key } -> { valid: boolean, plan: "pro" | "basic" }
 //
+// Guard: origin check only (no ticket) — this endpoint runs right after the
+// Gumroad purchase redirect, before the page has fetched a ticket. It forwards
+// to Gumroad's own rate-limited API, so key guessing dies there.
+//
 // Tiers (as agreed with the owner):
 //   Basic     = one-time $13.30  -> unlimited MATH, 3 worksheets/day in other subjects
 //   Pro       = monthly sub     -> everything unlimited + future features
@@ -16,11 +20,14 @@
 //   GUMROAD_CLASSROOM_PRODUCT_ID  = Classroom product id(s), comma-separated
 // Each list may hold several ids; they are tried until one verifies.
 
+const guard = require("../lib/guard");
+
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
     res.status(405).json({ valid: false, error: "Method not allowed" });
     return;
   }
+  if (guard.blocked(req, res, { skipTicket: true })) return;
 
   const { license_key } = req.body || {};
   if (!license_key) {

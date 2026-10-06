@@ -9,11 +9,16 @@
 //   BUTTONDOWN_API_KEY=...          (Buttondown, free tier fine)
 //   MAILERLITE_API_KEY=... + MAILERLITE_GROUP_ID=...
 
+// Guard (origin + ticket): a bot that mass-subscribes would pollute the
+// mailing list, so this endpoint requires the page-issued ticket too.
+const { blocked } = require("../lib/guard");
+
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
     return;
   }
+  if (blocked(req, res, { reason: "Please reload the page and try again." })) return;
 
   const email = String((req.body || {}).email || "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) || email.length > 200) {

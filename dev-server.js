@@ -28,6 +28,7 @@ const generate = require("./api/generate.js");
 const verifyLicense = require("./api/verify-license.js");
 const track = require("./api/track.js");
 const subscribe = require("./api/subscribe.js");
+const gate = require("./api/gate.js");
 
 const PORT = process.env.PORT || 3000;
 const ROUTES = {
@@ -35,6 +36,7 @@ const ROUTES = {
   "/api/verify-license": verifyLicense,
   "/api/track": track,
   "/api/subscribe": subscribe,
+  "/api/gate": gate,
 };
 
 function readBody(req) {

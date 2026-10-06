@@ -12,6 +12,7 @@
 // output structure, aligned to US Common Core ELA / NGSS.
 
 const { mathScope } = require("../lib/curriculum");
+const { blocked } = require("../lib/guard");
 
 const PER_REQUEST_TIMEOUT_MS = 45000;
 
@@ -30,12 +31,17 @@ module.exports = async (req, res) => {
     res.status(405).json({ error: "Method not allowed" });
     return;
   }
+  // Origin + gate-ticket check (see lib/guard.js): the site's own pages fetch a
+  // signed ticket from /api/gate; bare scripts get 403 before touching the AI.
+  if (blocked(req, res)) return;
 
-  const { grade = "", subject = "", topic = "", count = 10, level = "standard", style = "mixed", student = "" } = req.body || {};
+  const { grade = "", subject = "", topic: topicRaw = "", count = 10, level = "standard", style = "mixed", student = "" } = req.body || {};
   // Optional "personalize for my child" first name. Sanitized to letters / space /
   // apostrophe / hyphen and capped, so it can never become a prompt-injection or
   // markup vector (it is interpolated into the prompt below).
   const studentName = String(student || "").replace(/[^A-Za-z '-]/g, "").replace(/\s+/g, " ").trim().slice(0, 24);
+  // Topic is capped so one request can never bloat the prompt (or the cost).
+  const topic = String(topicRaw || "").replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, 120);
   if (!topic) {
     res.status(400).json({ error: "Please enter a topic." });
     return;
@@ -483,36 +489,44 @@ function getClientIp(req) {
 // to a per-instance in-memory counter. The fallback is imperfect across instances but
 // it is the difference between "one viral pin kills the Groq quota" and "it doesn't".
 const MEM = new Map();
+const BUDGET = new Map();
 async function rateLimit(ip) {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return memRateLimit(ip);
-  const limit = Math.max(1, parseInt(process.env.DAILY_LIMIT_PER_IP || "100", 10));
   const day = new Date().toISOString().slice(0, 10);
+  const perIpLimit = Math.max(1, parseInt(process.env.DAILY_LIMIT_PER_IP || "100", 10));
+  // Hard ceiling on the whole site's generations per day: bounds worst-case AI
+  // spend even when an abuser rotates IPs. Tuned far above real traffic.
+  const budget = Math.max(50, parseInt(process.env.GLOBAL_DAILY_BUDGET || "3000", 10));
+  if (!url || !token) return memRateLimit(ip, day, perIpLimit, budget);
   const key = "rl:" + ip + ":" + day;
   try {
     const r = await fetch(url.replace(/\/$/, "") + "/pipeline", {
       method: "POST",
       headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
-      body: JSON.stringify([["INCR", key], ["EXPIRE", key, 172800]]),
+      body: JSON.stringify([["INCR", key], ["EXPIRE", key, 172800], ["INCR", "budget:" + day], ["EXPIRE", "budget:" + day, 172800]]),
     });
     const data = await r.json();
-    const count = data && data[0] && data[0].result;
-    if (typeof count === "number") return { ok: count <= limit, count, limit };
+    const ipCount = data && data[0] && data[0].result;
+    const totalCount = data && data[2] && data[2].result;
+    if (typeof ipCount === "number" && typeof totalCount === "number") {
+      return { ok: ipCount <= perIpLimit && totalCount <= budget, count: ipCount, limit: perIpLimit, via: "upstash" };
+    }
     return { ok: true };
   } catch (e) {
-    return memRateLimit(ip);
+    return memRateLimit(ip, day, perIpLimit, budget);
   }
 }
 
-function memRateLimit(ip) {
+function memRateLimit(ip, day, perIpLimit, budget) {
   const limit = Math.max(10, parseInt(process.env.MEM_LIMIT_PER_IP_DAY || "60", 10));
-  const day = new Date().toISOString().slice(0, 10);
   const key = ip + ":" + day;
   const n = (MEM.get(key) || 0) + 1;
   MEM.set(key, n);
+  const b = (BUDGET.get(day) || 0) + 1;
+  BUDGET.set(day, b);
   if (MEM.size > 20000) MEM.clear(); // crude bound; entries expire by day key anyway
-  return { ok: n <= limit, count: n, limit: limit, via: "memory" };
+  return { ok: n <= limit && b <= budget, count: n, limit: limit, via: "memory" };
 }
 
 function buildAttempts() {

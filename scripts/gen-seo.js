@@ -155,7 +155,7 @@ function renderPage(p) {
   <meta property="og:url" content="${url}" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="${url}" />
-  <link rel="stylesheet" href="/app.css?v=31" />
+  <link rel="stylesheet" href="/app.css?v=32" />
   <style>
     .sample-block { margin: 26px 0 6px; }
     .sample-block h2 { text-align: center; font-size: 20px; margin: 0 0 4px; }
@@ -244,7 +244,7 @@ ${resultModal}
     </footer>
   </div>
 ${paywall}
-  <script src="/app.js?v=31" defer></script>
+  <script src="/app.js?v=32" defer></script>
 </body>
 </html>
 `;

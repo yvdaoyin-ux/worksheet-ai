@@ -661,6 +661,38 @@
     form.addEventListener("submit", (e) => submitSubscribe(e, inputId, btnId, msgId));
   }
 
+  // ---------------- API guard (gate ticket) ----------------
+  // The server only answers API calls that carry a short-lived signed ticket
+  // from /api/gate. Fetched lazily, cached per tab, refreshed once on 403.
+  let gateTicket = "";
+  try { gateTicket = sessionStorage.getItem("wsai_gate") || ""; } catch (e) { /* private mode */ }
+  async function ensureTicket(force) {
+    if (gateTicket && !force) return gateTicket;
+    try {
+      const r = await fetch("/api/gate");
+      const d = await r.json();
+      if (d && d.ticket) {
+        gateTicket = d.ticket;
+        try { sessionStorage.setItem("wsai_gate", gateTicket); } catch (e) { /* ignore */ }
+      }
+    } catch (e) { /* the guarded call will surface a clear error */ }
+    return gateTicket;
+  }
+  async function apiFetch(url, opts) {
+    const o = opts || {};
+    await ensureTicket();
+    const withTicket = () => Object.assign({}, o.headers, gateTicket ? { "x-gate": gateTicket } : {});
+    let res = await fetch(url, Object.assign({}, o, { headers: withTicket() }));
+    if (res.status === 403) {
+      const data = await res.json().catch(() => ({}));
+      if (data && /verification missing or expired/i.test(data.error || "")) {
+        await ensureTicket(true);
+        res = await fetch(url, Object.assign({}, o, { headers: withTicket() }));
+      }
+    }
+    return res;
+  }
+
   async function submitSubscribe(e, inputId, btnId, msgId) {
     e.preventDefault();
     const email = ($(inputId).value || "").trim();
@@ -670,7 +702,7 @@
     btn.disabled = true; btn.textContent = "\u2026";
     msg.className = "msg"; msg.textContent = "";
     try {
-      const res = await fetch("/api/subscribe", {
+      const res = await apiFetch("/api/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email, source: location.pathname }),
@@ -706,7 +738,7 @@
     const old = btn.textContent;
     btn.disabled = true; btn.textContent = "\u2026";
     try {
-      const res = await fetch("/api/generate", {
+      const res = await apiFetch("/api/generate", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode: "rewrite", grade: $("grade").value, subject, topic, item }),
       });
@@ -801,7 +833,7 @@
   }
 
   async function generateOnce(topic) {
-    const res = await fetch("/api/generate", {
+    const res = await apiFetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -902,7 +934,7 @@
   let lastCtx = { grade: "", subject: "", topic: "" };
 
   async function relevelOnce(level) {
-    const res = await fetch("/api/generate", {
+    const res = await apiFetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1130,7 +1162,7 @@
     if (!key) { msg.textContent = "Please enter your license key."; return; }
     msg.textContent = "Checking…";
     try {
-      const res = await fetch("/api/verify-license", {
+      const res = await apiFetch("/api/verify-license", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ license_key: key }),
