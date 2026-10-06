@@ -15,7 +15,7 @@
 ## 硬规矩（改代码前必看）
 
 1. **根目录绝不能有 `server.js`，`package.json` 不能有 `start` 脚本**——否则 Vercel 会把项目当 Node 服务器，所有页面 404。（本地服务器叫 `dev-server.js`。）
-2. **改了 `app.css`/`app.js` → 必须 bump 前端版本号 `?v=N`**（当前 **v=32**），否则用户吃旧缓存。要同步的文件：`index.html`、`privacy.html`、`terms.html`、`scripts/gen-seo.js`（后者改完要 `node scripts/gen-seo.js` 重生成 60 页）。**用 Edit 工具改**（别用 PowerShell `Get-Content`，见第 8 条）。**bump 后必须打印每个文件的替换计数核对**——2026-10-06 发生过一次"replace 的旧号不存在 → 静默落空 → 提交信息虚报版本"的事故；另外 bump 改的是 `index.html` 等**源文件**，60 个落地页要靠重跑 `gen-seo.js` 才带上新版本号。
+2. **改了 `app.css`/`app.js` → 必须 bump 前端版本号 `?v=N`**（当前 **v=33**），否则用户吃旧缓存。要同步的文件：`index.html`、`privacy.html`、`terms.html`、`scripts/gen-seo.js`（后者改完要 `node scripts/gen-seo.js` 重生成 60 页）。**用 Edit 工具改**（别用 PowerShell `Get-Content`，见第 8 条）。**bump 后必须打印每个文件的替换计数核对**——2026-10-06 发生过一次"replace 的旧号不存在 → 静默落空 → 提交信息虚报版本"的事故；另外 bump 改的是 `index.html` 等**源文件**，60 个落地页要靠重跑 `gen-seo.js` 才带上新版本号。
 3. **`git push` 走代理会偶发 TLS 失败** → `git config --local http.sslBackend openssl` + **失败重试几次**。
 4. **改 Vercel 环境变量 / `api/*.js` → 要 Redeploy。**
 5. **别把密钥**写进代码或提交 `.env`。
@@ -53,34 +53,34 @@
 > **不要再把价格改回 $6.93。** 旧文档（`worksheet-ai-交接-20261005\02`、`04`、`07` 等）里写的 $6.93 是**历史记录**，以本条为准。
 > 价格散落在 4 处：**Gumroad 后台** · `index.html` · `scripts/gen-seo.js`（→60 个落地页）· `terms.html`。**改价必须四处同步。**
 
-在此之上的**档位分层（v=32 现行）**：
+在此之上的**档位分层（v=33 现行）**：
 
 | | Math | 其他 7 个科目 | 水印 | 价格 |
 |---|---|---|---|---|
 | **Free** | 2 份/天 | 1 份/天 | 有 | $0 |
 | **Basic** | **无限** | 3 份/天 | 无 | $13.30 一次性（码 LAUNCH30） |
 | **Pro** | 无限 | **无限** | 无 | 月付（$4.99/月）+ 后续新功能都包含 |
-| **Classroom** | 无限 | **无限** | 无 | $59 一次性——**一个老师自己班**（v=32 已上线） |
+| **Classroom** | 无限 | **无限** | 无 | $59 一次性——**一个老师自己班**（v=33 已上线） |
 
 - 常量在 `app.js` 顶部：`FREE_MATH_DAILY=2`、`FREE_OTHER_DAILY=1`、`BASIC_OTHER_DAILY=3`、`PRO_MONTHLY_URL`、`PRO_MONTHLY_LABEL`、`CLASSROOM_URL`、`CLASSROOM_LABEL`。
 - 档位存 `localStorage["wsai_plan"]` = `free` | `basic` | `pro`；旧的单标志 `wsai_unlocked=1` 会自动迁移为 **basic**。
 - `api/verify-license.js` 现在**返回档位**：env `GUMROAD_PRODUCT_ID` = Basic 产品 id（逗号分隔多个），`GUMROAD_PRO_PRODUCT_ID` = Pro 订阅产品 id（逗号分隔多个），`GUMROAD_CLASSROOM_PRODUCT_ID` = Classroom 产品 id（逗号分隔多个）。**会先试 Pro、再试 Classroom、最后 Basic**，避免高级用户被降级。**Classroom 在后端映射为 pro 级权益**（无限+无水印），"一个老师自己班"的范围约束写在条款里（`terms.html`），不在代码里。
 - `PRO_MONTHLY_URL` = `https://219809065360.gumroad.com/l/scrywy`（Pro 订阅产品）；置空则月付按钮自动隐藏（不会留死链）。价格文案 `PRO_MONTHLY_LABEL` 必须与实际一致。
 - **Pro 是另一个 Gumroad 产品**（Membership/订阅型）：permalink `scrywy`，`product_id = poNRKhKHkoG_Etcw2o5F-A==`，$4.99/月；已填进 `PRO_MONTHLY_URL`。**Vercel 环境变量 `GUMROAD_PRO_PRODUCT_ID` 必须补上这个值并 Redeploy**，否则 Pro 激活不了（我改不了线上 env）。
-- **Classroom（v=32 已上线）**：Gumroad 产品已建——permalink `dzsahy`（https://219809065360.gumroad.com/l/dzsahy），**product_id = `sy0h5DqeDo4r5nvdh2sfKw==`**，$59 一次性、非订阅（2026-10-06 页面核实）。`app.js` 的 `CLASSROOM_URL` 已填。**Vercel 环境变量 `GUMROAD_CLASSROOM_PRODUCT_ID` = `sy0h5DqeDo4r5nvdh2sfKw==`**（加了要 Redeploy）。产品内容页需放 `__license_key__` 自动激活链接（同 Basic/Pro，见下条）。
+- **Classroom（v=33 已上线）**：Gumroad 产品已建——permalink `dzsahy`（https://219809065360.gumroad.com/l/dzsahy），**product_id = `sy0h5DqeDo4r5nvdh2sfKw==`**，$59 一次性、非订阅（2026-10-06 页面核实）。`app.js` 的 `CLASSROOM_URL` 已填。**Vercel 环境变量 `GUMROAD_CLASSROOM_PRODUCT_ID` = `sy0h5DqeDo4r5nvdh2sfKw==`**（加了要 Redeploy）。产品内容页需放 `__license_key__` 自动激活链接（同 Basic/Pro，见下条）。
 - 一个 Gumroad 产品不能既一次性又订阅，所以 Basic/Pro/Classroom 永远是不同产品。`verify-license` 已检查退订/失效字段，前端每天静默复检一次，退订后自动回落档位。
 - **售后自动激活**：Gumroad 占位符是 **`__license_key__`**（双下划线，不是 `{license_key}`），只能用在**产品内容页**的链接/按钮里。填 `https://worksheet-ai-l1td.vercel.app/?license_key=__license_key__`。前端 `autoActivateFromUrl()` 会自动校验、弹框显示结果、并清掉地址栏里的 key。
 - 单题 🔄 重写**免费且不耗额度**；✏️ 编辑同样免费。
 - 价格数字散落在 `index.html` + `scripts/gen-seo.js`（搜 `$13.30`），Gumroad 是第三处，**改价必须三处同步**。
 
-## Starter Pack 与邮箱订阅（v=32）
+## Starter Pack 与邮箱订阅（v=33）
 
 - **`starter-pack.pdf`**（仓库根目录，静态资产，~157KB / 21 页）：封面 + 10 张真实生成的卷（Math K–4 各 1 + Reading/Grammar/Spelling/Science/Writing 各 1），每张学生卷 + 答案卷。**重建方法**：起本地服务后跑 `node _bench/build_pack.cjs`（内部用 `/api/generate` 真实生成 → 拼一页 → 无头 Edge 打印）。
 - **领取路径**：订阅成功后前端直接给 `/starter-pack.pdf` 下载链接（`submitSubscribe` 成功分支），不等邮件、不依赖服务商——邮箱只是后续触达渠道。
-- **邮件服务商已选 MailerLite（v=32 已配置并实测打通）**：免费档 1,000 订阅者/月发 12,000 封。分组 `worksheet-ai`（group_id `200548002003158197`）。env `MAILERLITE_API_KEY` + `MAILERLITE_GROUP_ID` 本地 `.env` 与 Vercel 均已配置；本地实测 subscribe → 入组成功（测试订阅者已删）。**配好 MailerLite 后要真的发**（先手动，量大了用 automation）。
+- **邮件服务商已选 MailerLite（v=33 已配置并实测打通）**：免费档 1,000 订阅者/月发 12,000 封。分组 `worksheet-ai`（group_id `200548002003158197`）。env `MAILERLITE_API_KEY` + `MAILERLITE_GROUP_ID` 本地 `.env` 与 Vercel 均已配置；本地实测 subscribe → 入组成功（测试订阅者已删）。**配好 MailerLite 后要真的发**（先手动，量大了用 automation）。
 - 同类可复用脚本在 `_bench/`：`test_frac_render.cjs`（分数/货币渲染回归）、`sweep.cjs`（全科目扫描）、`landing_check.py`（60 页完整性）、`cdp_shot.cjs`（CDP 截图）。
 
-## 防盗用护栏（v=32，lib/guard.js）
+## 防盗用护栏（v=33，lib/guard.js）
 
 **已经天然安全的部分**：所有 AI 密钥只在服务端环境变量里，浏览器拿不到——"密钥从网站泄露"不存在，现实风险是**接口被盗刷**（脚本批量生成烧免费额度/DeepSeek 余额）。
 
@@ -95,14 +95,21 @@
 
 测试：`node _bench/test_guard.cjs`（16 项）；裸 curl 必须 403、带票 200 已实测。**注意：dev-server 的路由是手工映射表，新增 api 端点要同步登记**（api/gate 这次就踩过）。
 
-## 我的卷子库 / 收藏 / 打印开关（v=32 新功能）
+## 我的卷子库 / 收藏 / 打印开关（v=33 新功能）
 
 - **历史 = 重印库**：`wsai_hist`（localStorage，最多 20 条）每条存完整 `html`，点即重印（复用旧 `renderHist` 的 lastSheetHtml 机制）；Pack 的每一张、relevel 的结果都会入历史。旧版"只存主题"的 5 条记录无法重印，加载时被过滤掉。
 - **收藏（Pin）**：`wsai_favs`，结果页工具栏 ☆ Pin 按钮；**免费 3 枚，Basic/Pro 无限**——第 4 枚在免费计划触发付费弹窗（同行调研里"微型配额撞墙转化"的正面用法，额度承诺未动）。清理历史时不清理收藏。
 - **答案键打印开关**：工具栏 "Answer key" 复选框（默认开，`wsai_print_key` 记忆）。关 → `body.print-no-key`，打印 CSS 隐藏 `.ws-answers-title/.ws-answers/.ws-pack-keys` 和最后一个 `.ws-pagebreak`（不藏会印出空白页）。屏幕上答案照常显示。
 - **季节标签**：`SEASONAL` 表按月给每个科目一条应景话题（10 月=🎃 halloween candy math / pumpkin life cycle…），`renderChips` 置顶展示。
-- 功能测试：`node _bench/lib_check.cjs`（真实生成 2 张 + 14 项断言，CDP）；打印页数矩阵 + 落地页联动：`_bench/defect_hunt_a.cjs / a2.cjs`（套装页数用 pypdf 读，`/Count` 正则不可靠）；移动端 390px：`_bench/defect_hunt_b.cjs`（无横向溢出/弹窗适配/分数渲染）。
+- **生成进度条（v=33）**：`/api/generate` 支持 `stream:1` → SSE 真实阶段（`writing` → `checking` → `done`），客户端 `startProgress()` 把阶段映射到百分比并在阶段内平滑推进（显示"Writing your questions… 37% · 6s"），完成/失败自动隐藏。**客户端有看门狗**（60s 无数据或 300s 总时长 → 取消并提示）——注意兜底链最坏可跑 4 分钟以上，看门狗总时长不能调小。**部署竞态保护**：服务端返回 JSON 而非 SSE 时（旧实例），客户端会直接采用其中的 `html`。
+- 功能测试：`node _bench/lib_check.cjs`（真实生成 2 张 + 14 项断言，CDP）；打印页数矩阵 + 落地页联动：`_bench/defect_hunt_a.cjs / a2.cjs`（套装页数用 pypdf 读，`/Count` 正则不可靠）；移动端 390px：`_bench/defect_hunt_b.cjs`；进度条：`_bench/progress_check.cjs`。
 - **已知限制（2026-10-06 实测）**：个别图形多的卷子学生页会溢出到第 2 页（约多 1 题），套装因此 5 张可能印 9 页而非 6 页——内容高度差异，不是套装分页逻辑问题（每张都从新页开始、答案键开关在套装下正常：关=0 页答案）。填空分数（½ = ▢/4）的空位渲染为纯空白，可选打磨。
+
+## 本地测试的三个硬坑（2026-10-06 全部踩过）
+
+1. **dev-server 在启动时 `require()` 了所有 api 模块**——改 `api/*.js` 后**必须重启 dev-server** 才生效（静态文件是每次请求读盘，无需重启）。今天因此两次误判"SSE 没生效"。
+2. **dev-server 的 response 包装器**要支持 SSE 的 `setHeader/write/end`（已在 `dev-server.js` 实现，含惰性 `writeHead`——**没有它 SSE 响应会丢 Content-Type，浏览器把事件流当 JSON 解析→"Request failed"**）。线上 Vercel 用原生对象，无此问题。
+3. **`alert()` 会阻塞无头 CDP 测试**——测试脚本必须 `window.alert = function(){}` 之后再触发生成。另外测试残留的 Edge 进程会锁住 `_ep*` profile 目录，清理时用 `Get-CimInstance Win32_Process` 按命令行匹配 `_ep` 只杀测试进程（别全杀，会误伤用户的 Edge）。
 
 ## 落地页样例（60 页的真实内容）
 
@@ -119,7 +126,7 @@
 - **放在 `lib/` 而不是 `api/`** —— `api/` 下每个文件都会被 Vercel 当成一个端点。
 - 新增科目时，`notYet` 清单是比 `covers` 更关键的杠杆。
 
-## 非数学科目的内容质量（v=32 起）
+## 非数学科目的内容质量（v=33 起）
 
 7 个非数学科目各自有**逐年级锚点**（写在 `buildPrompt` 的科目模板里，与数学的 `lib/curriculum.js` 同思路）：Spelling 逐年级拼读模式菜单（3–5 年级禁止 CVC/元音组合，用同音词/词根，Part B 用语境句挖空）、Vocabulary 逐年级词汇难度、Grammar 逐年级技能菜单、Science 的 NGSS 主题按年级、Writing 的体裁按年级、Reading 按年级篇幅 + K 段"一两个词作答"、Social Studies 主题 + 史实不简化的约束。
 

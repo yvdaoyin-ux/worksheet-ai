@@ -42,6 +42,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // Basic plan: unlimited math, unlimited pins.
   await q('localStorage.setItem("wsai_plan","basic")');
+  await q('window.alert = function(){};');
   await send("Page.navigate", { url: "http://127.0.0.1:3000/" });
   await sleep(2200);
 

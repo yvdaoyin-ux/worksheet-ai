@@ -303,6 +303,17 @@
     renderChips();
     syncMathStyle();
 
+    // generation progress bar lives right under the note line
+    const noteEl = $("note");
+    if (noteEl && !$("genProgress")) {
+      const p = document.createElement("div");
+      p.id = "genProgress";
+      p.className = "gen-progress no-print";
+      p.hidden = true;
+      p.innerHTML = '<div class="gp-track"><div class="gp-fill"></div></div><span class="gp-label"></span>';
+      noteEl.parentNode.insertBefore(p, noteEl.nextSibling);
+    }
+
     const toolbar = document.querySelector("#resultWrap .toolbar");
     if (toolbar && !$("regenBtn")) {
       const mk = (id, label, title, fn) => {
@@ -832,7 +843,38 @@
     return n > 1 ? "Make a " + n + "-sheet pack" : "Generate worksheet";
   }
 
-  async function generateOnce(topic) {
+  // ---- generation progress (real stages via SSE, smooth percentage inside) ----
+  function startProgress() {
+    const box = $("genProgress");
+    if (!box) return { stage: () => {}, done: () => {}, fail: () => {} };
+    const fill = box.querySelector(".gp-fill");
+    const label = box.querySelector(".gp-label");
+    box.hidden = false;
+    let pct = 4, target = 55, stage = "writing";
+    const t0 = Date.now();
+    const render = () => {
+      fill.style.width = pct + "%";
+      label.textContent = (stage === "checking" ? "Checking every answer…" : "Writing your questions…") + " " + Math.round(pct) + "% · " + Math.round((Date.now() - t0) / 1000) + "s";
+    };
+    render();
+    const timer = setInterval(() => {
+      pct = Math.min(target, pct + Math.max(0.35, (target - pct) * 0.05));
+      render();
+    }, 280);
+    return {
+      stage(s) {
+        if (stage === s) return;
+        stage = s;
+        if (s === "checking") { pct = Math.max(pct, 58); target = 92; }
+        render();
+      },
+      done() { clearInterval(timer); pct = 100; fill.style.width = "100%"; label.textContent = "Done \u00b7 " + Math.round((Date.now() - t0) / 1000) + "s"; setTimeout(() => { box.hidden = true; }, 900); },
+      fail() { clearInterval(timer); box.hidden = true; },
+    };
+  }
+
+  async function generateOnce(topic, onStage) {
+    const wantsStream = typeof onStage === "function";
     const res = await apiFetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -845,11 +887,58 @@
         size: $("size") ? $("size").value : "normal",
         style: $("style") ? $("style").value : "mixed",
         student: $("studentName") ? $("studentName").value.trim() : "",
+        stream: wantsStream ? 1 : 0,
       }),
     });
-    const data = await res.json();
-    if (!res.ok || data.error) throw new Error(data.error || "Request failed");
-    return data;
+    if (!wantsStream) {
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || "Request failed");
+      return data;
+    }
+    // SSE: JSON responses here are either the non-stream error paths (403/429)
+    // or a not-yet-updated server instance during a deploy race — accept its
+    // payload if it carries a worksheet instead of failing the request.
+    if (!(res.headers.get("content-type") || "").includes("text/event-stream")) {
+      const data = await res.json().catch(() => ({}));
+      if (data && data.html) return data;
+      throw new Error((data && data.error) || "Request failed");
+    }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "", final = null;
+    // Watchdog: a stalled connection must never leave the user on the progress
+    // bar forever. 45s without bytes, or 2.5 minutes total, cancels the read.
+    let lastBytes = Date.now();
+    const started = Date.now();
+    const watchdog = setInterval(() => {
+      if (Date.now() - lastBytes > 60000 || Date.now() - started > 300000) {
+        clearInterval(watchdog);
+        try { reader.cancel("stalled"); } catch (e) { /* already closed */ }
+      }
+    }, 2000);
+    try {
+      for (;;) {
+        const r = await reader.read();
+        if (r.done) break;
+        lastBytes = Date.now();
+        buf += dec.decode(r.value, { stream: true });
+        let i;
+        while ((i = buf.indexOf("\n\n")) >= 0) {
+          const chunk = buf.slice(0, i);
+          buf = buf.slice(i + 2);
+          const line = chunk.split("\n").find((l) => l.startsWith("data: "));
+          if (!line) continue;
+          const evt = JSON.parse(line.slice(6));
+          if (evt.done) final = evt;
+          else onStage(evt.stage || "writing");
+        }
+      }
+    } finally {
+      clearInterval(watchdog);
+    }
+    if (!final) throw new Error("The connection dropped \u2014 please try again.");
+    if (final.error) throw new Error(final.error);
+    return final;
   }
 
   function consumeCredit() {
@@ -1122,15 +1211,14 @@
     const btn = $("genBtn");
     btn.disabled = true;
     btn.textContent = "Generating…";
-    const note = $("note");
-    const stageTimer = note ? setTimeout(() => { note.textContent = "Checking every answer before it reaches you…"; }, 4500) : null;
-    if (note) note.textContent = "Writing your questions and answer key…";
+    const prog = startProgress();
     try {
-      const data = await generateOnce(topic);
+      const data = await generateOnce(topic, (stage) => prog.stage(stage));
       lastSheetHtml = data.html; // kept so "easier + harder" can re-level THIS sheet
       lastIsSingle = true;
       lastCtx = { grade: $("grade").value, subject: $("subject").value, topic: topic };
       renderResult(data.html, data.demo, data.checked);
+      prog.done();
       try { saveHist({ topic: topic, subject: $("subject").value, grade: $("grade").value, html: data.html }); } catch (e) { /* ignore */ }
       renderHist();
       if (plan() !== "pro") {
@@ -1144,10 +1232,10 @@
       maybeShowSubscribe();
       track("generate_ok", { subject: $("subject").value, demo: !!data.demo });
     } catch (err) {
+      prog.fail();
       track("generate_err", { message: String(err.message || err).slice(0, 120) });
       alert("Something went wrong: " + err.message + "\nFree models can be busy — please try again in a few seconds.");
     } finally {
-      if (stageTimer) clearTimeout(stageTimer);
       btn.disabled = false;
       btn.textContent = genLabel();
     }

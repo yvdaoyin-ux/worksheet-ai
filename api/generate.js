@@ -104,18 +104,42 @@ module.exports = async (req, res) => {
   const prompt = buildPrompt(grade, subject, topic, qCount, level, style, studentName);
   const attempts = buildAttempts();
 
+  // Streaming mode: the page asks for real pipeline stages as SSE events
+  // (writing -> checking) so the progress bar shows where the request ACTUALLY
+  // is, then the final payload arrives as the last event.
+  const wantsStream = req.body && req.body.stream === 1;
+  let sseOpen = false;
+  const emit = (obj) => {
+    if (!wantsStream) return;
+    if (!sseOpen) {
+      res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache");
+      sseOpen = true;
+    }
+    res.write("data: " + JSON.stringify(obj) + "\n\n");
+  };
+  const finish = (payload, status) => {
+    if (wantsStream) {
+      emit(Object.assign({ done: true }, payload));
+      if (!res.writableEnded) res.end();
+      return;
+    }
+    res.status(status || 200).json(payload);
+  };
+
   if (!attempts.length) {
-    res.status(200).json({ html: demoSample(grade, subject, topic), demo: true });
+    finish({ html: demoSample(grade, subject, topic), demo: true });
     return;
   }
 
   const rl = await rateLimit(getClientIp(req));
   if (!rl.ok) {
-    res.status(429).json({ error: "You've reached today's worksheet limit. Please try again tomorrow." });
+    finish({ error: "You've reached today's worksheet limit. Please try again tomorrow." }, 429);
     return;
   }
 
   let lastError = "";
+  emit({ stage: "writing" });
   for (const a of attempts) {
     try {
       const raw = await callChat(a.url, a.key, a.model, prompt);
@@ -125,16 +149,18 @@ module.exports = async (req, res) => {
         // customer. Parents grade WITH this answer key, so a wrong answer is the
         // most expensive kind of defect. Fail-open: if the check cannot run, we
         // still return the worksheet rather than an error.
+        emit({ stage: "checking" });
         const checked = await proofread(html, grade, subject, topic);
         // Soundness gate: a sheet whose answer key admits the passage never
         // supported its questions (or leaks answers into questions) is worse
         // than no sheet — retry with the next model. If EVERY model misbehaves,
         // ship the last attempt (fail-open, same as before this gate existed).
         if (answerKeyIsSound(checked.html) || a === attempts[attempts.length - 1]) {
-          res.status(200).json({ html: checked.html, model: a.model, checked: checked.ran });
+          finish({ html: checked.html, model: a.model, checked: checked.ran });
           return;
         }
         lastError = "Answer key was incomplete or off-passage; retrying with the next model.";
+        emit({ stage: "writing" });
         continue;
       }
       lastError = html ? "Model returned an incomplete worksheet." : "Model returned an empty response.";
@@ -146,7 +172,7 @@ module.exports = async (req, res) => {
   const friendly = /rate limit|quota|429|per-day|exceeded/i.test(lastError)
     ? "The AI is at its daily/usage limit right now. Please try again later."
     : "AI request failed. Please try again in a moment.";
-  res.status(502).json({ error: friendly, detail: lastError });
+  finish({ error: friendly, detail: lastError }, 502);
 };
 
 function looksComplete(html) {

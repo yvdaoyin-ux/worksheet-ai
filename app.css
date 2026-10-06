@@ -421,6 +421,11 @@ footer.site strong { color: var(--ink); }
 #pinBtn.pinned { border-color: #f59e0b; background: #fff7ed; }
 .chip-season { border-color: #f59e0b; background: #fff7ed; }
 .chip-season:hover { border-color: #d97706; color: #b45309; }
+.gen-progress { display: flex; align-items: center; gap: 10px; margin: 10px 0 0; }
+.gen-progress[hidden] { display: none; }
+.gp-track { flex: 0 0 150px; height: 8px; border-radius: 99px; background: #e5eaf3; overflow: hidden; }
+.gp-fill { height: 100%; width: 4%; border-radius: 99px; background: var(--accent); transition: width .3s ease; }
+.gp-label { font-size: 13px; color: #5b6b80; }
 .recent-label { font-size: 13px; font-weight: 700; color: var(--muted); }
 
 /* reading/science graphic organizers */

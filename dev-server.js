@@ -78,10 +78,22 @@ const server = http.createServer(async (req, res) => {
       },
       json(obj) {
         const payload = JSON.stringify(obj);
-        res.writeHead(this.statusCode, { "Content-Type": MIME[".json"] });
+        res.writeHead(this.statusCode, Object.assign({ "Content-Type": MIME[".json"] }, this.__headers || {}));
         res.end(payload);
         return this;
       },
+      setHeader(k, v) { (this.__headers = this.__headers || {})[k] = v; return this; },
+      write(chunk) {
+        if (!this.__wroteHead && !res.headersSent) { this.__wroteHead = true; res.writeHead(this.statusCode, this.__headers || {}); }
+        res.write(chunk);
+        return true;
+      },
+      end(arg) {
+        if (!this.__wroteHead && !res.headersSent) { this.__wroteHead = true; res.writeHead(this.statusCode, this.__headers || {}); }
+        res.end(arg);
+        return this;
+      },
+      get writableEnded() { return res.writableEnded; },
     };
     try {
       await ROUTES[pathname](req, wrapped);
