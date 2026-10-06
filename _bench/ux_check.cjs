@@ -207,7 +207,32 @@ function ok(name, cond, extra) {
     const notePro = await q('document.getElementById("note").textContent');
     ok("Pro buyer is told Pro", /Pro \u2014 watermark removed/.test(notePro || ""), JSON.stringify(notePro));
 
-    // ---------- 5. touch emulation: no hover ----------
+    // ---------- 5. the Questions control is hidden where the generator ignores it ----------
+    // api/generate.js pins the item count for spelling (10 words + 2 tasks),
+    // vocabulary (8 + 5 + 2) and writing (no questions at all), so showing a
+    // "Questions" number there silently lied to the user.
+    const countDisplay = async (subj) => {
+      await q('(function(){var s=document.getElementById("subject");s.value=' + JSON.stringify(subj) + ';s.dispatchEvent(new Event("change"));})()');
+      return q('(function(){var f=document.getElementById("countField");return f?getComputedStyle(f).display:null;})()');
+    };
+    ok("Questions control shown for Math", (await countDisplay("Math")) !== "none");
+    ok("Questions control shown for Reading", (await countDisplay("Reading")) !== "none");
+    ok("Questions control hidden for Spelling", (await countDisplay("Spelling")) === "none");
+    ok("Questions control hidden for Vocabulary", (await countDisplay("Vocabulary")) === "none");
+    ok("Questions control hidden for Writing", (await countDisplay("Writing")) === "none");
+
+    // ---------- 6. the email box must appear after a PACK too (not just a single sheet) ----------
+    await q('localStorage.setItem("wsai_plan","pro"); localStorage.removeItem("wsai_subbed");');
+    await go();
+    await q('(function(){ localStorage.removeItem("wsai_subbed"); document.getElementById("subject").value="Math"; document.getElementById("topic").value="addition"; var p=document.getElementById("pack"); p.value="5"; p.dispatchEvent(new Event("change")); document.getElementById("genForm").dispatchEvent(new Event("submit",{cancelable:true})); })()');
+    await sleep(12000);
+    const packNote = await q('document.getElementById("note").textContent');
+    const subHidden = await q('(function(){var b=document.getElementById("subBox");return b?b.hidden:null;})()');
+    console.log("   [info] pack note: " + JSON.stringify(packNote) + "  subBox.hidden=" + subHidden);
+    ok("a 5-sheet pack was built", /5-sheet pack ready/.test(packNote || ""), JSON.stringify(packNote));
+    ok("email box appears after a pack", subHidden === false, String(subHidden));
+
+    // ---------- 7. touch emulation: no hover ----------
     await send(ws, "Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
     await send(ws, "Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
     await q('localStorage.setItem("wsai_plan","free")');
@@ -225,7 +250,7 @@ function ok(name, cond, extra) {
       console.log("   [skip] this Edge build does not report hover:none under touch emulation");
     }
 
-    // ---------- 6. no horizontal overflow at 390px ----------
+    // ---------- 8. no horizontal overflow at 390px ----------
     const overflow = await q("({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth })");
     ok("390px: no horizontal overflow", overflow && overflow.sw <= overflow.cw + 1, JSON.stringify(overflow));
 

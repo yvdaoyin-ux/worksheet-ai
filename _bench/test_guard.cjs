@@ -26,7 +26,13 @@ const t = guard.issueTicket();
 check("fresh ticket valid", guard.ticketOk(t) === true);
 check("no ticket invalid", guard.ticketOk(undefined) === false);
 check("garbage ticket invalid", guard.ticketOk("abc.def") === false);
-check("tampered payload invalid", guard.ticketOk(Buffer.from(JSON.stringify({ t: Date.now() })).toString("base64url") + "." + t.split(".")[1]) === false);
+// The tampered payload must be GUARANTEED different from the one inside t.
+// It used to be built with a fresh Date.now(), which lands in the SAME
+// millisecond as issueTicket()'s timestamp most of the time — so the "tampered"
+// string was byte-identical, the signature legitimately verified, and this
+// assertion failed at random (measured: 2 failures in 20 runs). A red suite that
+// has nothing to do with the code is worse than no assertion at all.
+check("tampered payload invalid", guard.ticketOk(Buffer.from(JSON.stringify({ t: Date.now() - 60000 })).toString("base64url") + "." + t.split(".")[1]) === false);
 check("truncated sig invalid", guard.ticketOk(t.slice(0, t.length - 4)) === false);
 
 // expiry: pretend an hour passed

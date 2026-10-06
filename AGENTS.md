@@ -15,7 +15,7 @@
 ## 硬规矩（改代码前必看）
 
 1. **根目录绝不能有 `server.js`，`package.json` 不能有 `start` 脚本**——否则 Vercel 会把项目当 Node 服务器，所有页面 404。（本地服务器叫 `dev-server.js`。）
-2. **改了 `app.css`/`app.js` → 必须 bump 前端版本号 `?v=N`**（当前 **v=39**；**bump 完请顺手回来把这个数字也改掉**），否则用户吃旧缓存。要同步的文件：`index.html`、`privacy.html`、`terms.html`、`scripts/gen-seo.js`（后者改完要 `node scripts/gen-seo.js` 重生成 60 页）。**用 Edit 工具改**（别用 PowerShell `Get-Content`，见第 8 条）。**bump 后必须打印每个文件的替换计数核对**——2026-10-06 发生过一次"replace 的旧号不存在 → 静默落空 → 提交信息虚报版本"的事故；另外 bump 改的是 `index.html` 等**源文件**，60 个落地页要靠重跑 `gen-seo.js` 才带上新版本号。
+2. **改了 `app.css`/`app.js` → 必须 bump 前端版本号 `?v=N`**（当前 **v=40**；**bump 完请顺手回来把这个数字也改掉**），否则用户吃旧缓存。要同步的文件：`index.html`、`privacy.html`、`terms.html`、`scripts/gen-seo.js`（后者改完要 `node scripts/gen-seo.js` 重生成 60 页）。**用 Edit 工具改**（别用 PowerShell `Get-Content`，见第 8 条）。**bump 后必须打印每个文件的替换计数核对**——2026-10-06 发生过一次"replace 的旧号不存在 → 静默落空 → 提交信息虚报版本"的事故；另外 bump 改的是 `index.html` 等**源文件**，60 个落地页要靠重跑 `gen-seo.js` 才带上新版本号。
 3. **`git push` 走代理会偶发 TLS 失败** → `git config --local http.sslBackend openssl` + **失败重试几次**。
 4. **改 Vercel 环境变量 / `api/*.js` → 要 Redeploy。**
 5. **别把密钥**写进代码或提交 `.env`。
@@ -103,7 +103,7 @@
 - **答案键打印开关**：工具栏 "Answer key" 复选框（默认开，`wsai_print_key` 记忆）。关 → `body.print-no-key`，打印 CSS 隐藏 `.ws-answers-title/.ws-answers/.ws-pack-keys` 和最后一个 `.ws-pagebreak`（不藏会印出空白页）。屏幕上答案照常显示。
 - **季节标签**：`SEASONAL` 表按月给每个科目一条应景话题（10 月=🎃 halloween candy math / pumpkin life cycle…），`renderChips` 置顶展示。
 - **生成进度条（v=33）**：`/api/generate` 支持 `stream:1` → SSE 真实阶段（`writing` → `checking` → `done`），客户端 `startProgress()` 把阶段映射到百分比并在阶段内平滑推进（显示"Writing your questions… 37% · 6s"），完成/失败自动隐藏。**客户端有看门狗**（60s 无数据或 300s 总时长 → 取消并提示）——注意兜底链最坏可跑 4 分钟以上，看门狗总时长不能调小。**部署竞态保护**：服务端返回 JSON 而非 SSE 时（旧实例），客户端会直接采用其中的 `html`。
-- 功能测试：`node _bench/lib_check.cjs`（真实生成 2 张 + 14 项断言，CDP）；打印页数矩阵 + 落地页联动：`_bench/defect_hunt_a.cjs / a2.cjs`（脚本读页数的实现是 `/Count` 正则 + zlib 解压兜底；**手工核对单份 PDF 时改用 `pypdf`**，裸 `/Count` 正则不可靠）；移动端 390px：`_bench/defect_hunt_b.cjs`；进度条：`_bench/progress_check.cjs`；**纯前端显示/体验：`_bench/ux_check.cjs`（13 项，自带静态服务 + 打桩 `/api`，不需要 dev-server、网络或密钥，`node _bench/ux_check.cjs` 直接跑）**。
+- 功能测试：`node _bench/lib_check.cjs`（真实生成 2 张 + 14 项断言，CDP）；打印页数矩阵 + 落地页联动：`_bench/defect_hunt_a.cjs / a2.cjs`（脚本读页数的实现是 `/Count` 正则 + zlib 解压兜底；**手工核对单份 PDF 时改用 `pypdf`**，裸 `/Count` 正则不可靠）；移动端 390px：`_bench/defect_hunt_b.cjs`；进度条：`_bench/progress_check.cjs`；**纯前端显示/体验：`_bench/ux_check.cjs`（13 项，自带静态服务 + 打桩 `/api`，不需要 dev-server、网络或密钥，`node _bench/ux_check.cjs` 直接跑）**；**双实现一致性：`_bench/test_visual_parity.cjs`（8 个图形构造器，`app.js` vs `scripts/visuals.js` 必须逐字节相同）**。
 - **已知限制（2026-10-06 实测）**：个别图形多的卷子学生页会溢出到第 2 页（约多 1 题），套装因此 5 张可能印 9 页而非 6 页——内容高度差异，不是套装分页逻辑问题（每张都从新页开始、答案键开关在套装下正常：关=0 页答案）。（原「填空分数（½ = ▢/4）的空位渲染为纯空白」这条限制**已在 v=34 修掉**，见下节。）
 
 ## 生成前偏好 / 生成后微调（v=37–v=38 新功能）
@@ -127,7 +127,7 @@
 
 > ⚠️ **已知隐患（待修）**：`🔄 Rewrite`（`app.js` 的 `rewriteItem`）只换题目、**不更新答案键**——换题后答案键那条可能对不上，家长按答案键批改会出错。修法照 `🎯 tweakItem` 的思路（返回并更新对应答案项）。小改动、价值高。
 
-### v=34–v=39 修掉的 bug（都已在线上）
+### v=34–v=40 修掉的 bug（都已在线上）
 
 1. **v=34 填空分数的空位渲染成空白**：`\frac{\square}{4}` 这类填空，分子原会被"删未知宏"规则 `\\[a-zA-Z]+` 删掉，只剩分数横线。修法：frac 正则 `[^{}]+` → `[^{}]*`（**接受空花括号**）+ `fracSpan()` 对空/`\square`/`\Box`/`\blacksquare`/`\filledsquare` 渲染成 `<span class="fill">`，`app.css` 加 `.worksheet .frac .fill`（浅色框，打印保留）。**双实现同步**：`app.js` + `scripts/visuals.js`。
 2. **v=35 模型输出的 LaTeX 转义标点泄漏**：`\_\_\_`（转义下划线）、`\%`、`\&`、`\#`、`\ `（转义空格）原来会**带着反斜杠原样印出**（用户报的"奇怪斜杠"）。修法：在 `renderMathString()` 早期加解包 —— `t.replace(/\\([_%&#])/g, "$1")` + `t.replace(/\\[ ,;:]/g, " ")`。**双实现同步**（`app.js:395` / `scripts/visuals.js:166`）。
@@ -138,6 +138,13 @@
    - **Basic 付费用户被标成 "Pro"**：`renderResult` 里原来是 `isUnlocked() ? "Pro — watermark removed" : ...`，而 `isUnlocked()` 对 Basic 也为真 → 花了 $13.30 的人被告知自己是 Pro。修法：新增 `planLabel()` 按真实档位取名。
    - **单题工具在触屏上完全看不见**：`.li-tools` 是 `opacity:0`，只由 `li:hover` / `li:focus` 揭示。触屏没有 hover，而 `<li>` 本身不可聚焦（`li:focus` 永远不匹配）→ 按钮**不可见但可点**，误触会触发一次看不见的重写。修法：加 `li:focus-within`，并加 `@media (hover: none), (pointer: coarse) { .li-tools { position: static; opacity: 1 } }` 让它在触屏上进流排布。**删这条媒体查询会让平板重新坏掉。**
    - **`parseInt` 返回 NaN 时额度显示 "NaN of 2"**：`getCount`/`getCountOther` 的 `parseInt(...)` 外面补了 `|| 0`。
+5. **v=40 三项修复**：
+   - **"Questions" 下拉框对 Spelling / Vocabulary / Writing 是空的**（**真 bug**）：`api/generate.js` 里 `spellingBlock` 把词表钉死 10 词（+2 句）、`vocabBlock` 钉死 8 定义 + 5 填空 + 2 句、`writingBlock(grade)` 连 `count` 都不收——只有 Math/Reading/Grammar/Science/Social 会插 `${count}`。也就是说选了"5 题"也会拿到 15 个活动。修法：`app.js` 的 `COUNT_IGNORED = ["spelling","vocab","writ"]` + `syncSubjectFields()` 里把 `#countField` 隐藏（**改了这些科目 prompt 里的数量，记得同步改这个数组**）。
+   - **`app.js` 与 `scripts/visuals.js` 的图形构造器曾经不同步**：`fractionCircleHTML` 少了 `visuals.js` 的 `role="img" aria-label="Fraction circle"`。修法：补齐对齐，并**新增 `_bench/test_visual_parity.cjs`**——把 8 个图形构造器从两个文件里各抓一份，逐条比对输出必须**逐字节相同**（有防"空对空假通过"的断言；已做变异测试确认它真的会 FAIL）。
+   - **`api/generate.js` 三个数字型 env 一旦被写成非数字，会把整站限流打死**：`DAILY_LIMIT_PER_IP` / `GLOBAL_DAILY_BUDGET` / `MEM_LIMIT_PER_IP_DAY` 的 `parseInt` 会返回 NaN，而 `count <= NaN` 恒为 false → **全站 429**。修法：三处都补 `|| 默认值`。
+   - **订阅框（`#subBox`）原来只在单张生成后出现**，做套装/三档难度/难度切换都不出现。修法：调用点从 `runGenerate()` 移到 `paintWorksheet()`——所有让新卷子上屏的路径都会走到。
+   - **`_bench/test_guard.cjs` 有一条会随机报假失败的断言**（**教训**）：`tampered payload invalid` 那行原来用 `new Date()` 现造一个"被篡改"的 payload，但 `issueTicket()` 内部也是 `Date.now()` —— 两者**大概率落在同一毫秒**，于是"篡改后"的字符串和原字符串**逐字节相同**，签名当然验证通过，断言就红了。实测 **20 次跑挂 2 次**（紧循环里 3000 次有 2972 次是相同的）。修法：把时间戳写成 `Date.now() - 60000`，保证 payload 一定不同。修完连跑 **30/30 全过**。
+     ⚠️ **看到测试红了，先确认它是不是在测真东西**——这条假红很容易把人骗去"修"完全正确的 `lib/guard.js`（我实测真篡改 500/500 都被正确拒绝）。
 
 ## 本地测试的三个硬坑（2026-10-06 全部踩过）
 

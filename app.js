@@ -274,10 +274,21 @@
     });
   }
 
-  function syncMathStyle() {
-    const f = $("styleField");
-    if (!f) return;
-    f.style.display = ($("subject") && $("subject").value === "Math") ? "" : "none";
+  // Keeps the form's optional controls honest about what the current subject
+  // actually honours.
+  //  - "Math style" only exists for Math.
+  //  - "Questions" is IGNORED by the generator for these three: spelling always
+  //    pins 10 words (+2 sentence tasks), vocabulary pins 8 definitions + 5
+  //    blanks + 2 sentence tasks, and a writing prompt has no questions at all.
+  //    Leaving the control visible let a parent pick "5" and silently receive 15
+  //    activities, so it is hidden instead.
+  const COUNT_IGNORED = ["spelling", "vocab", "writ"];
+  function syncSubjectFields() {
+    const subject = (($("subject") && $("subject").value) || "").toLowerCase();
+    const style = $("styleField");
+    if (style) style.style.display = subject === "math" ? "" : "none";
+    const cf = $("countField");
+    if (cf) cf.style.display = COUNT_IGNORED.some((k) => subject.indexOf(k) >= 0) ? "none" : "";
   }
 
   function buildExtras() {
@@ -290,7 +301,7 @@
     const opts = document.createElement("div");
     opts.className = "options";
     opts.innerHTML =
-      '<div class="field"><label for="count">Questions</label>' +
+      '<div class="field" id="countField"><label for="count">Questions</label>' +
       '<select id="count"><option>5</option><option>8</option><option selected>10</option><option>12</option></select></div>' +
       '<div class="field"><label for="level">Level</label>' +
       '<select id="level"><option value="easier">Easier</option><option value="standard" selected>Standard</option><option value="challenge">Challenge</option></select></div>' +
@@ -306,14 +317,14 @@
       '<select id="pack"><option value="1" selected>1 sheet</option><option value="5">5 sheets</option><option value="10">10 sheets</option></select></div>';
     $("genForm").insertBefore(opts, $("genBtn"));
 
-    if ($("subject")) $("subject").addEventListener("change", function () { renderChips(); syncMathStyle(); updateQuota(); });
+    if ($("subject")) $("subject").addEventListener("change", function () { renderChips(); syncSubjectFields(); updateQuota(); });
     if ($("pack")) $("pack").addEventListener("change", function () {
       if ($("genBtn")) $("genBtn").textContent = genLabel();
       updateQuota();
     });
     if ($("genBtn") && $("pack")) $("genBtn").textContent = genLabel();
     renderChips();
-    syncMathStyle();
+    syncSubjectFields();
 
     // Generation progress bar. It MUST live in the always-visible form (right
     // under the Generate button) — NOT inside #resultWrap, which starts hidden:
@@ -494,7 +505,9 @@
       const d = "M " + cx + " " + cy + " L " + x0 + " " + y0 + " A " + r + " " + r + " 0 " + large + " 1 " + x1 + " " + y1 + " Z";
       slices += '<path d="' + d + '" class="pie-slice' + (i < o.num ? " filled" : "") + '"/>';
     }
-    return '<div class="viz viz-circle"><svg viewBox="0 0 ' + size + " " + size + '" width="120" height="120">' + slices + "</svg></div>";
+    // role/aria-label kept byte-identical to scripts/visuals.js — the two
+    // implementations are contractually in sync (see _bench/test_visual_parity.cjs).
+    return '<div class="viz viz-circle"><svg viewBox="0 0 ' + size + " " + size + '" width="120" height="120" role="img" aria-label="Fraction circle">' + slices + "</svg></div>";
   }
   function tenFrameHTML(o) {
     const count = Math.max(0, o.count);
@@ -897,6 +910,10 @@
     ["levelEasierBtn", "levelHarderBtn", "levelSetBtn", "pinBtn"].forEach((id) => { if ($(id)) $(id).hidden = !showLevels; });
     updatePinBtn();
     $("upsellBar").hidden = isUnlocked();
+    // Offer the email list at every point a NEW worksheet lands on screen.
+    // This used to live only in runGenerate(), so making a pack or a 3-level set
+    // - the moments a parent is most invested - never showed it at all.
+    maybeShowSubscribe();
     $("resultWrap").hidden = false;
   }
 
@@ -1440,7 +1457,7 @@
   if (pref.size && $("size")) $("size").value = pref.size;
   if (pref.style && $("style")) $("style").value = pref.style;
   if (pref.extra && $("extra")) $("extra").value = pref.extra;
-  syncMathStyle();
+  syncSubjectFields();
 
   $("gumroadBtn").href = GUMROAD_URL;
   $("gumroadBtn").addEventListener("click", () => track("buy_click", { from: "paywall", plan: "lifetime" }));

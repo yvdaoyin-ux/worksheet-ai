@@ -550,10 +550,13 @@ async function rateLimit(ip) {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
   const day = new Date().toISOString().slice(0, 10);
-  const perIpLimit = Math.max(1, parseInt(process.env.DAILY_LIMIT_PER_IP || "100", 10));
+  // The trailing "|| default" matters: a non-numeric env var makes parseInt
+  // return NaN, and every "<count> <= NaN" comparison is false — i.e. one typo
+  // in a Vercel variable would 429 the entire site. Fall back to the default.
+  const perIpLimit = Math.max(1, parseInt(process.env.DAILY_LIMIT_PER_IP || "100", 10) || 100);
   // Hard ceiling on the whole site's generations per day: bounds worst-case AI
   // spend even when an abuser rotates IPs. Tuned far above real traffic.
-  const budget = Math.max(50, parseInt(process.env.GLOBAL_DAILY_BUDGET || "3000", 10));
+  const budget = Math.max(50, parseInt(process.env.GLOBAL_DAILY_BUDGET || "3000", 10) || 3000);
   if (!url || !token) return memRateLimit(ip, day, perIpLimit, budget);
   const key = "rl:" + ip + ":" + day;
   try {
@@ -575,7 +578,7 @@ async function rateLimit(ip) {
 }
 
 function memRateLimit(ip, day, perIpLimit, budget) {
-  const limit = Math.max(10, parseInt(process.env.MEM_LIMIT_PER_IP_DAY || "60", 10));
+  const limit = Math.max(10, parseInt(process.env.MEM_LIMIT_PER_IP_DAY || "60", 10) || 60);
   const key = ip + ":" + day;
   const n = (MEM.get(key) || 0) + 1;
   MEM.set(key, n);

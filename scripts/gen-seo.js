@@ -111,7 +111,7 @@ const paywall = `
       <div class="compare">
         <p class="compare-title">Why pay once instead of subscribing?</p>
         <div class="compare-row compare-head"><span>Comparing</span><span>Typical worksheet sites</span><span>WorksheetAI</span></div>
-        <div class="compare-row"><span>Price</span><span>$120–180 every year</span><span>$13.30 once — forever</span></div>
+        <div class="compare-row"><span>Price</span><span>$25–150 every year</span><span>$13.30 once — forever</span></div>
         <div class="compare-row"><span>Change a question</span><span>No — fixed PDF</span><span>Yes — edit or rewrite any question</span></div>
         <div class="compare-row"><span>Answer key</span><span>Usually the answer only</span><span>Checked twice, with steps</span></div>
         <div class="compare-row"><span>Printing</span><span>Page breaks you can't control</span><span>Fits one page per sheet</span></div>
@@ -155,7 +155,7 @@ function renderPage(p) {
   <meta property="og:url" content="${url}" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="${url}" />
-  <link rel="stylesheet" href="/app.css?v=39" />
+  <link rel="stylesheet" href="/app.css?v=40" />
   <style>
     .sample-block { margin: 26px 0 6px; }
     .sample-block h2 { text-align: center; font-size: 20px; margin: 0 0 4px; }
@@ -245,7 +245,7 @@ ${resultModal}
     </footer>
   </div>
 ${paywall}
-  <script src="/app.js?v=39" defer></script>
+  <script src="/app.js?v=40" defer></script>
 </body>
 </html>
 `;
