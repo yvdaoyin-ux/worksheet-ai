@@ -3,12 +3,17 @@
 // POST { license_key } -> { valid: boolean, plan: "pro" | "basic" }
 //
 // Tiers (as agreed with the owner):
-//   Basic = one-time $13.30  -> unlimited MATH, 3 worksheets/day in other subjects
-//   Pro   = monthly sub     -> everything unlimited + future features
+//   Basic     = one-time $13.30  -> unlimited MATH, 3 worksheets/day in other subjects
+//   Pro       = monthly sub     -> everything unlimited + future features
+//   Classroom = one-time $59    -> everything in Pro, for ONE teacher's class.
+//                Reported to the front-end as "pro" (same unlimited rights);
+//                the classroom SCOPE (one teacher, own class) lives in the
+//                terms of the Gumroad product, not in code.
 //
 // Env vars (Vercel):
-//   GUMROAD_PRODUCT_ID      = Basic product id(s), comma-separated
-//   GUMROAD_PRO_PRODUCT_ID  = Pro (subscription) product id(s), comma-separated
+//   GUMROAD_PRODUCT_ID            = Basic product id(s), comma-separated
+//   GUMROAD_PRO_PRODUCT_ID        = Pro (subscription) product id(s), comma-separated
+//   GUMROAD_CLASSROOM_PRODUCT_ID  = Classroom product id(s), comma-separated
 // Each list may hold several ids; they are tried until one verifies.
 
 module.exports = async (req, res) => {
@@ -25,8 +30,9 @@ module.exports = async (req, res) => {
 
   const basicIds = splitIds(process.env.GUMROAD_PRODUCT_ID);
   const proIds = splitIds(process.env.GUMROAD_PRO_PRODUCT_ID);
+  const classroomIds = splitIds(process.env.GUMROAD_CLASSROOM_PRODUCT_ID);
 
-  if (!basicIds.length && !proIds.length) {
+  if (!basicIds.length && !proIds.length && !classroomIds.length) {
     res.status(400).json({
       valid: false,
       error: "Server not configured: GUMROAD_PRODUCT_ID is missing.",
@@ -36,9 +42,10 @@ module.exports = async (req, res) => {
 
   let lastReason = "That key was not recognised.";
 
-  // Pro first: a Pro key must never be downgraded to Basic.
+  // Pro first: a Pro key must never be downgraded. Classroom also outranks Basic.
   for (const tier of [
     { name: "pro", ids: proIds },
+    { name: "pro", ids: classroomIds }, // Classroom == Pro rights, one-time
     { name: "basic", ids: basicIds },
   ]) {
     for (const productId of tier.ids) {

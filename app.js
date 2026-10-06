@@ -13,6 +13,11 @@
   // Gumroad replaces __license_key__ per customer inside links/buttons on the product
   // content page. Point one at: https://worksheet-ai-l1td.vercel.app/?license_key=__license_key__
   const PRO_MONTHLY_LABEL = "$4.99/month"; // keep in sync with Gumroad
+  // Classroom license: one-time, everything in Pro for ONE teacher's class.
+  // Paste the Gumroad permalink here after creating the product; "" hides the block.
+  // verify-license.js must know the product id too (GUMROAD_CLASSROOM_PRODUCT_ID).
+  const CLASSROOM_URL = ""; // e.g. "https://219809065360.gumroad.com/l/xxxxx"
+  const CLASSROOM_LABEL = "$59 once"; // keep in sync with Gumroad
   const PLAN_KEY = "wsai_plan"; // "basic" | "pro"
   const LEGACY_KEY = "wsai_unlocked"; // old unlock flag -> treated as Basic
   const PREF_KEY = "wsai_pref";
@@ -530,7 +535,7 @@
     box.hidden = true;
     box.innerHTML =
       '<p class="sub-title">\u{1F4E9} Want a fresh worksheet pack every week?</p>' +
-      '<p class="sub-sub">Five printables with answer keys in one email. No spam, unsubscribe anytime.</p>' +
+      '<p class="sub-sub">Join free and get a <strong>10-printable Starter Pack</strong> (with answer keys) right now — new packs by email after that. No spam, unsubscribe anytime.</p>' +
       '<form id="subForm" class="sub-form">' +
       '<input id="subEmail" type="email" placeholder="you@email.com" autocomplete="email" required />' +
       '<button type="submit" id="subBtn">Send me packs</button>' +
@@ -571,7 +576,8 @@
       if (!res.ok || !data.ok) throw new Error((data && data.error) || "Could not sign you up.");
       localStorage.setItem(SUB_KEY, "1");
       msg.className = "msg ok";
-      msg.textContent = "\u2714 You're on the list \u2014 check your inbox soon.";
+      // Deliver the Starter Pack instantly — don't make a new lead wait for email.
+      msg.innerHTML = "\u2714 You're on the list \u2014 <a href=\"/starter-pack.pdf\" download>download your free Starter Pack (10 printables)</a>.";
       track("subscribe_ok", {});
       setTimeout(() => {
         if ($("subBox")) $("subBox").hidden = true;
@@ -1129,6 +1135,18 @@
       monthlyBtn.addEventListener("click", () => track("buy_click", { from: "paywall", plan: "monthly" }));
     } else {
       monthlyBtn.hidden = true;
+    }
+  }
+  const classroomBlock = $("classroomBlock");
+  if (classroomBlock) {
+    if (CLASSROOM_URL) {
+      const cb = $("gumroadClassroomBtn");
+      if (cb) {
+        cb.href = CLASSROOM_URL;
+        cb.textContent = "Get the Classroom license — " + CLASSROOM_LABEL;
+        cb.addEventListener("click", () => track("buy_click", { from: "paywall", plan: "classroom" }));
+      }
+      classroomBlock.hidden = false;
     }
   }
   if ($("upsellBtn")) $("upsellBtn").addEventListener("click", () => track("buy_click", { from: "upsell_bar" }));

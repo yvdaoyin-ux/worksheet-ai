@@ -5,3 +5,7 @@ node_modules
 .DS_Store
 marketing/
 samples/_*.txt
+
+# edge headless profiles from _bench CDP tools
+_bench/_edgeprof/
+_ep*/
