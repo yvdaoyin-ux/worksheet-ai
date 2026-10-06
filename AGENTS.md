@@ -89,6 +89,8 @@
 1. **来源校验**：POST 只接受自家页面的 Origin/Referer（白名单：生产域名 + localhost + `ALLOWED_ORIGINS` env 可加自定义域名）；
 2. **门票（gate ticket）**：页面先 `GET /api/gate` 领 HMAC 签名票据（90 分钟有效），后续请求带 `x-gate` 头；票据缺失/伪造/过期 → 403。app.js 自动领票、403 自动刷新重试一次，用户无感。HMAC 密钥用 `GATE_SECRET` env，不设则从三家供应商密钥推导（零配置）；
 3. **全站日预算**：`GLOBAL_DAILY_BUDGET`（默认 3000/天）封顶最坏情况的 API 花费——**配 Upstash（免费）才是全站硬顶**，不配则按实例内存近似。
+   - ⚠️ **Upstash 调用失败时是静默退回内存计数的**（`rateLimit()` 的 catch 分支），所以"变量填了"不等于"能用"。为此 `/api/health` 现在会**真的探测一次**（只读 GET 一个永不存在的键），返回三态：`upstash`（配置且可达）/ **`upstash-error`（配了但调不通——最危险的一种，等于护栏被悄悄降级）** / `memory`（没配）。回归：`_bench/test_health.cjs`。
+   - **2026-10-06 已实测线上为 `upstash` + 空 `rateLimitError`**——全站日预算从此是真硬顶。
 
 接线范围：generate/relevel/rewrite/subscribe 全要票；verify-license 只查来源（购买后激活时页面还没领票）。`GATE_OFF=1` 一键关闭。topic 限长 120 字符。vercel.json 加了 X-Frame-Options/nosniff/Referrer-Policy。
 
@@ -103,7 +105,7 @@
 - **答案键打印开关**：工具栏 "Answer key" 复选框（默认开，`wsai_print_key` 记忆）。关 → `body.print-no-key`，打印 CSS 隐藏 `.ws-answers-title/.ws-answers/.ws-pack-keys` 和最后一个 `.ws-pagebreak`（不藏会印出空白页）。屏幕上答案照常显示。
 - **季节标签**：`SEASONAL` 表按月给每个科目一条应景话题（10 月=🎃 halloween candy math / pumpkin life cycle…），`renderChips` 置顶展示。
 - **生成进度条（v=33）**：`/api/generate` 支持 `stream:1` → SSE 真实阶段（`writing` → `checking` → `done`），客户端 `startProgress()` 把阶段映射到百分比并在阶段内平滑推进（显示"Writing your questions… 37% · 6s"），完成/失败自动隐藏。**客户端有看门狗**（60s 无数据或 300s 总时长 → 取消并提示）——注意兜底链最坏可跑 4 分钟以上，看门狗总时长不能调小。**部署竞态保护**：服务端返回 JSON 而非 SSE 时（旧实例），客户端会直接采用其中的 `html`。
-- 功能测试：`node _bench/lib_check.cjs`（真实生成 2 张 + 14 项断言，CDP）；打印页数矩阵 + 落地页联动：`_bench/defect_hunt_a.cjs / a2.cjs`（脚本读页数的实现是 `/Count` 正则 + zlib 解压兜底；**手工核对单份 PDF 时改用 `pypdf`**，裸 `/Count` 正则不可靠）；移动端 390px：`_bench/defect_hunt_b.cjs`；进度条：`_bench/progress_check.cjs`；**纯前端显示/体验 + 单题编辑的答案同步：`_bench/ux_check.cjs`（24 项，自带静态服务 + 打桩 `/api/gate|generate|track|subscribe`，不需要 dev-server、网络或密钥，`node _bench/ux_check.cjs` 直接跑。打桩会记下每次 `/api/generate` 的请求体，所以能断言"前端到底发了什么"）**；**双实现一致性：`_bench/test_visual_parity.cjs`（8 个图形构造器，`app.js` vs `scripts/visuals.js` 必须逐字节相同）**。
+- 功能测试：`node _bench/lib_check.cjs`（真实生成 2 张 + 14 项断言，CDP）；打印页数矩阵 + 落地页联动：`_bench/defect_hunt_a.cjs / a2.cjs`（脚本读页数的实现是 `/Count` 正则 + zlib 解压兜底；**手工核对单份 PDF 时改用 `pypdf`**，裸 `/Count` 正则不可靠）；移动端 390px：`_bench/defect_hunt_b.cjs`；进度条：`_bench/progress_check.cjs`；**纯前端显示/体验 + 单题编辑的答案同步：`_bench/ux_check.cjs`（24 项，自带静态服务 + 打桩 `/api/gate|generate|track|subscribe`，不需要 dev-server、网络或密钥，`node _bench/ux_check.cjs` 直接跑。打桩会记下每次 `/api/generate` 的请求体，所以能断言"前端到底发了什么"）**；**双实现一致性：`_bench/test_visual_parity.cjs`（8 个图形构造器，`app.js` vs `scripts/visuals.js` 必须逐字节相同）**；**`/api/health` 的三态：`_bench/test_health.cjs`（`memory` / `upstash-error` / `upstash`，离线可跑）**。
 - **已知限制（2026-10-06 实测）**：个别图形多的卷子学生页会溢出到第 2 页（约多 1 题），套装因此 5 张可能印 9 页而非 6 页——内容高度差异，不是套装分页逻辑问题（每张都从新页开始、答案键开关在套装下正常：关=0 页答案）。（原「填空分数（½ = ▢/4）的空位渲染为纯空白」这条限制**已在 v=34 修掉**，见下节。）
 
 ## 生成前偏好 / 生成后微调（v=37–v=38 新功能）
