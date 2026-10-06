@@ -56,6 +56,11 @@ const cases = [
   ["\\frac{1}{2} = \\frac{\\square}{4}", 'class="fill"'],
   ["\\frac{}{4}", 'class="fill"'],
   ["\\frac{4}{}", 'class="fill"'],
+  // LaTeX-escaped punctuation/spaces must be UNESCAPED, never printed with "\"
+  ["\\_\\_\\_", null, "___"],
+  ["3 \\times 4 = \\_\\_\\_", null, "3 × 4 = ___"],
+  ["5\\ \\%\\ of\\ 40", null, "5 % of 40"],
+  ["Cups of butter: \\frac{3}{4} \\times \\frac{2}{5} = \\_\\_\\_", 'class="frac"', "= ___"],
   // must NOT become a fraction
   ["https://example.com/8/3", null],
   ["10/3/2026", null],

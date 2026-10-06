@@ -385,6 +385,11 @@
     // form below matches. Mirrors scripts/visuals.js.
     t = String(t == null ? "" : t).replace(/[\u2044\u2215]/g, "/");
     t = t.replace(/\\[\(\)\[\]]/g, "");
+    // LaTeX-escaped punctuation/spaces the model emits (\_, \%, \&, \#, \ , \, \;)
+    // must be UNESCAPED — otherwise "\_\_\_" prints literally WITH backslashes.
+    // Mirrors scripts/visuals.js.
+    t = t.replace(/\\([_%&#])/g, "$1");
+    t = t.replace(/\\[ ,;:]/g, " ");
     // Only treat $...$ as a LaTeX delimiter when it wraps a macro. Money uses
     // the same glyph: "$5 + $3" must keep its dollar signs. Mirrors visuals.js.
     t = t.replace(/\$([^$]+)\$/g, (m, inner) => (/\\/.test(inner) ? inner : m));
