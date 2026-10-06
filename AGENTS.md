@@ -95,6 +95,17 @@
 - **放在 `lib/` 而不是 `api/`** —— `api/` 下每个文件都会被 Vercel 当成一个端点。
 - 新增科目时，`notYet` 清单是比 `covers` 更关键的杠杆。
 
+## 非数学科目的内容质量（v=31 起）
+
+7 个非数学科目各自有**逐年级锚点**（写在 `buildPrompt` 的科目模板里，与数学的 `lib/curriculum.js` 同思路）：Spelling 逐年级拼读模式菜单（3–5 年级禁止 CVC/元音组合，用同音词/词根，Part B 用语境句挖空）、Vocabulary 逐年级词汇难度、Grammar 逐年级技能菜单、Science 的 NGSS 主题按年级、Writing 的体裁按年级、Reading 按年级篇幅 + K 段"一两个词作答"、Social Studies 主题 + 史实不简化的约束。
+
+**三道确定性安检**（`looksComplete` + `answerKeyIsSound`，不合规 → 换下一个模型重试，全部失败才按旧方式放行）：
+1. 答案数量必须覆盖题目（词表科目按设计允许 ~15% 缺口；抓过 15 题只有 4 答的截断卷）；
+2. 模型半途截断（答案键标题存在但 `<ol>` 没闭合 / 片段没以 `>` 结尾）→ 判废；
+3. `answerKeyIsSound`：答案里出现"文章没有提到"类元话语（= 题目超出课文范围，抓过 8 题里 4 题）、或题目里印着 "(answer: …)" → 判废。
+
+历史实锤案例（全部来自 2026-10-06 的 21 张审计卷）：love 被当成 silent-e 长音词、chair 混进 ai 词表、"Fan sat mat" 病句、答案键截断、"(answer: cloud)" 印进题目、4/8 题不可答、Rosa Parks 被写成 young girl。审计工具：`node _bench/audit_gen.cjs`（7 科目 × 3 年级真实生成 + 转纯文本供人读）。
+
 ## 答案校对（两层）
 
 `proofread()` 是生成的第二道关，**失败即放行**（绝不让检查本身把产品变差）：

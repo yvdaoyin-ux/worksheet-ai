@@ -119,8 +119,16 @@ module.exports = async (req, res) => {
         // most expensive kind of defect. Fail-open: if the check cannot run, we
         // still return the worksheet rather than an error.
         const checked = await proofread(html, grade, subject, topic);
-        res.status(200).json({ html: checked.html, model: a.model, checked: checked.ran });
-        return;
+        // Soundness gate: a sheet whose answer key admits the passage never
+        // supported its questions (or leaks answers into questions) is worse
+        // than no sheet — retry with the next model. If EVERY model misbehaves,
+        // ship the last attempt (fail-open, same as before this gate existed).
+        if (answerKeyIsSound(checked.html) || a === attempts[attempts.length - 1]) {
+          res.status(200).json({ html: checked.html, model: a.model, checked: checked.ran });
+          return;
+        }
+        lastError = "Answer key was incomplete or off-passage; retrying with the next model.";
+        continue;
       }
       lastError = html ? "Model returned an incomplete worksheet." : "Model returned an empty response.";
     } catch (err) {
@@ -144,6 +152,39 @@ function looksComplete(html) {
   // Restrict to the answers block — questions may legitimately say "incomplete".
   const a = String(html).match(/class="ws-answers"[\s\S]*?<\/ol>/i);
   if (a && /cannot be verified|problem statement (is )?incomplete|as an AI\b|I cannot/i.test(a[0])) return false;
+  // The answer key must actually COVER the questions. Word-list subjects
+  // intentionally have a couple fewer answers (sentences are "accept
+  // reasonable"), so allow ~15% slack. Caught live: 4 answers for 15 questions.
+  const qs = countListItems(String(html).match(/<ol[^>]*class="ws-questions"[\s\S]*?<\/ol>/i));
+  const ans = countListItems(String(html).match(/<ol[^>]*class="ws-answers"[\s\S]*?<\/ol>/i));
+  if (qs > 0 && ans > 0 && ans < qs * 0.85) return false;
+  // A truncated response (model ran out of tokens) ends mid-tag: the answer-key
+  // title exists but the <ol> never closes. Caught live: a vocabulary key cut
+  // off mid "</li", shipped with half an answer key.
+  if (/<h3[^>]*class="ws-answers-title"/i.test(html) && !/<ol[^>]*class="ws-answers"[\s\S]*?<\/ol>/i.test(html)) return false;
+  if (!String(html).trim().endsWith(">")) return false;
+  return true;
+}
+
+function countListItems(olMatch) {
+  return olMatch ? (olMatch[0].match(/<li/gi) || []).length : 0;
+}
+
+// Second-stage soundness, run AFTER proofread: rejects sheets that are structurally
+// complete but broken in content.
+//  1. Answers leaked into questions — seen live: "…suspended in the air. (answer: cloud)"
+//  2. Unanswerable questions shipped anyway — seen live: 4 of 8 answers said
+//     "The source does not give a reason / does not mention …" for questions the
+//     passage never supported. An honest answer key is still a broken worksheet.
+function answerKeyIsSound(html) {
+  const h = String(html || "");
+  if (!h) return false;
+  const q = (h.match(/<ol[^>]*class="ws-questions"[\s\S]*?<\/ol>/i) || [""])[0];
+  if (/\(\s*answer\s*[:=]/i.test(q)) return false;
+  const aMatch = h.match(/<ol[^>]*class="ws-answers"[\s\S]*?<\/ol>/i);
+  if (/<h3[^>]*class="ws-answers-title"/i.test(h) && !aMatch) return false; // truncated key
+  const a = aMatch ? aMatch[0] : "";
+  if (a && /(passage|source|text|story)\s+(does not|doesn't|did not)\s|(not|never)\s+(mentioned|stated|described|named|given|listed|explained)\s+in\s+the\s+(passage|source|text|story)/i.test(a)) return false;
   return true;
 }
 
@@ -382,6 +423,7 @@ Check EVERY answer below:
 - Does the answer actually answer the question that was asked?
 - Is the answer right for this grade level? A word or idea far above the grade is a defect.
 - Check every answer against the source text and the word list, if given, not against your own general knowledge.
+- For famous people, places, and historical events, ALSO verify the facts against your own knowledge (who they were, what they did, adult or child) — a simplified worksheet must never state a factually wrong claim about them.
 ${src}${known}
 QUESTIONS AND ANSWERS
 ${body}
@@ -585,7 +627,8 @@ Grade level: ${grade} (U.S. grade level). Subject: ${subject}. Topic: ${topic}.
 
 GENERAL RULES
 - Match the concepts and difficulty to U.S. standards for this grade (Common Core / NGSS style).
-- Use U.S. contexts and conventions (U.S. names, U.S. spelling).${student ? `
+- Use U.S. contexts and conventions (U.S. names, U.S. spelling).
+- The worksheet is TEXT-ONLY: never ask students to match, circle, or point at pictures, images, maps or audio — those cannot be rendered on a printed page.${student ? `
 - PERSONALIZE: this worksheet is for a specific child. Use the first name "${student}" as the main character in EVERY word problem, story and reading passage (instead of generic names). Use ONLY that first name, spelled exactly like that.` : ""}
 - Grades K–2: keep wording very short and concrete.${levelLine(level)}
 - The output MUST be a ${subject} worksheet. Follow the SUBJECT strictly, even if the topic wording could also fit another subject.
@@ -593,14 +636,14 @@ GENERAL RULES
 - Return ONLY an HTML fragment (no <html>/<body>, no markdown or code fences), using EXACTLY the class names shown.`;
 
   if (s.indexOf("math") >= 0) return head + mathScope(grade) + mathBlock(count, style);
-  if (s.indexOf("read") >= 0) return head + readingBlock(count);
-  if (s.indexOf("spell") >= 0 || s.indexOf("phonic") >= 0) return head + spellingBlock(count);
-  if (s.indexOf("vocab") >= 0) return head + vocabBlock(count);
-  if (s.indexOf("grammar") >= 0 || s.indexOf("language") >= 0) return head + grammarBlock(count);
-  if (s.indexOf("writ") >= 0) return head + writingBlock();
-  if (s.indexOf("science") >= 0) return head + scienceBlock(count);
-  if (s.indexOf("social") >= 0 || s.indexOf("history") >= 0) return head + socialBlock(count);
-  return head + readingBlock(count);
+  if (s.indexOf("read") >= 0) return head + readingBlock(count, grade);
+  if (s.indexOf("spell") >= 0 || s.indexOf("phonic") >= 0) return head + spellingBlock(count, grade);
+  if (s.indexOf("vocab") >= 0) return head + vocabBlock(count, grade);
+  if (s.indexOf("grammar") >= 0 || s.indexOf("language") >= 0) return head + grammarBlock(count, grade);
+  if (s.indexOf("writ") >= 0) return head + writingBlock(grade);
+  if (s.indexOf("science") >= 0) return head + scienceBlock(count, grade);
+  if (s.indexOf("social") >= 0 || s.indexOf("history") >= 0) return head + socialBlock(count, grade);
+  return head + readingBlock(count, grade);
 }
 
 function mathBlock(count, style) {
@@ -646,18 +689,23 @@ ${q}
 </ol>`;
 }
 
-function readingBlock(count) {
+function readingBlock(count, grade) {
+  const kInstruction = String(grade).toUpperCase() === "K"
+    ? "Answer each question with one or two words."
+    : "Then answer the questions in complete sentences.";
   return `
 
 STRUCTURE — Reading comprehension (Common Core Reading Literature/Informational)
 - Write an ORIGINAL, age-appropriate passage (never copy a published text).
   Length by grade: K–1 ≈ 40–60 words; grades 2–3 ≈ 90–140 words; grades 4–5 ≈ 160–220 words.
+  Vocabulary and sentence length must match the grade (K–1: decodable short sentences; 4–5: real informational density).
 - Provide EXACTLY ${count} comprehension questions (literal, main idea, and at least one "how do you know / why").
+- EVERY question must be answerable from the passage ALONE. Never ask about details, reasons, or examples the passage does not contain.
 - After the questions, add ONE graphic organizer that fits the passage.
 
 OUTPUT (exact structure)
 <h2 class="ws-title">Title</h2>
-<p class="ws-instructions">Read the passage. Then answer the questions in complete sentences.</p>
+<p class="ws-instructions">Read the passage. ${kInstruction}</p>
 ${NAME_DATE}
 <div class="ws-passage">
   <p>…the passage (1–2 short paragraphs)…</p>
@@ -673,19 +721,31 @@ ${NAME_DATE}
 </ol>`;
 }
 
-function spellingBlock(count) {
+function spellingBlock(count, grade) {
   return `
 
 STRUCTURE — Spelling / Phonics (Common Core Foundational Skills; Dolch/Fry sight words)
-- Pick ONE phonics/spelling pattern appropriate for the grade (short-a CVC, digraphs sh/ch/th, blends, silent-e, vowel teams, r-controlled).
-- Provide EXACTLY 10 words that ALL match that pattern (use common sight words where possible).
+- Pick ONE pattern from THIS grade's list (never a pattern from another grade):
+  K: short vowels (CVC), word families
+  1: digraphs (sh/ch/th), beginning blends, silent-e long vowels
+  2: vowel teams (ai/ay, oa/ee/ea), r-controlled (ar/or/er), inflections (-ed/-ing)
+  3: homophones, contractions, plural spellings, three-letter blends
+  4: irregular plurals, tricky homophones (their/there/they're), multisyllabic words
+  5: Greek/Latin roots, unspoken letters, -tion/-sion endings, commonly confused words
+  (Grades 3–5 must NEVER get CVC or vowel-team lists — those are K–2 skills.)
+- Provide EXACTLY 10 words that ALL truly follow the pattern. Every word must be a clean example:
+  e.g. in a silent-e list, never include exceptions like "love", "have", "give" (the e does not make the vowel long there).
+- Output exactly 10 <span class="word"> elements and NOTHING between them — no dots, commas or numbering.
+- Part B items depend on the pattern:
+  phonics patterns (K–2): letter blanks — remove the SAME sound/letters from every word (rain → r _ n)
+  homophones / commonly confused words (3–5): short CONTEXT SENTENCES with a blank — the student writes the correct homophone ("The dog wagged ___ tail."); never just remove the first letter.
 
 OUTPUT (exact structure)
 <h2 class="ws-title">Spelling: <the pattern></h2>
 <p class="ws-instructions">Read the words. Then complete the activities below.</p>
 ${NAME_DATE}
 <div class="ws-wordlist">
-  <span class="word">word1</span> … <span class="word">word10</span>
+  <span class="word">word1</span><span class="word">word2</span> … (10 total, no separators)
 </div>
 <p class="ws-sub">A. Write each word two times.  B. Fill in the missing letters.  C. Use two words in a sentence.</p>
 <ol class="ws-questions">
@@ -696,22 +756,30 @@ ${NAME_DATE}
 <hr class="ws-pagebreak">
 <h3 class="ws-answers-title">Answer Key</h3>
 <ol class="ws-answers">
-  <li>cat</li>  (the completed words; accept reasonable sentences)
+  <li>cat</li>  (the completed words; then a natural, meaningful example sentence for EACH sentence prompt — never a bare word list)
 </ol>`;
 }
 
-function vocabBlock(count) {
+function vocabBlock(count, grade) {
   return `
 
 STRUCTURE — Vocabulary (Common Core Language; context clues)
-- Choose 8 grade-appropriate vocabulary words on the topic, each with a short, kid-friendly definition.
+- Choose 8 vocabulary words on the topic at THIS grade's level (never easier, never harder):
+  K–1: everyday concrete words (dog, big, run)
+  2: common words slightly above the grade's reading level
+  3: affix-based words (un-, re-, pre-, -ful, -less, -ness)
+  4: academic and multiple-meaning words across subjects
+  5: subject-specific academic vocabulary (precise, domain-level words)
+- NEVER print the answer inside a question — no "(answer: …)" anywhere in the questions.
+- Every fill-in-the-blank sentence must make obvious sense with exactly ONE word from the bank
+  (read it back: if the "correct" word makes the sentence strange, rewrite the sentence).
 
 OUTPUT (exact structure)
 <h2 class="ws-title">Vocabulary: <topic></h2>
 <p class="ws-instructions">Use the word bank to complete each activity.</p>
 ${NAME_DATE}
 <div class="ws-wordlist">
-  <span class="word">word1</span> … <span class="word">word8</span>
+  <span class="word">word1</span><span class="word">word2</span> … (8 total, no separators)
 </div>
 <p class="ws-sub">A. Match each word to its meaning.  B. Fill in the blank.  C. Write your own sentence for two words.</p>
 <ol class="ws-questions">
@@ -727,12 +795,18 @@ ${NAME_DATE}
 </ol>`;
 }
 
-function grammarBlock(count) {
+function grammarBlock(count, grade) {
   return `
 
 STRUCTURE — Grammar / Language (Common Core Language conventions)
-- Focus on ONE grammar skill appropriate for the grade (capitalizing proper nouns, ending punctuation, plural nouns, verb tense, complete sentences).
-- The worksheet is a set of sentences to FIX or label — it is NOT a reading passage.
+- Focus on ONE skill from THIS grade's list (never a skill from another grade):
+  K–1: capitalizing first words & names, ending punctuation, naming nouns/verbs
+  2: plural nouns, subject-verb agreement, contractions, simple compound sentences
+  3: verb tenses (consistency), pronouns, abstract nouns, comparative adjectives
+  4: comma rules, dialogue punctuation, ordering adjectives, frequently confused words
+  5: comma + coordinating conjunction, semicolons, intro/parenthetical clauses, verb consistency
+- Every item must have ONE clearly correct answer — avoid ambiguous sentences
+  (e.g. don't build a comma-list item around words that could be read as a single title).
 
 OUTPUT (exact structure)
 <h2 class="ws-title">Grammar: <the skill></h2>
@@ -748,11 +822,16 @@ ${NAME_DATE}
 </ol>`;
 }
 
-function writingBlock() {
+function writingBlock(grade) {
   return `
 
 STRUCTURE — Writing (Common Core Writing: opinion / informative / narrative)
-- Choose a grade-appropriate prompt and genre.
+- Genre by grade:
+  K–1: personal narrative (a day, a pet) — 1–2 simple sentences expected
+  2: opinion (best pet, best season) or personal narrative paragraph
+  3: opinion with 2–3 supporting reasons
+  4: informative how-to/explanatory or narrative with concrete details
+  5: informative, opinion, or narrative with clear structure (intro, details, ending)
 
 OUTPUT (exact structure — NO answer key)
 <h2 class="ws-title">Writing Prompt</h2>
@@ -763,14 +842,19 @@ ${NAME_DATE}
 </div>
 <p class="ws-sub">Plan: What is your main idea? What are 2–3 details or reasons?</p>
 <div class="ws-lines"></div>
-<p class="ws-checklist">&check; Capital letters  &check; Punctuation  &check; Complete sentences  &check; Clear main idea</p>`;
+<p class="ws-checklist">&check; Capital letters  &check; Punctuation  &check; Complete sentences  &check; Clear main idea</p>
+
+IMPORTANT: the <div class="ws-lines"></div> must stay EMPTY — the ruled lines are drawn automatically.
+Never write underscores or text inside it.`;
 }
 
-function scienceBlock(count) {
+function scienceBlock(count, grade) {
   return `
 
 STRUCTURE — Science (NGSS)
 - Write a short, accurate, grade-appropriate informational text (≈ 80–140 words).
+- Typical NGSS themes: K = weather, pushes & pulls, what living things need; 1 = light & sound, plant/animal parts, patterns in the sky; 2 = states of matter, habitats, wind & water change land; 3 = life cycles, weather & climate, balanced forces, fossils; 4 = energy, waves, earth's features, plate tectonics; 5 = matter & its properties, ecosystems & food webs, earth's systems, stars & space.
+- EVERY question must be answerable from the text ALONE — never ask about facts, reasons, or examples the text does not contain.
 
 OUTPUT (exact structure)
 <h2 class="ws-title">Title</h2>
@@ -790,12 +874,15 @@ ${NAME_DATE}
 </ol>`;
 }
 
-function socialBlock(count) {
+function socialBlock(count, grade) {
   return `
 
 STRUCTURE — Social Studies / History
 - Write a short, accurate, grade-appropriate informational text (≈ 80–140 words).
 - Typical K–5 themes: K = family/community; G1 = symbols & family history; G2 = people who made a difference; G3 = local history; G4 = state history & U.S. regions; G5 = early U.S. history.
+- Keep every historical fact you are confident about; avoid invented precise dates/numbers.
+- Simplifying for young grades must NEVER change the facts: real roles, real actions, real adult/child status (a famous activist is never "a young girl").
+- EVERY question must be answerable from the text ALONE — never ask about details the text does not contain.
 
 OUTPUT (exact structure)
 <h2 class="ws-title">Title</h2>
