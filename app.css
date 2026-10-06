@@ -446,7 +446,19 @@ footer.site strong { color: var(--ink); }
 
 /* per-question edit / rewrite tools */
 .li-tools { position: absolute; top: 0; right: 0; display: flex; gap: 4px; opacity: 0; transition: opacity .15s; }
-.ws-questions > li:hover .li-tools, .ws-questions > li:focus .li-tools { opacity: 1; }
+/* Reveal on hover — and also on :focus-within, so the buttons are not invisible
+   while a keyboard user is tabbed onto them (the <li> itself is not focusable,
+   so plain :focus never matched). */
+.ws-questions > li:hover .li-tools,
+.ws-questions > li:focus .li-tools,
+.ws-questions > li:focus-within .li-tools { opacity: 1; }
+/* Touch devices have no hover at all, so opacity:0 left Edit / Rewrite / Adjust
+   permanently INVISIBLE on a tablet — while still tappable, which made a stray
+   tap fire an invisible rewrite. Put them in the flow there instead, at the end
+   of the question where a finger can actually reach them. */
+@media (hover: none), (pointer: coarse) {
+  .li-tools { position: static; opacity: 1; margin: 6px 0 0; }
+}
 .li-tools button { font: inherit; font-size: 12px; line-height: 1; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 3px 6px; cursor: pointer; }
 .li-tools button:hover { border-color: var(--accent); }
 .ws-questions > li[contenteditable="true"] { outline: 2px dashed var(--accent); outline-offset: 4px; border-radius: 4px; }

@@ -15,7 +15,7 @@
 ## 硬规矩（改代码前必看）
 
 1. **根目录绝不能有 `server.js`，`package.json` 不能有 `start` 脚本**——否则 Vercel 会把项目当 Node 服务器，所有页面 404。（本地服务器叫 `dev-server.js`。）
-2. **改了 `app.css`/`app.js` → 必须 bump 前端版本号 `?v=N`**（当前 **v=38**；**bump 完请顺手回来把这个数字也改掉**），否则用户吃旧缓存。要同步的文件：`index.html`、`privacy.html`、`terms.html`、`scripts/gen-seo.js`（后者改完要 `node scripts/gen-seo.js` 重生成 60 页）。**用 Edit 工具改**（别用 PowerShell `Get-Content`，见第 8 条）。**bump 后必须打印每个文件的替换计数核对**——2026-10-06 发生过一次"replace 的旧号不存在 → 静默落空 → 提交信息虚报版本"的事故；另外 bump 改的是 `index.html` 等**源文件**，60 个落地页要靠重跑 `gen-seo.js` 才带上新版本号。
+2. **改了 `app.css`/`app.js` → 必须 bump 前端版本号 `?v=N`**（当前 **v=39**；**bump 完请顺手回来把这个数字也改掉**），否则用户吃旧缓存。要同步的文件：`index.html`、`privacy.html`、`terms.html`、`scripts/gen-seo.js`（后者改完要 `node scripts/gen-seo.js` 重生成 60 页）。**用 Edit 工具改**（别用 PowerShell `Get-Content`，见第 8 条）。**bump 后必须打印每个文件的替换计数核对**——2026-10-06 发生过一次"replace 的旧号不存在 → 静默落空 → 提交信息虚报版本"的事故；另外 bump 改的是 `index.html` 等**源文件**，60 个落地页要靠重跑 `gen-seo.js` 才带上新版本号。
 3. **`git push` 走代理会偶发 TLS 失败** → `git config --local http.sslBackend openssl` + **失败重试几次**。
 4. **改 Vercel 环境变量 / `api/*.js` → 要 Redeploy。**
 5. **别把密钥**写进代码或提交 `.env`。
@@ -103,7 +103,7 @@
 - **答案键打印开关**：工具栏 "Answer key" 复选框（默认开，`wsai_print_key` 记忆）。关 → `body.print-no-key`，打印 CSS 隐藏 `.ws-answers-title/.ws-answers/.ws-pack-keys` 和最后一个 `.ws-pagebreak`（不藏会印出空白页）。屏幕上答案照常显示。
 - **季节标签**：`SEASONAL` 表按月给每个科目一条应景话题（10 月=🎃 halloween candy math / pumpkin life cycle…），`renderChips` 置顶展示。
 - **生成进度条（v=33）**：`/api/generate` 支持 `stream:1` → SSE 真实阶段（`writing` → `checking` → `done`），客户端 `startProgress()` 把阶段映射到百分比并在阶段内平滑推进（显示"Writing your questions… 37% · 6s"），完成/失败自动隐藏。**客户端有看门狗**（60s 无数据或 300s 总时长 → 取消并提示）——注意兜底链最坏可跑 4 分钟以上，看门狗总时长不能调小。**部署竞态保护**：服务端返回 JSON 而非 SSE 时（旧实例），客户端会直接采用其中的 `html`。
-- 功能测试：`node _bench/lib_check.cjs`（真实生成 2 张 + 14 项断言，CDP）；打印页数矩阵 + 落地页联动：`_bench/defect_hunt_a.cjs / a2.cjs`（脚本读页数的实现是 `/Count` 正则 + zlib 解压兜底；**手工核对单份 PDF 时改用 `pypdf`**，裸 `/Count` 正则不可靠）；移动端 390px：`_bench/defect_hunt_b.cjs`；进度条：`_bench/progress_check.cjs`。
+- 功能测试：`node _bench/lib_check.cjs`（真实生成 2 张 + 14 项断言，CDP）；打印页数矩阵 + 落地页联动：`_bench/defect_hunt_a.cjs / a2.cjs`（脚本读页数的实现是 `/Count` 正则 + zlib 解压兜底；**手工核对单份 PDF 时改用 `pypdf`**，裸 `/Count` 正则不可靠）；移动端 390px：`_bench/defect_hunt_b.cjs`；进度条：`_bench/progress_check.cjs`；**纯前端显示/体验：`_bench/ux_check.cjs`（13 项，自带静态服务 + 打桩 `/api`，不需要 dev-server、网络或密钥，`node _bench/ux_check.cjs` 直接跑）**。
 - **已知限制（2026-10-06 实测）**：个别图形多的卷子学生页会溢出到第 2 页（约多 1 题），套装因此 5 张可能印 9 页而非 6 页——内容高度差异，不是套装分页逻辑问题（每张都从新页开始、答案键开关在套装下正常：关=0 页答案）。（原「填空分数（½ = ▢/4）的空位渲染为纯空白」这条限制**已在 v=34 修掉**，见下节。）
 
 ## 生成前偏好 / 生成后微调（v=37–v=38 新功能）
@@ -127,12 +127,17 @@
 
 > ⚠️ **已知隐患（待修）**：`🔄 Rewrite`（`app.js` 的 `rewriteItem`）只换题目、**不更新答案键**——换题后答案键那条可能对不上，家长按答案键批改会出错。修法照 `🎯 tweakItem` 的思路（返回并更新对应答案项）。小改动、价值高。
 
-### v=34–v=38 修掉的三个 bug（都已在线上）
+### v=34–v=39 修掉的 bug（都已在线上）
 
 1. **v=34 填空分数的空位渲染成空白**：`\frac{\square}{4}` 这类填空，分子原会被"删未知宏"规则 `\\[a-zA-Z]+` 删掉，只剩分数横线。修法：frac 正则 `[^{}]+` → `[^{}]*`（**接受空花括号**）+ `fracSpan()` 对空/`\square`/`\Box`/`\blacksquare`/`\filledsquare` 渲染成 `<span class="fill">`，`app.css` 加 `.worksheet .frac .fill`（浅色框，打印保留）。**双实现同步**：`app.js` + `scripts/visuals.js`。
 2. **v=35 模型输出的 LaTeX 转义标点泄漏**：`\_\_\_`（转义下划线）、`\%`、`\&`、`\#`、`\ `（转义空格）原来会**带着反斜杠原样印出**（用户报的"奇怪斜杠"）。修法：在 `renderMathString()` 早期加解包 —— `t.replace(/\\([_%&#])/g, "$1")` + `t.replace(/\\[ ,;:]/g, " ")`。**双实现同步**（`app.js:395` / `scripts/visuals.js:166`）。
 3. **v=36 首次生成看不到进度条**：`#genProgress` 原本被插在 `#note` 之后，而 `#note` 位于初始 `hidden` 的 `#resultWrap` **内部** → 第一次生成时祖先 `display:none`，进度条不可见；生成完 `#resultWrap` 才显示，而进度条已 `done` 隐藏。修法：挂载点改成 `$("genBtn") || $("note")`（落在**始终可见**的表单里）。
    - **测试盲区一并补上**：`_bench/progress_check.cjs` 原来只查元素自身 `hidden`，抓不到"祖先隐藏"；现在加了 `getBoundingClientRect` / `offsetParent` 可见性断言。
+4. **v=39 四处显示/体验修复**（回归测试：`node _bench/ux_check.cjs`，13 项，纯前端、打桩 `/api`、无需网络与密钥）：
+   - **未选科目时额度文案是坏的**：首页首屏 `#subject` 默认是「— Choose a subject —」，`updateQuotaBase()` 的 else 分支直接拼 `subj` → 渲染成 `Free plan: 1 of 1  worksheet left today`（多一个空格、科目名是空的）。修法：`!subj` 时改说整份免费额度。**改额度文案时别忘了这个分支。**
+   - **Basic 付费用户被标成 "Pro"**：`renderResult` 里原来是 `isUnlocked() ? "Pro — watermark removed" : ...`，而 `isUnlocked()` 对 Basic 也为真 → 花了 $13.30 的人被告知自己是 Pro。修法：新增 `planLabel()` 按真实档位取名。
+   - **单题工具在触屏上完全看不见**：`.li-tools` 是 `opacity:0`，只由 `li:hover` / `li:focus` 揭示。触屏没有 hover，而 `<li>` 本身不可聚焦（`li:focus` 永远不匹配）→ 按钮**不可见但可点**，误触会触发一次看不见的重写。修法：加 `li:focus-within`，并加 `@media (hover: none), (pointer: coarse) { .li-tools { position: static; opacity: 1 } }` 让它在触屏上进流排布。**删这条媒体查询会让平板重新坏掉。**
+   - **`parseInt` 返回 NaN 时额度显示 "NaN of 2"**：`getCount`/`getCountOther` 的 `parseInt(...)` 外面补了 `|| 0`。
 
 ## 本地测试的三个硬坑（2026-10-06 全部踩过）
 

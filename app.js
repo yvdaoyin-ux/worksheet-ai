@@ -49,10 +49,21 @@
     return p;
   }
   const isUnlocked = () => plan() !== "free";
-  const getCount = () => parseInt(localStorage.getItem(countKey()) || "0", 10);
+  // Say the plan the visitor actually bought. This used to read "Pro — watermark
+  // removed" for anyone unlocked, so a Basic ($13.30) customer was told they were
+  // on Pro — confusing right where they check that their purchase worked.
+  function planLabel() {
+    const p = plan();
+    if (p === "pro") return "Pro \u2014 watermark removed";
+    if (p === "basic") return "Basic \u2014 watermark removed";
+    return "Free preview";
+  }
+  // The trailing "|| 0" matters: a corrupted/foreign value makes parseInt return
+  // NaN, and NaN then flows straight into the quota line as "NaN of 2 left".
+  const getCount = () => parseInt(localStorage.getItem(countKey()) || "0", 10) || 0;
   const setCount = (n) => localStorage.setItem(countKey(), String(n));
   const otherKey = () => "wsai_count_other_" + today();
-  const getCountOther = () => parseInt(localStorage.getItem(otherKey()) || "0", 10);
+  const getCountOther = () => parseInt(localStorage.getItem(otherKey()) || "0", 10) || 0;
   const setCountOther = (n) => localStorage.setItem(otherKey(), String(n));
 
   const isMath = () => ($("subject") ? $("subject").value : "Math") === "Math";
@@ -603,6 +614,16 @@
       q.textContent = "Pro: unlimited worksheets, all subjects \u2714";
       return;
     }
+    // Nothing picked yet (the homepage opens on "— Choose a subject —"). The
+    // per-subject wording below would then render "Free plan: 1 of 1  worksheet
+    // left today" — a double space and a nameless subject. State the whole
+    // allowance instead.
+    if (!subj) {
+      q.textContent = p === "basic"
+        ? "Basic plan: unlimited Math \u2714 \u00b7 " + BASIC_OTHER_DAILY + " worksheets a day in other subjects"
+        : "Free plan: " + FREE_MATH_DAILY + " math worksheets a day, plus " + FREE_OTHER_DAILY + " in any other subject";
+      return;
+    }
     if (p === "basic") {
       if (isMath()) {
         q.textContent = "Basic plan: unlimited Math \u2714";
@@ -886,7 +907,7 @@
     else {
       // Make the (otherwise invisible) answer-key check a visible trust signal.
       const badge = checked ? '<span class="ws-checked">&#10004; Answer key checked</span>' : "";
-      const planTxt = isUnlocked() ? "Pro — watermark removed" : "Free preview";
+      const planTxt = planLabel();
       note.innerHTML = badge ? badge + " &middot; " + planTxt : planTxt;
     }
     $("resultWrap").scrollIntoView({ behavior: "smooth", block: "start" });
