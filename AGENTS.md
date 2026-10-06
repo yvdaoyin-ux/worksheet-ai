@@ -86,7 +86,8 @@
 - **收藏（Pin）**：`wsai_favs`，结果页工具栏 ☆ Pin 按钮；**免费 3 枚，Basic/Pro 无限**——第 4 枚在免费计划触发付费弹窗（同行调研里"微型配额撞墙转化"的正面用法，额度承诺未动）。清理历史时不清理收藏。
 - **答案键打印开关**：工具栏 "Answer key" 复选框（默认开，`wsai_print_key` 记忆）。关 → `body.print-no-key`，打印 CSS 隐藏 `.ws-answers-title/.ws-answers/.ws-pack-keys` 和最后一个 `.ws-pagebreak`（不藏会印出空白页）。屏幕上答案照常显示。
 - **季节标签**：`SEASONAL` 表按月给每个科目一条应景话题（10 月=🎃 halloween candy math / pumpkin life cycle…），`renderChips` 置顶展示。
-- 功能测试：`node _bench/lib_check.cjs`（真实生成 2 张 + 14 项断言，CDP）。
+- 功能测试：`node _bench/lib_check.cjs`（真实生成 2 张 + 14 项断言，CDP）；打印页数矩阵 + 落地页联动：`_bench/defect_hunt_a.cjs / a2.cjs`（套装页数用 pypdf 读，`/Count` 正则不可靠）；移动端 390px：`_bench/defect_hunt_b.cjs`（无横向溢出/弹窗适配/分数渲染）。
+- **已知限制（2026-10-06 实测）**：个别图形多的卷子学生页会溢出到第 2 页（约多 1 题），套装因此 5 张可能印 9 页而非 6 页——内容高度差异，不是套装分页逻辑问题（每张都从新页开始、答案键开关在套装下正常：关=0 页答案）。填空分数（½ = ▢/4）的空位渲染为纯空白，可选打磨。
 
 ## 落地页样例（60 页的真实内容）
 
