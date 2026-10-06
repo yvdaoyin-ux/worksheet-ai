@@ -303,15 +303,18 @@
     renderChips();
     syncMathStyle();
 
-    // generation progress bar lives right under the note line
-    const noteEl = $("note");
-    if (noteEl && !$("genProgress")) {
+    // Generation progress bar. It MUST live in the always-visible form (right
+    // under the Generate button) — NOT inside #resultWrap, which starts hidden:
+    // otherwise the FIRST generation shows no bar (its ancestor is display:none
+    // until the sheet is painted, by which time the bar is already done/hidden).
+    const progAnchor = $("genBtn") || $("note");
+    if (progAnchor && !$("genProgress")) {
       const p = document.createElement("div");
       p.id = "genProgress";
       p.className = "gen-progress no-print";
       p.hidden = true;
       p.innerHTML = '<div class="gp-track"><div class="gp-fill"></div></div><span class="gp-label"></span>';
-      noteEl.parentNode.insertBefore(p, noteEl.nextSibling);
+      progAnchor.parentNode.insertBefore(p, progAnchor.nextSibling);
     }
 
     const toolbar = document.querySelector("#resultWrap .toolbar");
