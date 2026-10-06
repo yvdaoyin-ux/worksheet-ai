@@ -41,7 +41,7 @@
 
 ## 关键文件
 
-`index.html` / `app.css` / `app.js`（前端）｜ `api/generate.js`（AI，按科目分发 + 多供应商 + `looksComplete` 校验 + 按 IP 限流）/ `api/verify-license.js` / `api/health.js`（诊断）/ `api/track.js`（埋点）/ `api/subscribe.js`（邮箱）｜ `dev-server.js`（本地）｜ `scripts/gen-seo.js`（60 落地页）｜ `vercel.json`。
+`index.html` / `app.css` / `app.js`（前端）｜ `api/generate.js`（AI，按科目分发 + 多供应商 + `looksComplete` 校验 + 按 IP 限流）/ `api/gate.js`（签发 HMAC 门票）/ `api/verify-license.js` / `api/health.js`（诊断）/ `api/track.js`（埋点）/ `api/subscribe.js`（邮箱）｜ `dev-server.js`（本地）｜ `scripts/gen-seo.js`（60 落地页）｜ `vercel.json`。
 
 ## 变现规则（承诺过的，别乱动 ⚠️）
 
@@ -71,7 +71,7 @@
 - 一个 Gumroad 产品不能既一次性又订阅，所以 Basic/Pro/Classroom 永远是不同产品。`verify-license` 已检查退订/失效字段，前端每天静默复检一次，退订后自动回落档位。
 - **售后自动激活**：Gumroad 占位符是 **`__license_key__`**（双下划线，不是 `{license_key}`），只能用在**产品内容页**的链接/按钮里。填 `https://worksheet-ai-l1td.vercel.app/?license_key=__license_key__`。前端 `autoActivateFromUrl()` 会自动校验、弹框显示结果、并清掉地址栏里的 key。
 - 单题 🔄 重写**免费且不耗额度**；✏️ 编辑同样免费。
-- 价格数字散落在 `index.html` + `scripts/gen-seo.js`（搜 `$13.30`），Gumroad 是第三处，**改价必须三处同步**。
+- 价格数字散落在 `index.html` + `scripts/gen-seo.js`（搜 `$13.30`）+ `terms.html`，Gumroad 后台是第四处，**改价必须四处同步**（与上面「变现规则」一节的 4 处一致）。
 
 ## Starter Pack 与邮箱订阅（v=33）
 
@@ -151,7 +151,7 @@
 
 `api/generate.js` 末尾导出了 `_buildPrompt / _checkMath / _proofread / _applyFixes / _parseWrong`，**仅供本地脚本复用真实逻辑**（Vercel 只用默认导出）。
 
-**1) 单元测试**（19 个断言：超纲、算错、跳过文字题、容错）
+**1) 单元测试**（20 个断言：算对不误报、算错报出正确值、跳过文字/主题计算题、容错不崩）
 ```
 node "<工作区>/_bench/test_check.cjs"
 ```

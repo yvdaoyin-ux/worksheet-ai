@@ -164,6 +164,9 @@ button { font: inherit; cursor: pointer; }
 }
 .worksheet .frac .num { border-bottom: 1.5px solid currentColor; padding: 0 4px; }
 .worksheet .frac .den { padding: 0 4px; }
+/* Fill-in blank inside a fraction (½ = ▢/4): a light box so the slot is visible
+   on screen AND in print (border survives printBackground:false; the tint may not). */
+.worksheet .frac .fill { display: inline-block; min-width: 1.2em; height: 1.05em; border: 1px solid #b9c4d6; border-radius: 2px; background: #eef2f9; }
 
 /* ---------- Code-drawn math visuals ---------- */
 .ws-visual { display: block; margin: 8px 0 14px; }

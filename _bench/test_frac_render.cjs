@@ -50,6 +50,12 @@ const cases = [
   ["$5 + $3 = $8", null, "$5 + $3 = $8"],
   ["A book costs $12. You pay with $20.", null, "$12"],
   ["$\\frac{1}{2}$", 'class="frac"'], // real LaTeX in $...$ still unwraps
+  // fill-in blank: empty / whitespace / \square numerator -> light box, not blank or garbage
+  ["\\frac{1}{2} = \\frac{}{4}", 'class="fill"'],
+  ["\\frac{1}{2} = \\frac{ }{4}", 'class="fill"'],
+  ["\\frac{1}{2} = \\frac{\\square}{4}", 'class="fill"'],
+  ["\\frac{}{4}", 'class="fill"'],
+  ["\\frac{4}{}", 'class="fill"'],
   // must NOT become a fraction
   ["https://example.com/8/3", null],
   ["10/3/2026", null],

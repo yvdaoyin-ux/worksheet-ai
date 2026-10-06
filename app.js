@@ -362,8 +362,16 @@
   }
 
   // ================= math rendering =================
+  // A fill-in blank — empty braces, a lone \square / \Box, or pure whitespace —
+  // is drawn as a light box instead of an empty cell, so "½ = ▢/4" shows a
+  // visible slot the student can write in. Otherwise the cell text passes through.
   function fracSpan(a, b) {
-    return '<span class="frac"><span class="num">' + a + '</span><span class="den">' + b + '</span></span>';
+    const cell = (x) => {
+      const s = String(x == null ? "" : x).trim();
+      return (s === "" || /^\\(?:square|Box|blacksquare|filledsquare)$/.test(s))
+        ? '<span class="fill"></span>' : x;
+    };
+    return '<span class="frac"><span class="num">' + cell(a) + '</span><span class="den">' + cell(b) + '</span></span>';
   }
   function gcd(a, b) { return b ? gcd(b, a % b) : a; }
   function fracLabel(num, den) {
@@ -380,7 +388,10 @@
     // Only treat $...$ as a LaTeX delimiter when it wraps a macro. Money uses
     // the same glyph: "$5 + $3" must keep its dollar signs. Mirrors visuals.js.
     t = t.replace(/\$([^$]+)\$/g, (m, inner) => (/\\/.test(inner) ? inner : m));
-    t = t.replace(/\\[dt]?frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g, (m, a, b) => fracSpan(a, b));
+    // Allow EMPTY braces so a fill-in like \frac{}{4} (or \frac{\square}{4}) still
+    // becomes a fraction — with a light box standing in for the blank — instead
+    // of leaking literal "{}" braces. Mirrors scripts/visuals.js.
+    t = t.replace(/\\[dt]?frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, (m, a, b) => fracSpan(a, b));
     t = t.replace(/(\d+)\s+(\d+)\s*\/\s*(\d+)/g, (m, w, a, b) => w + " " + fracSpan(a, b));
     t = t.replace(/(^|[^\d/])(\d+)\s*\/\s*(\d+)(?![\d/])/g, (m, pre, a, b) => pre + fracSpan(a, b));
     t = t
