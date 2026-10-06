@@ -645,7 +645,12 @@
     re.title = "Rewrite this question (free — does not use your daily worksheets)";
     re.textContent = "\u{1F504}";
     re.addEventListener("click", () => rewriteItem(li, re));
-    t.appendChild(edit); t.appendChild(re);
+    const tw = document.createElement("button");
+    tw.type = "button";
+    tw.title = "Adjust this question with an instruction, e.g. \u201cmake the numbers smaller\u201d (free \u2014 does not use your daily worksheets)";
+    tw.textContent = "\u{1F3AF}";
+    tw.addEventListener("click", () => tweakItem(li, tw));
+    t.appendChild(edit); t.appendChild(re); t.appendChild(tw);
     li.appendChild(t);
   }
 
@@ -781,6 +786,47 @@
       hydrateVisuals(li);
     } catch (e) {
       alert("Could not rewrite: " + e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = old;
+    }
+  }
+
+  async function tweakItem(li, btn) {
+    // Instruction-based tweak: keep THIS question, apply ONE requested change.
+    // Free, like rewrite — does not consume the daily quota. The matching
+    // answer-key entry is updated too, so a change to the numbers stays in sync.
+    const instruction = (window.prompt("How should I adjust this question? (e.g. \"make the numbers smaller\", \"use dollars\", \"change the animal to a cat\")", "") || "").trim().slice(0, 200);
+    if (!instruction) return;
+    const clone = li.cloneNode(true);
+    const toolsInClone = clone.querySelector(".li-tools");
+    if (toolsInClone) toolsInClone.remove();
+    const item = clone.innerHTML.trim();
+    const box = $("result");
+    const qItems = box ? Array.from(box.querySelectorAll(".ws-questions > li")) : [];
+    const idx = qItems.indexOf(li);
+    const aItems = box ? box.querySelectorAll(".ws-answers > li") : [];
+    const answer = (idx >= 0 && aItems[idx]) ? aItems[idx].innerHTML.trim() : "";
+    const subject = $("subject") ? $("subject").value : "";
+    const topic = ($("topic") && $("topic").value.trim()) || "worksheet";
+    const old = btn.textContent;
+    btn.disabled = true; btn.textContent = "\u2026";
+    try {
+      const res = await apiFetch("/api/generate", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "tweak", grade: $("grade").value, subject, topic, item, instruction, answer }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.html) throw new Error(data.error || "failed");
+      li.innerHTML = data.html;
+      makeTools(li);
+      renderMath(li);
+      hydrateVisuals(li);
+      if (data.answer && idx >= 0 && aItems[idx]) {
+        aItems[idx].innerHTML = data.answer;
+        renderMath(aItems[idx]);
+      }
+    } catch (e) {
+      alert("Could not adjust: " + e.message);
     } finally {
       btn.disabled = false; btn.textContent = old;
     }

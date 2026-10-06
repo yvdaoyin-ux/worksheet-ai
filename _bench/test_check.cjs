@@ -110,6 +110,15 @@ const check = (qs, ans) => g._checkMath(sheet(qs, ans)).wrong;
   ok("empty notes => no EXTRA REQUIREMENTS block", !/EXTRA REQUIREMENTS/i.test(noExtra));
 }
 
+// ---- [9] instruction-based tweak prompt ----
+{
+  const tp = g._buildTweakPrompt("3", "Math", "fractions", "\\frac{1}{2} + \\frac{1}{4} = ___", "\\frac{3}{4}", "use decimals instead");
+  ok("tweak prompt carries the instruction", tp.indexOf("use decimals instead") >= 0);
+  ok("tweak prompt carries the original item", tp.indexOf("\\frac{1}{2}") >= 0);
+  ok("tweak prompt demands minimal change", /do NOT replace|ONLY that change/i.test(tp));
+  ok("tweak prompt asks for JSON question+answer", /\{"question"/.test(tp));
+}
+
 // ================= summary =================
 const total = pass + fails.length;
 console.log("\n_checkMath unit tests: " + pass + "/" + total + " passed");

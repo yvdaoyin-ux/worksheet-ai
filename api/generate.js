@@ -103,6 +103,32 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (req.body.mode === "tweak") {
+    // Adjust ONE existing question in place (free, like rewrite). The matching
+    // answer-key entry is sent along and updated with it so tweaking the numbers
+    // can never desync the key a parent marks from.
+    const item = String(req.body.item || "").slice(0, 800);
+    if (!item) { res.status(400).json({ error: "Nothing to adjust." }); return; }
+    const instruction = String(req.body.instruction || "").replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, 200);
+    if (!instruction) { res.status(400).json({ error: "Please describe the change you want." }); return; }
+    const answer = String(req.body.answer || "").slice(0, 400);
+    const rtl = await rateLimit(getClientIp(req));
+    if (!rtl.ok) {
+      res.status(429).json({ error: "You've reached today's limit. Please try again tomorrow." });
+      return;
+    }
+    const tPrompt = buildTweakPrompt(grade, subject, topic, item, answer, instruction);
+    for (const a of buildAttempts()) {
+      try {
+        const raw = await callChat(a.url, a.key, a.model, tPrompt);
+        const parsed = parseTweak(raw);
+        if (parsed) { res.status(200).json({ html: parsed.question, answer: parsed.answer, model: a.model }); return; }
+      } catch (e) { /* try next */ }
+    }
+    res.status(502).json({ error: "Could not adjust that question. Please try again." });
+    return;
+  }
+
   // The form offers 1 sheet-question; honor it (20 = Vercel 60s safety cap).
   const qCount = Math.min(20, Math.max(1, parseInt(count, 10) || 10));
   const prompt = buildPrompt(grade, subject, topic, qCount, level, style, studentName, extra);
@@ -620,6 +646,43 @@ ${item}
 Rewrite it as a SINGLE new question that tests the SAME skill but is clearer and different (new numbers or context). Return ONLY that one question as an HTML fragment using the SAME tags and class names as the original (do NOT wrap it in <li>). Keep math in LaTeX (\\frac, \\times, \\div) and never use $ as a math delimiter.`;
 }
 
+// Instruction-based tweak: keep THIS question, change only what the parent asks.
+// Unlike rewrite (which replaces the question with a different one), a tweak must
+// stay recognisably the SAME question. The answer-key entry travels with it so a
+// change to the numbers can never leave the key out of sync.
+function buildTweakPrompt(grade, subject, topic, item, answer, instruction) {
+  return `You are an experienced U.S. elementary school teacher.
+Here is ONE question from a Grade ${grade} ${subject} worksheet on "${topic}":
+
+${item}
+
+Its current answer-key entry is:
+${answer || "(none)"}
+
+A parent wants ONE specific change to THIS SAME question: "${instruction}"
+
+Apply ONLY that change and keep the question otherwise identical — same skill, same question type, same structure and phrasing. Do NOT replace it with a different question. If the change alters the numbers or the answer, update the answer to match. Keep math in LaTeX (\\frac, \\times, \\div); never use the dollar sign as a math delimiter; the sheet is text-only.
+
+Return ONLY minified JSON with exactly two string fields:
+{"question":"<the revised question as an HTML fragment with the SAME tags/classes as the original, NOT wrapped in <li>>","answer":"<the revised answer-key entry as plain text or a short HTML fragment>"}`;
+}
+
+// Reads the {question, answer} JSON a tweak returns, tolerating ```json fences
+// or stray prose around it.
+function parseTweak(raw) {
+  const s = String(raw == null ? "" : raw);
+  const i = s.indexOf("{");
+  const j = s.lastIndexOf("}");
+  if (i < 0 || j <= i) return null;
+  try {
+    const o = JSON.parse(s.slice(i, j + 1));
+    if (o && typeof o.question === "string" && o.question.trim()) {
+      return { question: o.question, answer: typeof o.answer === "string" ? o.answer : "" };
+    }
+  } catch (e) { /* not valid JSON — fall through */ }
+  return null;
+}
+
 // Re-levels a whole worksheet. This is deliberately NOT a fresh generation:
 // the point is that question 3 of the Easier sheet and question 3 of the
 // Challenge sheet are the SAME question, so a parent can teach one lesson to
@@ -1014,3 +1077,4 @@ module.exports._proofread = proofread;
 module.exports._applyFixes = applyFixes;
 module.exports._parseWrong = parseWrong;
 module.exports._buildAttempts = buildAttempts;
+module.exports._buildTweakPrompt = buildTweakPrompt;
