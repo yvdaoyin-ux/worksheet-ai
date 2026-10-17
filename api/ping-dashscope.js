@@ -1,52 +1,61 @@
 // api/ping-dashscope.js — measures the round-trip latency from INSIDE the Vercel
-// function to Alibaba Cloud Model Studio (DashScope, cn-beijing).
+// function to three targets, so "slow" can be attributed instead of guessed:
 //
-// WHY THIS EXISTS:
-// Every latency number we have was measured from the developer's own PC through a
-// local proxy. That number is useless for production: the real path is
-// Vercel function -> dashscope.aliyuncs.com, and that is a cross-border hop.
+//   dashscope.aliyuncs.com       (cn-beijing, the production candidate)
+//   dashscope-intl.aliyuncs.com  (international gateway, Singapore/global)
+//   api.github.com               (US baseline — proves whether the function's
+//                                 egress is slow in general or China specifically)
+//
+// WHY THE BASELINE MATTERS:
+// A single "3122ms" number is uninterpretable. It could be a cold start, a slow
+// cross-border hop, or the function's whole network path. Measuring all three on
+// the SAME warm invocation removes that ambiguity: the difference between the
+// China and the US target is the real cross-border cost.
 //
 // WHAT IT DOES NOT DO:
 // - Never echoes the API key, the model's reply, or any request header.
-// - Only accepts GET and only sends a fixed 1-token prompt ("ping").
-//   No user-controlled input, so it cannot be used as a free proxy.
-// - Cost per call: roughly 20-30 tokens.
+// - Only accepts GET. The only paid call is one fixed 1-token "ping" to the
+//   China endpoint (the other two are free GETs).
 //
-// STATE CODES (same three-state spirit as /api/health):
-//   "ok" | "flaky" | "auth-error" | "error" | "unset"
+// STATE CODES: "ok" | "flaky" | "auth-error" | "error" | "unset"
 //
-// HISTORY / WHY THE QUERY PARSING LOOKS DEFENSIVE:
-// The first version read `req.query.s`. On a plain Vercel Node function `req` is
-// a Node IncomingMessage which does NOT always carry `.query` — so a correct
-// `?s=...` still compared against `undefined` and returned 403 forever.
-// We now parse `req.url` ourselves and treat `req.query` as an optional bonus.
-// The 403 body also carries non-secret diagnostics (lengths only) so a mismatch
-// caused by a trailing space in the dashboard is visible instead of mysterious.
+// HISTORY:
+// v1 read `req.query.s`, which may be absent on a plain Vercel Node function —
+// a correct ?s= compared against undefined and returned 403 forever. We now parse
+// req.url ourselves. 403 carries length-only diagnostics (never values) so a
+// trailing space in the dashboard is visible instead of mysterious.
+const CN = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
+const INTL_MODELS = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/models";
+const US = "https://api.github.com/zen";
+
+async function timeGet(url) {
+  const t0 = Date.now();
+  try {
+    const r = await fetch(url, { headers: { "User-Agent": "wsai-latency-probe" }, signal: AbortSignal.timeout(15000) });
+    await r.arrayBuffer(); // drain so the timing includes the body
+    return { ms: Date.now() - t0, status: r.status, ok: true };
+  } catch (e) {
+    const m = String((e && e.message) || e);
+    return { ms: Date.now() - t0, status: 0, ok: false, err: /timeout|abort/i.test(m) ? "timeout" : "network failed" };
+  }
+}
+
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store, max-age=0");
+  if (req.method !== "GET") return res.status(405).json({ error: "GET only" });
 
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "GET only" });
-  }
-
-  // --- query parsing that does not depend on req.query existing ---
   let url;
-  try {
-    url = new URL(req.url || "/", "http://placeholder.local");
-  } catch {
-    url = new URL("http://placeholder.local/");
-  }
+  try { url = new URL(req.url || "/", "http://placeholder.local"); }
+  catch { url = new URL("http://placeholder.local/"); }
   const q = (k) => {
-    const fromQuery = req.query && req.query[k] !== undefined ? req.query[k] : undefined;
-    const v = fromQuery !== undefined ? fromQuery : url.searchParams.get(k);
+    const a = req.query && req.query[k] !== undefined ? req.query[k] : undefined;
+    const v = a !== undefined ? a : url.searchParams.get(k);
     return v === undefined || v === null ? null : String(v);
   };
 
   const secret = process.env.PING_SECRET;
   const provided = q("s");
-
   if (secret && provided !== secret) {
-    // Diagnostics: lengths only. Never the value, never a prefix.
     return res.status(403).json({
       error: "forbidden",
       diag: {
@@ -56,10 +65,10 @@ module.exports = async (req, res) => {
         receivedLen: provided ? provided.length : 0,
         hint:
           provided === null
-            ? "URL had no ?s= at all (check that the query string survived the browser / copy-paste)."
+            ? "URL had no ?s= at all."
             : provided.length !== secret.length
-            ? "Length differs: the dashboard value may have a trailing space/newline, or the URL was truncated."
-            : "Same length but different value: the deployed env var may be an older value (change env vars needs a Redeploy).",
+            ? "Length differs: trailing space/newline in the dashboard value, or the URL was truncated."
+            : "Same length, different value: the deployed env var may be stale (changing env vars needs a Redeploy).",
       },
     });
   }
@@ -75,65 +84,70 @@ module.exports = async (req, res) => {
 
   const model = process.env.DASHSCOPE_MODEL || "deepseek-v4.1-flash";
   const nRaw = parseInt(q("n"), 10);
-  const n = Math.min(Math.max(Number.isFinite(nRaw) ? nRaw : 1, 1), 5); // cost guard
+  const n = Math.min(Math.max(Number.isFinite(nRaw) ? nRaw : 1, 1), 3); // each round costs 3 network calls
 
-  const attempts = [];
+  const rounds = [];
   for (let i = 0; i < n; i++) {
+    // --- paid call: the actual production candidate ---
     const t0 = Date.now();
+    let cn;
     try {
-      const r = await fetch("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", {
+      const r = await fetch(CN, {
         method: "POST",
         headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: "user", content: "ping" }],
-          max_tokens: 1,
-          temperature: 0,
-        }),
+        body: JSON.stringify({ model, messages: [{ role: "user", content: "ping" }], max_tokens: 1, temperature: 0 }),
         signal: AbortSignal.timeout(15000),
       });
       const j = await r.json().catch(() => null);
       let err = "";
       if (!r.ok) {
-        err = (j && j.error && (j.error.code || j.error.message)) || "HTTP " + r.status;
-        err = String(err).slice(0, 120); // never long enough to carry a secret
+        err = String(((j && j.error && (j.error.code || j.error.message)) || "HTTP " + r.status)).slice(0, 120);
       }
-      attempts.push({ ms: Date.now() - t0, status: r.status, ok: r.ok, ...(err ? { err } : {}) });
+      cn = { ms: Date.now() - t0, status: r.status, ok: r.ok, ...(err ? { err } : {}) };
     } catch (e) {
-      const msg = String((e && e.message) || e);
-      attempts.push({
-        ms: Date.now() - t0,
-        status: 0,
-        ok: false,
-        err: /timeout|abort/i.test(msg) ? "timeout" : "network failed",
-      });
+      const m = String((e && e.message) || e);
+      cn = { ms: Date.now() - t0, status: 0, ok: false, err: /timeout|abort/i.test(m) ? "timeout" : "network failed" };
     }
+    // --- free GETs: same-way-out comparison ---
+    const intl = await timeGet(INTL_MODELS);
+    const us = await timeGet(US);
+    rounds.push({ cn, intl, us });
   }
 
-  const good = attempts.filter((a) => a.ok).map((a) => a.ms).sort((a, b) => a - b);
+  const pick = (k) => rounds.map((r) => r[k]).filter((x) => x && x.ok).map((x) => x.ms).sort((a, b) => a - b);
+  const cnOk = pick("cn"), intlOk = pick("intl"), usOk = pick("us");
+  const med = (a) => (a.length ? a[Math.floor(a.length / 2)] : null);
+
   let state = "error";
-  if (good.length && good.length === attempts.length) state = "ok";
-  else if (good.length) state = "flaky";
-  else if (attempts[0] && (attempts[0].status === 401 || attempts[0].status === 403)) state = "auth-error";
+  if (cnOk.length && cnOk.length === rounds.length) state = "ok";
+  else if (cnOk.length) state = "flaky";
+  else if (rounds[0] && rounds[0].cn && (rounds[0].cn.status === 401 || rounds[0].cn.status === 403)) state = "auth-error";
+
+  const cnMed = med(cnOk), intlMed = med(intlOk), usMed = med(usOk);
+  const crossBorderCost = cnMed !== null && usMed !== null ? cnMed - usMed : null;
 
   res.status(200).json({
     configured: true,
-    state, // ok | flaky | auth-error | error
+    state,
     model,
-    region: "cn-beijing (dashscope.aliyuncs.com)",
-    route: "Vercel function -> Alibaba Cloud (cross-border hop)",
-    attempts,
-    minMs: good.length ? good[0] : null,
-    medianMs: good.length ? good[Math.floor(good.length / 2)] : null,
+    rounds,
+    summary: {
+      chinaDashscope_medianMs: cnMed,
+      intlDashscope_medianMs: intlMed,
+      usBaseline_medianMs: usMed,
+      crossBorderCostMs: crossBorderCost, // china - US baseline: the part you pay for going to China
+    },
     verdict:
-      state === "ok"
-        ? good[good.length - 1] < 800
-          ? "usable"
-          : "usable but slow — expect the progress bar to stall"
-        : state === "flaky"
-        ? "unstable — do NOT put this in the critical path"
-        : state === "auth-error"
-        ? "key rejected — check it belongs to cn-beijing and is not deleted"
-        : "unusable from this region right now",
+      state !== "ok"
+        ? "not usable as-is"
+        : cnMed === null
+        ? "no successful China call"
+        : crossBorderCost !== null && usMed !== null && usMed < 300 && cnMed > 1500
+        ? "China hop is the problem (US baseline is fast) — use the international endpoint or drop it"
+        : cnMed > 1500
+        ? "egress from this function is slow in general — investigate cold start / region"
+        : cnMed < 800
+        ? "usable"
+        : "usable but slow — progress bar will stall",
   });
 };
