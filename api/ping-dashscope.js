@@ -2,23 +2,26 @@
 // function to Alibaba Cloud Model Studio (DashScope, cn-beijing).
 //
 // WHY THIS EXISTS:
-// Every other latency number we have was measured from the developer's own PC
-// through a local proxy. That number is useless for production: the real path is
+// Every latency number we have was measured from the developer's own PC through a
+// local proxy. That number is useless for production: the real path is
 // Vercel function -> dashscope.aliyuncs.com, and that is a cross-border hop.
-// Guessing it would be exactly the kind of "should be fine" the project forbids.
 //
 // WHAT IT DOES NOT DO:
-// - It never echoes the API key, the model's reply, or any header.
-// - It only accepts GET and only sends a fixed 1-token prompt ("ping").
-//   There is no user-controlled input, so it cannot be used as a free proxy.
-// - Cost per call: roughly 20-30 tokens. Brushing it is harmless by design.
+// - Never echoes the API key, the model's reply, or any request header.
+// - Only accepts GET and only sends a fixed 1-token prompt ("ping").
+//   No user-controlled input, so it cannot be used as a free proxy.
+// - Cost per call: roughly 20-30 tokens.
 //
 // STATE CODES (same three-state spirit as /api/health):
-//   "ok"         every attempt succeeded        -> the hop is usable
-//   "flaky"      some attempts failed           -> cross-border is unstable
-//   "auth-error" 401/403                       -> key wrong, revoked or wrong region
-//   "error"      all failed / network          -> treat as unusable
-//   "unset"      DASHSCOPE_API_KEY missing
+//   "ok" | "flaky" | "auth-error" | "error" | "unset"
+//
+// HISTORY / WHY THE QUERY PARSING LOOKS DEFENSIVE:
+// The first version read `req.query.s`. On a plain Vercel Node function `req` is
+// a Node IncomingMessage which does NOT always carry `.query` — so a correct
+// `?s=...` still compared against `undefined` and returned 403 forever.
+// We now parse `req.url` ourselves and treat `req.query` as an optional bonus.
+// The 403 body also carries non-secret diagnostics (lengths only) so a mismatch
+// caused by a trailing space in the dashboard is visible instead of mysterious.
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store, max-age=0");
 
@@ -26,11 +29,39 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: "GET only" });
   }
 
-  // Optional shared secret: set PING_SECRET in Vercel and call /api/ping-dashscope?s=...
-  // Recommended, so the endpoint is not publicly probeable.
+  // --- query parsing that does not depend on req.query existing ---
+  let url;
+  try {
+    url = new URL(req.url || "/", "http://placeholder.local");
+  } catch {
+    url = new URL("http://placeholder.local/");
+  }
+  const q = (k) => {
+    const fromQuery = req.query && req.query[k] !== undefined ? req.query[k] : undefined;
+    const v = fromQuery !== undefined ? fromQuery : url.searchParams.get(k);
+    return v === undefined || v === null ? null : String(v);
+  };
+
   const secret = process.env.PING_SECRET;
-  if (secret && String(req.query.s || "") !== secret) {
-    return res.status(403).json({ error: "forbidden" });
+  const provided = q("s");
+
+  if (secret && provided !== secret) {
+    // Diagnostics: lengths only. Never the value, never a prefix.
+    return res.status(403).json({
+      error: "forbidden",
+      diag: {
+        secretIsConfigured: true,
+        secretLen: secret.length,
+        receivedS: provided !== null,
+        receivedLen: provided ? provided.length : 0,
+        hint:
+          provided === null
+            ? "URL had no ?s= at all (check that the query string survived the browser / copy-paste)."
+            : provided.length !== secret.length
+            ? "Length differs: the dashboard value may have a trailing space/newline, or the URL was truncated."
+            : "Same length but different value: the deployed env var may be an older value (change env vars needs a Redeploy).",
+      },
+    });
   }
 
   const key = process.env.DASHSCOPE_API_KEY;
@@ -38,13 +69,13 @@ module.exports = async (req, res) => {
     return res.status(200).json({
       configured: false,
       state: "unset",
-      hint: "Vercel -> Settings -> Environment Variables -> add DASHSCOPE_API_KEY (new key) -> Redeploy.",
+      hint: "Vercel -> Settings -> Environment Variables -> add DASHSCOPE_API_KEY -> Redeploy.",
     });
   }
 
   const model = process.env.DASHSCOPE_MODEL || "deepseek-v4.1-flash";
-  // Attempt count is clamped so a curious visitor cannot burn budget:
-  const n = Math.min(Math.max(parseInt(req.query.n, 10) || 1, 1), 5);
+  const nRaw = parseInt(q("n"), 10);
+  const n = Math.min(Math.max(Number.isFinite(nRaw) ? nRaw : 1, 1), 5); // cost guard
 
   const attempts = [];
   for (let i = 0; i < n; i++) {
@@ -67,12 +98,7 @@ module.exports = async (req, res) => {
         err = (j && j.error && (j.error.code || j.error.message)) || "HTTP " + r.status;
         err = String(err).slice(0, 120); // never long enough to carry a secret
       }
-      attempts.push({
-        ms: Date.now() - t0,
-        status: r.status,
-        ok: r.ok,
-        ...(err ? { err } : {}),
-      });
+      attempts.push({ ms: Date.now() - t0, status: r.status, ok: r.ok, ...(err ? { err } : {}) });
     } catch (e) {
       const msg = String((e && e.message) || e);
       attempts.push({
@@ -96,7 +122,7 @@ module.exports = async (req, res) => {
     model,
     region: "cn-beijing (dashscope.aliyuncs.com)",
     route: "Vercel function -> Alibaba Cloud (cross-border hop)",
-    attempts, // per-attempt ms + status, most useful when something fails
+    attempts,
     minMs: good.length ? good[0] : null,
     medianMs: good.length ? good[Math.floor(good.length / 2)] : null,
     verdict:
