@@ -49,13 +49,18 @@ async function call(fakeFetch) {
 }
 
 // Gumroad answering "no such license" for every product id.
-const gumroadSaysNo = async () => ({ ok: true, status: 200, json: async () => ({ success: false, message: "That license does not exist." }) });
+// NOTE: the real API answers this with HTTP 404 and a VALID JSON body — that is
+// an answer about the key, not an outage. This exact shape is why the test has a
+// separate 404 case below.
+const gumroadSaysNo = async () => ({ ok: false, status: 404, json: async () => ({ success: false, message: "That license does not exist for the provided product." }) });
 // Every product id verifies.
 const gumroadSaysYes = async () => ({ ok: true, status: 200, json: async () => ({ success: true, purchase: { refunded: false } }) });
 // Transport exploded.
 const networkDown = async () => { throw new Error("ECONNRESET"); };
-// Upstream returned a non-2xx page (a 503 HTML page has no JSON body contract).
-const upstream503 = async () => ({ ok: false, status: 503, json: async () => ({}) });
+// Upstream genuinely broken: a 503 with no usable body.
+const upstream503 = async () => ({ ok: false, status: 503, json: async () => { throw new Error("no body"); } });
+// Upstream returned a 200 whose body is not JSON at all (gateway HTML).
+const upstreamHtml = async () => ({ ok: true, status: 200, json: async () => { throw new SyntaxError("Unexpected token <"); } });
 
 (async () => {
   let r;
@@ -79,6 +84,23 @@ const upstream503 = async () => ({ ok: false, status: 503, json: async () => ({}
   r = await call(upstream503);
   check("an upstream 5xx is NOT treated as an answer about the key", !r.body.definitive, JSON.stringify(r.body));
   check("an upstream 5xx is marked uncertain", r.body.uncertain === true);
+
+  // REGRESSION (2026-10-18, found against the LIVE API): Gumroad reports "no
+  // such license" as HTTP 404 with a valid JSON body. Treating any non-2xx as an
+  // outage made EVERY invalid key come back `uncertain`, so a buyer who mistyped
+  // their key was told "try again later" instead of "that key is wrong". The
+  // 404-with-JSON shape must stay definitive.
+  r = await call(gumroadSaysNo);
+  check("a 404 with a JSON body counts as definitive, not uncertain", r.body.definitive === true && !r.body.uncertain, JSON.stringify(r.body));
+  check("a 404 with a JSON body answers 200, not 503", r.code === 200, "code=" + r.code);
+
+  // A 429 is real rate limiting: we were not answered, so it stays uncertain.
+  r = await call(async () => ({ ok: false, status: 429, json: async () => ({}) }));
+  check("a 429 is uncertain (rate limited, not an answer about the key)", r.body.uncertain === true && !r.body.definitive, JSON.stringify(r.body));
+
+  // A 200 whose body is gateway HTML is not an answer either.
+  r = await call(upstreamHtml);
+  check("a non-JSON 200 body is uncertain", r.body.uncertain === true && !r.body.definitive, JSON.stringify(r.body));
 
   // A mixed case: first product id times out, the second answers "no".
   // We DID reach Gumroad, so this must be definitive, not uncertain.

@@ -82,10 +82,22 @@ module.exports = async (req, res) => {
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: params,
         });
-        // A 5xx / rate-limit / gateway page is not an answer about THIS key.
-        if (!r.ok) throw new Error("gumroad http " + r.status);
+        // Careful: Gumroad answers "this key does not exist" with HTTP **404**
+        // and a perfectly good JSON body ({success:false,message:...}). That IS
+        // an answer about the key, so it must count as definitive — treating a
+        // non-2xx as "upstream trouble" made every invalid key report
+        // `uncertain`, i.e. a buyer who mistyped their key was told to try
+        // again later instead of being told the key was wrong.
+        // Only a real outage counts as "we could not ask": 5xx, 429, or a body
+        // we cannot parse.
+        if (r.status >= 500 || r.status === 429) throw new Error("gumroad http " + r.status);
 
-        const data = await r.json();
+        let data;
+        try {
+          data = await r.json();
+        } catch (e) {
+          throw new Error("gumroad returned a non-JSON body (http " + r.status + ")");
+        }
         reachedGumroad = true;
         if (data && data.success) {
           // A Pro subscription that was cancelled / ended / failed must not keep Pro access.
