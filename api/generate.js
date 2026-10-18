@@ -694,6 +694,14 @@ Return ONLY minified JSON with exactly two string fields:
 
 // Reads the {question, answer} JSON an item edit returns (both rewrite and
 // tweak use this contract), tolerating code fences or stray prose around it.
+//
+// BOTH fields must be non-empty. This used to accept an empty answer and hand
+// back `answer: ""` — which the client then silently skipped (see
+// applyAnswerEdit), while the question had ALREADY been swapped in. Net effect:
+// a new question graded against the previous question's answer. That is exactly
+// the desync v41 set out to remove, so the contract is enforced here instead of
+// trusting the client to notice. A model that omits the answer gets replaced by
+// the next one (same policy as any other malformed edit — no HTML fallback).
 function parseItemEdit(raw) {
   const s = String(raw == null ? "" : raw);
   const i = s.indexOf("{");
@@ -701,9 +709,9 @@ function parseItemEdit(raw) {
   if (i < 0 || j <= i) return null;
   try {
     const o = JSON.parse(s.slice(i, j + 1));
-    if (o && typeof o.question === "string" && o.question.trim()) {
-      return { question: o.question, answer: typeof o.answer === "string" ? o.answer : "" };
-    }
+    if (!o || typeof o.question !== "string" || !o.question.trim()) return null;
+    if (typeof o.answer !== "string" || !o.answer.trim()) return null;
+    return { question: o.question, answer: o.answer };
   } catch (e) { /* not valid JSON — fall through */ }
   return null;
 }
@@ -1103,3 +1111,8 @@ module.exports._applyFixes = applyFixes;
 module.exports._parseWrong = parseWrong;
 module.exports._buildAttempts = buildAttempts;
 module.exports._buildTweakPrompt = buildTweakPrompt;
+// parseItemEdit is the single gate the rewrite/tweak answer-key contract passes
+// through, so it is exported for _bench/test_item_edit.cjs. That test locks the
+// "a question may never change without its answer" rule that v41 introduced and
+// that an empty-answer response used to slip past.
+module.exports._parseItemEdit = parseItemEdit;

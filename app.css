@@ -432,6 +432,26 @@ footer.site strong { color: var(--ink); }
 .gp-fill { height: 100%; width: 4%; border-radius: 99px; background: var(--accent); transition: width .3s ease; }
 .gp-label { font-size: 13px; color: #5b6b80; }
 .recent-label { font-size: 13px; font-weight: 700; color: var(--muted); }
+/* A library chip plus its own remove button. The two are siblings so a nested
+   <button> never happens. The × is always visible (a control you can only reach
+   by hovering is invisible on touch) and gets a larger tap target on coarse
+   pointers. */
+.chip-wrap { display: inline-flex; align-items: stretch; }
+.chip-wrap .chip { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.chip-x {
+  font: inherit; font-size: 13px; line-height: 1; cursor: pointer; color: #6b7a91;
+  background: #eef3fb; border: 1px solid #d6e0f0; border-left: none;
+  border-radius: 0 999px 999px 0; padding: 0 9px;
+}
+.chip-x:hover { color: #b42318; border-color: #f0b4ae; background: #fdf2f1; }
+.chip-clear {
+  font: inherit; font-size: 12px; cursor: pointer; color: #8a94a6;
+  background: none; border: none; padding: 2px 4px; text-decoration: underline;
+}
+.chip-clear:hover { color: #b42318; }
+@media (hover: none), (pointer: coarse) {
+  .chip-x { padding: 0 12px; }
+}
 
 /* reading/science graphic organizers */
 .viz-organizer { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 620px; }

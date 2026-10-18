@@ -66,6 +66,47 @@ for /f "delims=" %%n in ('"%GIT%" rev-list --count origin/main..HEAD 2^>nul') do
 echo    Current commit    : %HEAD%
 echo    Not yet on GitHub : %AHEAD%
 echo.
+
+rem --- COMMIT -----------------------------------------------------------------
+rem This script used to push WITHOUT committing. Uncommitted edits therefore sat
+rem in the working tree, git answered "Everything up-to-date", and the script
+rem still printed "PUSH OK" — a silent false success that rolled nothing out.
+rem (2026-10-18: 74 changed files were never deployed this way.) So: commit
+rem first, then verify that something was actually pushed.
+"%GIT%" add -A
+"%GIT%" diff --cached --quiet
+if errorlevel 1 (
+  echo    Committing your changes first ...
+  echo === commit === >> "%LOG%"
+  "%GIT%" commit -m "Update site content (auto-commit %DATE% %TIME%)" >> "%LOG%" 2>&1
+  if errorlevel 1 (
+    echo.
+    echo    *** COMMIT FAILED *** - see the log, nothing was pushed.
+    echo      %LOG%
+    goto hold
+  )
+) else (
+  echo    No uncommitted changes - pushing existing commits only.
+)
+
+rem Re-read HEAD after the commit so the banner names the real commit.
+for /f "delims=" %%h in ('"%GIT%" rev-parse --short HEAD 2^>nul') do set "HEAD=%%h"
+for /f "delims=" %%n in ('"%GIT%" rev-list --count origin/main..HEAD 2^>nul') do set "AHEAD=%%n"
+echo    Will push         : %AHEAD% commit(s), HEAD %HEAD%
+if "%AHEAD%"=="0" (
+  echo.
+  echo    ============================================================
+  echo     NOTHING TO PUSH
+  echo    ============================================================
+  echo.
+  echo     The working tree and GitHub are already identical.
+  echo     There is nothing new to deploy - this is NOT a failure, but
+  echo     NOTHING was published either, so check that you edited the
+  echo     right folder if you expected a change.
+  echo.
+  goto hold
+)
+echo.
 echo    Pushing now. If a GitHub sign-in window opens, sign in there.
 echo.
 
@@ -82,7 +123,7 @@ for /L %%i in (1,1,5) do (
   )
 )
 
-if "%RC%"=="0" goto ok
+if "%RC%"=="0" goto verify
 
 echo.
 echo    ============================================================
@@ -94,6 +135,27 @@ echo       %LOG%
 echo     Open it with Notepad and read the LAST lines.
 echo.
 goto hold
+
+:verify
+rem A zero exit from `git push` is NOT proof anything moved - "Everything
+rem up-to-date" also exits 0. Ask GitHub's own ref whether our HEAD is there.
+set "AFTER=?"
+for /f "delims=" %%n in ('"%GIT%" rev-list --count origin/main..HEAD 2^>nul') do set "AFTER=%%n"
+echo === after push === >> "%LOG%"
+echo ahead-by=%AFTER% >> "%LOG%"
+if not "%AFTER%"=="0" (
+  echo.
+  echo    ============================================================
+  echo     PUSH RETURNED SUCCESS BUT NOTHING ARRIVED
+  echo    ============================================================
+  echo.
+  echo     origin/main is still %AFTER% commit^(s^) behind HEAD %HEAD%.
+  echo     This is the false-success case: GitHub did not accept the push.
+  echo     Check the log, then try again:
+  echo       %LOG%
+  echo.
+  goto hold
+)
 
 :ok
 echo.

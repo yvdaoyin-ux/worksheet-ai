@@ -18,7 +18,7 @@
   <meta name="twitter:description" content="Type a topic → printable worksheet with answer key. Math K–5, free to try." />
   <meta name="twitter:image" content="https://worksheet-ai-l1td.vercel.app/og.png" />
   <link rel="canonical" href="https://worksheet-ai-l1td.vercel.app/" />
-  <link rel="stylesheet" href="/app.css?v=41" />
+  <link rel="stylesheet" href="/app.css?v=43" />
   <style>
     /* sample previews (homepage only) */
     .samples { margin-top: 36px; }
@@ -58,13 +58,13 @@
           <select id="subject">
             <option value="" selected>— Choose a subject —</option>
             <option value="Math">Math ★</option>
-            <option value="Reading">Reading (Pro)</option>
-            <option value="Spelling">Spelling (Pro)</option>
-            <option value="Vocabulary">Vocabulary (Pro)</option>
-            <option value="Grammar">Grammar (Pro)</option>
-            <option value="Writing">Writing (Pro)</option>
-            <option value="Science">Science (Pro)</option>
-            <option value="Social Studies">Social Studies (Pro)</option>
+            <option value="Reading">Reading (1/day free)</option>
+            <option value="Spelling">Spelling (1/day free)</option>
+            <option value="Vocabulary">Vocabulary (1/day free)</option>
+            <option value="Grammar">Grammar (1/day free)</option>
+            <option value="Writing">Writing (1/day free)</option>
+            <option value="Science">Science (1/day free)</option>
+            <option value="Social Studies">Social Studies (1/day free)</option>
           </select>
         </div>
         <div class="field full">
@@ -82,7 +82,7 @@
 
     <section id="resultWrap" class="result-wrap" hidden>
       <div id="upsellBar" class="upsell no-print" hidden>
-        <span>🔓 Free plan — watermarked · 2 math worksheets a day</span>
+        <span id="upsellText">🔓 Free plan — watermarked · 2 math worksheets a day</span>
         <button id="upsellBtn" type="button">Upgrade — unlimited math from $13.30</button>
       </div>
       <div class="toolbar no-print">
@@ -129,7 +129,8 @@
 
     <section class="info no-print">
       <p class="trustbar">For homeschool parents, K–5 teachers &amp; tutors · Grades K–5 · Math-focused, plus reading, spelling &amp; more<br /><strong>30-day money-back guarantee</strong> · no account needed · pay once, never renews</p>
-      <p class="trustbar" style="margin-top:8px">Math is where we shine — the other subjects are included on Pro and get better every week.</p>
+      <p class="trustbar" style="margin-top:8px">Math is where we shine — reading, spelling, science &amp; the rest are included too (1 a day free, unlimited on Pro) and get better every week.</p>
+      <p class="trustbar" style="margin-top:8px">Teaching a class? A <strong>Classroom license is $59 once</strong> — everything in Pro, for one teacher's own students. <a href="#" id="classroomLink">See the plans</a>.</p>
 
       <div id="homeSubBox" class="sub-box no-print">
         <p class="sub-title">📩 Get a free worksheet pack every Friday</p>
@@ -153,7 +154,7 @@
         <li><strong>Math is our focus</strong> — real number lines, fraction bars, ten-frames &amp; column arithmetic</li>
         <li>Choose computation, word problems, or mixed</li>
         <li>Answer keys with steps included — <em>most sites give you the answer only</em></li>
-        <li>Also reading, spelling, vocabulary, grammar, writing &amp; science <em>(Pro)</em></li>
+        <li>Also reading, spelling, vocabulary, grammar, writing &amp; science <em>(1/day free, unlimited on Pro)</em></li>
         <li>Print as many copies as you like — your own children, your classroom or your tutoring students</li>
         <li>No account, no signup — 2 math worksheets a day, free forever</li>
         <li><strong>Make a whole pack in one go</strong> — 5 or 10 sheets on one topic, ready to print as a set</li>
@@ -197,7 +198,7 @@
         <li><strong>Unlimited math worksheets</strong>, every day — forever</li>
         <li>3 worksheets a day in reading, spelling, science &amp; the rest</li>
         <li><strong>Packs:</strong> build 5 or 10 sheets on one topic and print them as a set</li>
-        <li><strong>Unlimited pinned favorites</strong> — keep your best sheets ready to reprint (3 on free)</li>
+        <li><strong>Pin up to 500 favorites</strong> — keep your best sheets ready to reprint (3 on free)</li>
         <li>No watermark</li>
         <li><strong>One payment.</strong> No subscription, no renewal, no recurring charge.</li>
         <li>30-day money-back guarantee</li>
@@ -211,13 +212,13 @@
       </ul>
       <p class="plan-note">Worksheet libraries usually cost $25–150 <em>every year</em>. Basic is a one-time payment — under 4&cent; a day for the first year, and nothing after that.</p>
 
-      <p class="plan-head"><strong>Pro — monthly</strong></p>
+      <p class="plan-head"><strong>Pro — $4.99/month</strong></p>
       <ul>
         <li><strong>All 8 subjects, unlimited</strong> — no daily limits at all</li>
         <li>Every new feature we ship, included</li>
         <li>No watermark</li>
       </ul>
-      <a id="gumroadMonthlyBtn" class="buy-btn buy-btn-alt" href="#" target="_blank" rel="noopener">Go Pro monthly</a>
+      <a id="gumroadMonthlyBtn" class="buy-btn buy-btn-alt" href="#" target="_blank" rel="noopener">Go Pro monthly — $4.99/month</a>
 
       <div id="classroomBlock" hidden>
         <p class="plan-head"><strong>Classroom license — $59 once</strong></p>
@@ -236,7 +237,7 @@
         <div class="compare-row"><span>Price</span><span>$25–150 every year</span><span>$13.30 once — forever</span></div>
         <div class="compare-row"><span>Change a question</span><span>No — fixed PDF</span><span>Yes — edit or rewrite any question</span></div>
         <div class="compare-row"><span>Answer key</span><span>Usually the answer only</span><span>Checked twice, with steps</span></div>
-        <div class="compare-row"><span>Printing</span><span>Page breaks you can't control</span><span>Fits one page per sheet</span></div>
+        <div class="compare-row"><span>Printing</span><span>Page breaks you can't control</span><span>Usually one page per sheet</span></div>
       </div>
       <p class="plan-note">Both plans keep math unlimited. Cancel Pro any time.</p>
       <p class="trust">Secure checkout via Gumroad · no account needed</p>
@@ -249,6 +250,6 @@
     </div>
   </div>
 
-  <script src="/app.js?v=41" defer></script>
+  <script src="/app.js?v=43" defer></script>
 </body>
 </html>

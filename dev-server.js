@@ -29,6 +29,12 @@ const verifyLicense = require("./api/verify-license.js");
 const track = require("./api/track.js");
 const subscribe = require("./api/subscribe.js");
 const gate = require("./api/gate.js");
+// Every file in api/ is a real Vercel endpoint, so the local server must expose
+// them too — otherwise /api/health and /api/ping-dashscope 404 locally while
+// working in production, and you end up debugging a bug that does not exist.
+// (This list has been forgotten twice; api/health was missing until 2026-10-18.)
+const health = require("./api/health.js");
+const pingDashscope = require("./api/ping-dashscope.js");
 
 const PORT = process.env.PORT || 3000;
 const ROUTES = {
@@ -37,6 +43,8 @@ const ROUTES = {
   "/api/track": track,
   "/api/subscribe": subscribe,
   "/api/gate": gate,
+  "/api/health": health,
+  "/api/ping-dashscope": pingDashscope,
 };
 
 function readBody(req) {

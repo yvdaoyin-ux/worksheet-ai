@@ -48,12 +48,25 @@ module.exports = async (req, res) => {
   }
 
   let lastReason = "That key was not recognised.";
+  // Whether we actually got an ANSWER out of Gumroad at all.
+  //
+  // This distinction is the whole point of the tri-state response. Verify used
+  // to report `{valid:false}` for every failure, including "Gumroad could not be
+  // reached". The client treats valid:false as "this key is dead", deletes the
+  // stored key, and then never retries (silentRecheck returns early when no key
+  // is stored). So one network blip permanently downgraded a paying customer.
+  // If any lookup failed to complete we say `uncertain` instead, and the client
+  // leaves the plan and the key exactly as they were.
+  let reachedGumroad = false;
 
   // Pro first: a Pro key must never be downgraded. Classroom also outranks Basic.
+  // `label` is only what the buyer is TOLD they own — Classroom keeps identical
+  // rights (the client maps both to the "pro" plan) but must not be described to
+  // a $59 customer as "Pro", which is the $4.99/month product.
   for (const tier of [
-    { name: "pro", ids: proIds },
-    { name: "pro", ids: classroomIds }, // Classroom == Pro rights, one-time
-    { name: "basic", ids: basicIds },
+    { name: "pro", label: "pro", ids: proIds },
+    { name: "pro", label: "classroom", ids: classroomIds }, // Classroom == Pro rights, one-time
+    { name: "basic", label: "basic", ids: basicIds },
   ]) {
     for (const productId of tier.ids) {
       try {
@@ -69,24 +82,39 @@ module.exports = async (req, res) => {
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: params,
         });
+        // A 5xx / rate-limit / gateway page is not an answer about THIS key.
+        if (!r.ok) throw new Error("gumroad http " + r.status);
 
         const data = await r.json();
+        reachedGumroad = true;
         if (data && data.success) {
           // A Pro subscription that was cancelled / ended / failed must not keep Pro access.
           if (!isActive(data.purchase)) {
             lastReason = "That subscription is no longer active.";
             continue;
           }
-          res.status(200).json({ valid: true, plan: tier.name });
+          res.status(200).json({ valid: true, plan: tier.name, label: tier.label });
           return;
         }
+        if (data && data.message) lastReason = String(data.message).slice(0, 200);
       } catch (err) {
         /* try the next candidate */
       }
     }
   }
 
-  res.status(200).json({ valid: false, error: lastReason });
+  // Never got a clean answer from Gumroad for any configured product: we do not
+  // know, so we must not decide. 503 + uncertain keeps the customer's plan.
+  if (!reachedGumroad) {
+    res.status(503).json({
+      valid: false,
+      uncertain: true,
+      error: "Could not reach the license server just now — your plan is unchanged and we'll check again later.",
+    });
+    return;
+  }
+
+  res.status(200).json({ valid: false, definitive: true, error: lastReason });
 };
 
 // False when refunded/charged back, or when the membership is no longer in good standing.

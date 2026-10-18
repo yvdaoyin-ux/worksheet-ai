@@ -10,9 +10,23 @@
 // Optional upgrade (no code change needed): set PLAUSIBLE_DOMAIN + PLAUSIBLE_API_KEY
 // as Vercel env vars and events are forwarded to Plausible as well.
 
+const { originOk } = require("../lib/guard");
+
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
+    return;
+  }
+
+  // Origin-only guard. This endpoint used to be wide open, so anyone could pump
+  // arbitrary events into the funnel and make the numbers meaningless.
+  //
+  // Deliberately NOT the gate ticket: the client sends events with
+  // navigator.sendBeacon(), which cannot attach a custom x-gate header — adding
+  // the ticket check here would silently kill every tracked event. Same reason
+  // verify-license uses skipTicket.
+  if (!originOk(req)) {
+    res.status(403).json({ error: "Request not allowed from this origin." });
     return;
   }
 

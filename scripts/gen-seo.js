@@ -48,13 +48,13 @@ const gradeOptions = Object.keys(gradeByNum)
   .map((g) => `<option>${g}</option>`)
   .join("");
 const subjectOptions = `<option value="">— Choose a subject —</option>` + subjects
-  .map((s) => `<option value="${s[0]}">${s[0]}${s[0] === "Math" ? " \u2605" : " (Pro)"}</option>`)
+  .map((s) => `<option value="${s[0]}">${s[0]}${s[0] === "Math" ? " \u2605" : " (1/day free)"}</option>`)
   .join("");
 
 const resultModal = `
     <section id="resultWrap" class="result-wrap" hidden>
       <div id="upsellBar" class="upsell no-print" hidden>
-        <span>\u{1F513} Free plan — watermarked · 2 math worksheets a day</span>
+        <span id="upsellText">\u{1F513} Free plan — watermarked · 2 math worksheets a day</span>
         <button id="upsellBtn" type="button">Upgrade — unlimited math from $13.30</button>
       </div>
       <div class="toolbar no-print">
@@ -75,7 +75,7 @@ const paywall = `
         <li><strong>Unlimited math worksheets</strong>, every day — forever</li>
         <li>3 worksheets a day in reading, spelling, science &amp; the rest</li>
         <li><strong>Packs:</strong> build 5 or 10 sheets on one topic and print them as a set</li>
-        <li><strong>Unlimited pinned favorites</strong> — keep your best sheets ready to reprint (3 on free)</li>
+        <li><strong>Pin up to 500 favorites</strong> — keep your best sheets ready to reprint (3 on free)</li>
         <li>No watermark</li>
         <li><strong>One payment.</strong> No subscription, no renewal, no recurring charge.</li>
         <li>30-day money-back guarantee</li>
@@ -89,13 +89,13 @@ const paywall = `
       </ul>
       <p class="plan-note">Worksheet libraries usually cost $25–150 <em>every year</em>. Basic is a one-time payment — under 4&cent; a day for the first year, and nothing after that.</p>
 
-      <p class="plan-head"><strong>Pro — monthly</strong></p>
+      <p class="plan-head"><strong>Pro — $4.99/month</strong></p>
       <ul>
         <li><strong>All 8 subjects, unlimited</strong> — no daily limits at all</li>
         <li>Every new feature we ship, included</li>
         <li>No watermark</li>
       </ul>
-      <a id="gumroadMonthlyBtn" class="buy-btn buy-btn-alt" href="#" target="_blank" rel="noopener">Go Pro monthly</a>
+      <a id="gumroadMonthlyBtn" class="buy-btn buy-btn-alt" href="#" target="_blank" rel="noopener">Go Pro monthly — $4.99/month</a>
 
       <div id="classroomBlock" hidden>
         <p class="plan-head"><strong>Classroom license — $59 once</strong></p>
@@ -114,7 +114,7 @@ const paywall = `
         <div class="compare-row"><span>Price</span><span>$25–150 every year</span><span>$13.30 once — forever</span></div>
         <div class="compare-row"><span>Change a question</span><span>No — fixed PDF</span><span>Yes — edit or rewrite any question</span></div>
         <div class="compare-row"><span>Answer key</span><span>Usually the answer only</span><span>Checked twice, with steps</span></div>
-        <div class="compare-row"><span>Printing</span><span>Page breaks you can't control</span><span>Fits one page per sheet</span></div>
+        <div class="compare-row"><span>Printing</span><span>Page breaks you can't control</span><span>Usually one page per sheet</span></div>
       </div>
       <p class="plan-note">Both plans keep math unlimited. Cancel Pro any time.</p>
       <p class="trust">Secure checkout via Gumroad · no account needed</p>
@@ -155,7 +155,7 @@ function renderPage(p) {
   <meta property="og:url" content="${url}" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="${url}" />
-  <link rel="stylesheet" href="/app.css?v=41" />
+  <link rel="stylesheet" href="/app.css?v=43" />
   <style>
     .sample-block { margin: 26px 0 6px; }
     .sample-block h2 { text-align: center; font-size: 20px; margin: 0 0 4px; }
@@ -236,7 +236,7 @@ ${resultModal}
       <p id="homeSubMsg" class="msg"></p>
     </section>
 
-    <p class="trustbar no-print">2 math worksheets a day free · 1 in other subjects · <strong>30-day money-back guarantee</strong> · no signup · Basic (unlimited math) $13.30 <strong>once — no renewal</strong> · Pro (all subjects) monthly</p>
+    <p class="trustbar no-print">2 math worksheets a day free · 1 in other subjects · <strong>30-day money-back guarantee</strong> · no signup · Basic (unlimited math) $13.30 <strong>once — no renewal</strong> · Pro (all subjects) $4.99/month · Classroom $59 once for one teacher's class</p>
 
     <footer class="site no-print">
       <p><strong>Unlimited printable worksheets — $13.30 once (30% off).</strong></p>
@@ -245,7 +245,7 @@ ${resultModal}
     </footer>
   </div>
 ${paywall}
-  <script src="/app.js?v=41" defer></script>
+  <script src="/app.js?v=43" defer></script>
 </body>
 </html>
 `;

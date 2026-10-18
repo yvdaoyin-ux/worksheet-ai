@@ -54,7 +54,11 @@
   // on Pro — confusing right where they check that their purchase worked.
   function planLabel() {
     const p = plan();
-    if (p === "pro") return "Pro \u2014 watermark removed";
+    // Classroom shares Pro's rights but is a DIFFERENT product ($59 once vs
+    // $4.99/month). Telling a $59 buyer they are on "Pro" makes them doubt the
+    // purchase, so remember the tier name verify-license reported.
+    const tier = (function () { try { return localStorage.getItem("wsai_tier") || ""; } catch (e) { return ""; } })();
+    if (p === "pro") return (tier === "classroom" ? "Classroom" : "Pro") + " \u2014 watermark removed";
     if (p === "basic") return "Basic \u2014 watermark removed";
     return "Free preview";
   }
@@ -117,19 +121,49 @@
   const FAV_KEY = "wsai_favs";
   const HIST_MAX = 20;
   const FREE_FAV_LIMIT = 3;
+  // Paid plans were advertised as "unlimited pinned favorites" while the code
+  // hard-capped the list at 100 and silently dropped the rest. A high ceiling is
+  // honest; a promise with a hidden slice() is not.
+  const FAV_MAX = 500;
   function loadList(key) { try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch (e) { return []; } }
+  // Returns true only when the write actually landed. The old version swallowed
+  // the failure and quietly wrote HALF the list — so pins disappeared with no
+  // message at all. Callers now decide what to tell the visitor.
   function saveList(key, list) {
-    try { localStorage.setItem(key, JSON.stringify(list)); }
-    catch (e) { // storage full: keep the newest half and retry once
-      try { localStorage.setItem(key, JSON.stringify(list.slice(0, Math.ceil(list.length / 2)))); } catch (e2) { /* ignore */ }
+    try {
+      localStorage.setItem(key, JSON.stringify(list));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  // Try to persist `list`, dropping the OLDEST entries if the browser is out of
+  // quota. Returns { ok, dropped }, where `dropped` is how many entries had to go
+  // so the caller can tell the visitor instead of losing pins silently.
+  function saveListTrimmed(key, list, keepAtLeast) {
+    const floor = Math.max(1, keepAtLeast || 1);
+    let cur = list.slice();
+    for (;;) {
+      if (saveList(key, cur)) return { ok: true, dropped: list.length - cur.length };
+      if (cur.length <= floor) return { ok: false, dropped: 0 };
+      // Halve, but never below the floor and always strictly smaller.
+      cur = cur.slice(0, Math.max(floor, Math.floor(cur.length / 2)));
     }
   }
   function loadHist() { return loadList(HIST_KEY).filter((x) => x && x.html); } // legacy topic-only entries can't reopen
   function loadFavs() { return loadList(FAV_KEY); }
-  function saveHist(item) {
-    const h = loadHist().filter((x) => x.html !== item.html);
+  // `replaceHtml` is set when an in-place edit changed the sheet: the stored
+  // entry is UPDATED rather than added, otherwise every rewrite left a second,
+  // almost identical worksheet in the library (the html no longer matched, so
+  // the old de-dupe missed it).
+  function saveHist(item, replaceHtml) {
+    const h = loadHist().filter((x) => x.html !== item.html && !(replaceHtml && x.html === replaceHtml));
     h.unshift(Object.assign({ t: Date.now() }, item));
-    saveList(HIST_KEY, h.slice(0, HIST_MAX));
+    // Keeping the newest 20 is by design (HIST_MAX), but if storage itself is
+    // full we trim further and the visitor gets told via the quota line note.
+    const r = saveListTrimmed(HIST_KEY, h.slice(0, HIST_MAX), 1);
+    if (!r.ok) { try { alert("Your browser storage is full, so this worksheet could not be saved to your library. It is still on screen and can be printed."); } catch (e) { /* ignore */ } }
+    return r;
   }
   function isPinned(item) { return !!item && item.html && loadFavs().some((x) => x.html === item.html); }
   function togglePin() {
@@ -142,8 +176,18 @@
       saveList(FAV_KEY, favs);
     } else {
       if (!isUnlocked() && favs.length >= FREE_FAV_LIMIT) { openPaywall("favorites"); return; }
+      // Drop the OLDEST pins first when we hit FAV_MAX — never the one being added.
       favs.unshift(item);
-      saveList(FAV_KEY, favs.slice(0, 100));
+      const capped = favs.slice(0, FAV_MAX);
+      const r = saveListTrimmed(FAV_KEY, capped, 1);
+      if (!r.ok) {
+        // Tell the truth instead of silently losing pins.
+        try { alert("Your browser storage is full, so we couldn't save that pin. Remove a few pinned worksheets and try again."); } catch (e) { /* ignore */ }
+        return;
+      }
+      if (r.dropped > 0) {
+        try { alert(r.dropped + " of your oldest pins were removed to make room — browser storage is limited."); } catch (e) { /* ignore */ }
+      }
     }
     updatePinBtn();
     renderHist();
@@ -164,7 +208,16 @@
     if (!favs.length && !h.length) { box.hidden = true; return; }
     box.hidden = false;
     box.innerHTML = "";
-    const mkRow = (label, list, emptyNote) => {
+    // Removing an entry used to be impossible unless that exact sheet happened to
+    // be on screen (the only way to reach "unpin"). Every chip now carries its own
+    // remove button, and each row can be cleared wholesale.
+    const removeFrom = (key, item) => {
+      const list = loadList(key).filter((x) => x.html !== item.html);
+      saveList(key, list);
+      if (key === FAV_KEY && lastSheetHtml === item.html) updatePinBtn();
+      renderHist();
+    };
+    const mkRow = (label, list, emptyNote, key, clearLabel) => {
       const row = document.createElement("div");
       row.className = "lib-row";
       const lab = document.createElement("span");
@@ -187,7 +240,9 @@
         b.addEventListener("click", () => {
           // Show a stored sheet AND make it the one the level-set button acts on.
           // Without this the button would re-level whatever was generated last,
-          // i.e. the wrong worksheet.
+          // i.e. the wrong worksheet. lastCtx is set too, so every decoration and
+          // item edit uses THIS sheet's subject rather than whatever the form
+          // happens to be showing.
           lastSheetHtml = it.html;
           lastIsSingle = true;
           lastCtx = { grade: it.grade || "", subject: it.subject || "", topic: it.topic || "" };
@@ -195,12 +250,41 @@
           updatePinBtn();
           $("resultWrap").scrollIntoView({ behavior: "smooth", block: "start" });
         });
-        row.appendChild(b);
+        // Wrap so the remove button sits next to the chip without being part of
+        // the chip's own click target (a nested button inside a button is invalid).
+        const wrap = document.createElement("span");
+        wrap.className = "chip-wrap";
+        wrap.appendChild(b);
+        const x = document.createElement("button");
+        x.type = "button";
+        x.className = "chip-x";
+        x.title = key === FAV_KEY ? "Remove this pin" : "Remove from Recent";
+        x.setAttribute("aria-label", x.title);
+        x.textContent = "\u00D7";
+        x.addEventListener("click", (e) => {
+          e.stopPropagation();
+          removeFrom(key, it);
+        });
+        wrap.appendChild(x);
+        row.appendChild(wrap);
       });
+      if (list.length && clearLabel) {
+        const clear = document.createElement("button");
+        clear.type = "button";
+        clear.className = "chip-clear";
+        clear.textContent = clearLabel;
+        clear.addEventListener("click", () => {
+          try { if (!window.confirm("Remove all " + list.length + " of these from your library? This can't be undone.")) return; } catch (e) { /* ignore */ }
+          saveList(key, []);
+          if (key === FAV_KEY) updatePinBtn();
+          renderHist();
+        });
+        row.appendChild(clear);
+      }
       return row;
     };
-    box.appendChild(mkRow("\u2B50 Pinned:", favs, isUnlocked() ? "" : "pin a sheet to keep it forever \u2014 3 on the free plan"));
-    box.appendChild(mkRow("\u{1F552} Recent \u2014 click to reprint:", h.slice(0, 10), ""));
+    box.appendChild(mkRow("\u2B50 Pinned:", favs, isUnlocked() ? "" : "pin a sheet to keep it forever \u2014 3 on the free plan", FAV_KEY, favs.length ? "Clear all pins" : ""));
+    box.appendChild(mkRow("\u{1F552} Recent \u2014 click to reprint:", h.slice(0, 10), "", HIST_KEY, "Clear history"));
   }
 
   // ---------------- saved preferences ----------------
@@ -560,7 +644,7 @@
   }
 
   function ensureOrganizer(box) {
-    const subject = $("subject") ? $("subject").value : "";
+    const subject = sheetSubject();
     const s = subject.toLowerCase();
     const needs = s.indexOf("read") >= 0 || s.indexOf("science") >= 0 || s.indexOf("social") >= 0;
     if (!needs || !box.querySelector || box.querySelector(".viz-organizer")) return;
@@ -816,8 +900,8 @@
       idx: idx,
       aItems: aItems,
       answer: idx >= 0 && aItems[idx] ? aItems[idx].innerHTML.trim() : "",
-      subject: $("subject") ? $("subject").value : "",
-      topic: ($("topic") && $("topic").value.trim()) || "worksheet",
+      subject: sheetSubject(),
+      topic: (lastCtx && lastCtx.topic) || ($("topic") && $("topic").value.trim()) || "worksheet",
     };
   }
 
@@ -832,6 +916,7 @@
 
   async function runItemEdit(li, btn, mode, instruction, failLabel) {
     const ctx = itemContext(li);
+    const prevHtml = lastSheetHtml; // what the library currently holds for this sheet
     const old = btn.textContent;
     btn.disabled = true; btn.textContent = "\u2026";
     try {
@@ -846,11 +931,27 @@
       });
       const data = await res.json();
       if (!res.ok || !data.html) throw new Error(data.error || "failed");
+      // Validate BEFORE touching the DOM. The old order was "swap the question
+      // in, then try to write the answer" — so an empty answer left a new
+      // question graded against the previous one's answer. Refusing here keeps
+      // the sheet exactly as it was, which is always the safe outcome.
+      if (!data.answer || !String(data.answer).trim()) {
+        throw new Error("the model did not return a matching answer");
+      }
       li.innerHTML = data.html;
       makeTools(li);
       renderMath(li);
       hydrateVisuals(li);
       applyAnswerEdit(ctx, data);
+      // li.innerHTML replaced the whole item, which also threw away the ruled
+      // answer lines paintWorksheet had injected for reading/science/social/
+      // grammar sheets — after one rewrite the child had nowhere to write.
+      // Re-run the same injector for this one item.
+      addAnswerLinesTo(li);
+      // The on-screen sheet just changed, so the reprint library, the ★ Pin
+      // target and the Easier/Harder base must move with it — otherwise pinning
+      // saves the pre-edit version and re-levelling works from a stale sheet.
+      syncSheetStorage(prevHtml);
     } catch (e) {
       alert(failLabel + ": " + e.message);
     } finally {
@@ -882,16 +983,23 @@
   // "answer in complete sentences" but nothing in the sheet provided any ruled
   // space, so a printed sheet left nowhere to put the answer.
   function addAnswerSpace(box) {
-    const subj = (($("subject") && $("subject").value) || "").toLowerCase();
+    const subj = sheetSubject().toLowerCase();
     if (!NEEDS_LINES.some((k) => subj.indexOf(k) >= 0)) return;
     const items = box.querySelectorAll(".ws-questions > li");
-    for (const li of items) {
-      if (li.querySelector(".answer-lines") || li.querySelector(".ws-visual")) continue;
-      const d = document.createElement("div");
-      d.className = "answer-lines";
-      d.setAttribute("contenteditable", "false");
-      li.appendChild(d);
-    }
+    for (const li of items) addAnswerLinesTo(li);
+  }
+  // One item's ruled writing lines. Split out because a per-question rewrite
+  // replaces li.innerHTML wholesale and has to put them back — it used to be an
+  // inline loop, so that path lost the lines and printed an unwritable sheet.
+  function addAnswerLinesTo(li) {
+    if (!li) return;
+    const subj = sheetSubject().toLowerCase();
+    if (!NEEDS_LINES.some((k) => subj.indexOf(k) >= 0)) return;
+    if (li.querySelector(".answer-lines") || li.querySelector(".ws-visual")) return;
+    const d = document.createElement("div");
+    d.className = "answer-lines";
+    d.setAttribute("contenteditable", "false");
+    li.appendChild(d);
   }
 
   function paintWorksheet(html) {
@@ -907,9 +1015,22 @@
     let wm = box.querySelector(".watermark");
     if (!isUnlocked()) {
       if (!wm) { wm = document.createElement("p"); wm.className = "watermark"; box.appendChild(wm); }
-      wm.textContent = "Free preview · upgrade to remove the watermark — unlimited math for $13.30 once";
+      // Wording follows the subject. A parent who just generated a Reading sheet
+      // was being pitched "unlimited math" — true, but not the thing they were
+      // looking at, and Basic is not in fact unlimited in other subjects.
+      wm.textContent = isMath()
+        ? "Free preview · upgrade to remove the watermark — unlimited math for $13.30 once"
+        : "Free preview · upgrade to remove the watermark — 3 worksheets a day in every subject for $13.30 once";
     } else if (wm) {
       wm.remove();
+    }
+    // Same for the bar above the sheet: it used to say "2 math worksheets a day"
+    // no matter which subject had just been generated.
+    const ut = $("upsellText");
+    if (ut) {
+      ut.textContent = isMath()
+        ? "\u{1F513} Free plan — watermarked · 2 math worksheets a day"
+        : "\u{1F513} Free plan — watermarked · 1 " + (($("subject") && $("subject").value) || "worksheet") + " worksheet a day";
     }
     if ($("regenBtn")) $("regenBtn").hidden = false;
     // The level-set button only makes sense while ONE sheet is on screen.
@@ -1019,7 +1140,10 @@
     const dec = new TextDecoder();
     let buf = "", final = null;
     // Watchdog: a stalled connection must never leave the user on the progress
-    // bar forever. 45s without bytes, or 2.5 minutes total, cancels the read.
+    // bar forever. 60s without bytes, or 5 minutes total, cancels the read.
+    // (The numbers used to be described as 45s/2.5min in this comment while the
+    // code said 60s/300s. The code is the contract; the fallback chain can
+    // legitimately take over 4 minutes, so do not shrink these.)
     let lastBytes = Date.now();
     const started = Date.now();
     const watchdog = setInterval(() => {
@@ -1094,9 +1218,16 @@
     );
   }
 
-  function paintPack(sheets, stopped, requested) {
+  function paintPack(sheets, stopped, requested, busyStop) {
     lastIsSingle = false; // the visible document is a set, not one sheet
     lastSheetHtml = "";
+    // A pack is generated from the form's current values, so pin the context here
+    // too — otherwise whatever a later reprint set would leak into pack actions.
+    lastCtx = {
+      grade: $("grade") ? $("grade").value : "",
+      subject: $("subject") ? $("subject").value : "",
+      topic: ($("topic") && $("topic").value.trim()) || "worksheet",
+    };
     const parts = sheets.map((s) => splitSheet(s.html));
     const n = parts.length;
     const body = parts
@@ -1106,8 +1237,9 @@
       .map((p, i) => (p.key ? '<section class="ws-pack-key">' + labelKey(p.key, i + 1) + "</section>" : ""))
       .join("");
     const packHead =
-      '<p class="ws-pack-head">' + $("grade").value + " \u00b7 " + $("subject").value + " \u00b7 " +
-      $("topic").value.trim() + " \u2014 " + n + "-sheet pack</p>";
+      '<p class="ws-pack-head">' + (lastCtx.grade || $("grade").value) + " \u00b7 " +
+      (lastCtx.subject || $("subject").value) + " \u00b7 " +
+      (lastCtx.topic || $("topic").value.trim()) + " \u2014 " + n + "-sheet pack</p>";
     paintWorksheet(
       packHead +
         '<section class="ws-pack-body">' + body + "</section>" +
@@ -1115,9 +1247,15 @@
     );
     const note = $("note");
     if (note) {
+      // Three distinct outcomes deserve three distinct messages. Reporting the
+      // shortfall as "you hit today's free limit" when the model was simply busy
+      // was inaccurate, and pushed people toward paying for a problem they did
+      // not have.
       note.textContent = stopped
         ? "Made " + n + " of " + requested + " sheets \u2014 you hit today's free limit. Upgrade to finish the pack."
-        : n + "-sheet pack ready \u2014 " + (n + Math.ceil(n / 3)) + " pages incl. answer keys";
+        : busyStop
+          ? "Made " + n + " of " + requested + " sheets \u2014 the AI was busy, so we stopped early. Your daily allowance is untouched; press Generate again for the rest."
+          : n + "-sheet pack ready \u2014 print it as a set, answer keys at the end";
     }
     if (stopped) { try { openPaywall("pack_limit"); } catch (e) { /* ignore */ } }
   }
@@ -1133,6 +1271,44 @@
   // Taken at generation time, not read off the form later, because the visitor
   // may have edited the topic box in the meantime.
   let lastCtx = { grade: "", subject: "", topic: "" };
+
+  // Which subject the sheet on screen belongs to. Everything that decorates or
+  // edits the sheet must use THIS, not the form fields — reprinting a stored
+  // Reading worksheet while the form happens to say "Math" used to mean the
+  // writing lines were skipped and an item edit was sent with the wrong subject.
+  // Falls back to the form only when no sheet context exists yet.
+  function sheetSubject() {
+    const fromSheet = (lastCtx && lastCtx.subject) || "";
+    if (fromSheet) return fromSheet;
+    return ($("subject") && $("subject").value) || "";
+  }
+
+  // The sheet on screen was edited in place (rewrite / tweak / manual Edit).
+  // Everything downstream keys off lastSheetHtml, so refresh it from the DOM
+  // first — otherwise ★ Pin would store the pre-edit version, "Recent" would
+  // reprint the old one, and Easier/Harder would re-level a stale sheet.
+  // `prevHtml` is the version currently in the library, so the entry is UPDATED
+  // in place instead of piling up near-duplicates.
+  function syncSheetStorage(prevHtml) {
+    const box = $("result");
+    if (!box || !lastIsSingle) return;
+    const clone = box.cloneNode(true);
+    const wmClone = clone.querySelector(".watermark");
+    if (wmClone) wmClone.remove(); // re-added by paintWorksheet, never stored
+    // Tool buttons are presentation only; they are re-attached on every paint.
+    clone.querySelectorAll(".li-tools").forEach((n) => n.remove());
+    lastSheetHtml = clone.innerHTML;
+    try {
+      saveHist({
+        topic: (lastCtx && lastCtx.topic) || "worksheet",
+        subject: (lastCtx && lastCtx.subject) || "",
+        grade: (lastCtx && lastCtx.grade) || "",
+        html: lastSheetHtml,
+      }, prevHtml);
+    } catch (e) { /* storage full — the sheet on screen still works */ }
+    renderHist();
+    updatePinBtn();
+  }
 
   async function relevelOnce(level) {
     const res = await apiFetch("/api/generate", {
@@ -1266,6 +1442,7 @@
     const note = $("note");
     const sheets = [];
     let stopped = false;
+    let busyStop = false;
     btn.disabled = true;
     $("resultWrap").hidden = false;
     try {
@@ -1281,11 +1458,15 @@
         } catch (e) {
           // A single busy model shouldn't destroy a half-built pack.
           if (!sheets.length) throw e;
+          // Running out of AI capacity is NOT running out of the parent's daily
+          // allowance. Saying "you hit today's free limit" here blamed the user
+          // for the model being busy — and nudged them to pay for nothing.
+          busyStop = true;
           break;
         }
       }
       if (!sheets.length) throw new Error("The AI was busy \u2014 please try again in a few seconds.");
-      paintPack(sheets, stopped, n);
+      paintPack(sheets, stopped, n, busyStop);
       // Every sheet of a pack is a real worksheet: file each one so it can be
       // found and reprinted later from the library.
       sheets.forEach((s) => { try { saveHist({ topic: topic, subject: $("subject").value, grade: $("grade").value, html: s.html }); } catch (e) { /* ignore */ } });
@@ -1356,6 +1537,16 @@
   $("genForm").addEventListener("submit", (e) => { e.preventDefault(); runGenerate(); });
   $("printBtn").addEventListener("click", () => window.print());
   if ($("upsellBtn")) $("upsellBtn").addEventListener("click", openPaywall);
+  // The Classroom line in the page body opens the same plan picker. Without this
+  // the $59 tier was reachable only from inside the paywall — i.e. only by people
+  // who had already decided to upgrade.
+  if ($("classroomLink")) {
+    $("classroomLink").addEventListener("click", (e) => {
+      e.preventDefault();
+      track("paywall_open", { reason: "classroom_link" });
+      openPaywall("classroom_link");
+    });
+  }
 
   async function doActivate(key) {
     const msg = $("activateMsg");
@@ -1375,6 +1566,7 @@
           localStorage.setItem(LEGACY_KEY, "1");
           localStorage.setItem("wsai_key", key);
           localStorage.setItem("wsai_checked", today());
+          localStorage.setItem("wsai_tier", data.label === "classroom" ? "classroom" : pl);
         } catch (e) { /* ignore */ }
         msg.textContent = pl === "pro"
           ? "\u2714 Pro activated \u2014 all subjects, unlimited."
@@ -1387,6 +1579,12 @@
         refreshItemTools();
         track("activate_ok", {});
         setTimeout(closePaywall, 900);
+      } else if (data.uncertain) {
+        // We could not reach the license server. Say exactly that instead of
+        // claiming the key is bad — a paying customer must not be told their
+        // purchase is invalid because Gumroad hiccuped.
+        msg.textContent = "\u26A0 " + (data.error || "Couldn't check that key just now — please try again in a moment.");
+        track("activate_unknown", {});
       } else {
         msg.textContent = "\u2716 " + (data.error || "That key is not valid.");
         track("activate_fail", {});
@@ -1414,13 +1612,22 @@
     })
       .then((r) => r.json())
       .then((data) => {
-        localStorage.setItem("wsai_checked", today());
         if (data && data.valid) {
           localStorage.setItem(PLAN_KEY, data.plan === "pro" ? "pro" : "basic");
-        } else {
+          localStorage.setItem("wsai_checked", today());
+          try { localStorage.setItem("wsai_tier", data.label === "classroom" ? "classroom" : (data.plan === "pro" ? "pro" : "basic")); } catch (e) { /* ignore */ }
+        } else if (data && data.definitive) {
+          // Gumroad answered: this key really is invalid / refunded / cancelled.
+          localStorage.setItem("wsai_checked", today());
           localStorage.removeItem(PLAN_KEY);
           localStorage.removeItem(LEGACY_KEY);
           localStorage.removeItem("wsai_key");
+        } else {
+          // No answer (offline, upstream error, deploy in flight). We do not know
+          // the plan is gone, so we must not destroy it — this used to drop a
+          // paying customer to free permanently after a single network blip.
+          // Deliberately NOT stamping wsai_checked, so it retries next visit.
+          track("license_recheck_unknown", {});
         }
         updateQuota();
         track("license_recheck", { ok: !!(data && data.valid) });
