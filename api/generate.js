@@ -68,16 +68,34 @@ module.exports = async (req, res) => {
       return;
     }
     const rp = buildRelevelPrompt(grade, subject, topic, lvl, source);
+    // The prompt ASKS the model to keep "the same number of questions, same
+    // order", but asking is not a guarantee — this product's whole three-levels
+    // promise depends on level-to-level question correspondence ("question 3
+    // tests what question 3 tested"), and a parent comparing the Easier and
+    // Challenge sheets side by side catches a mismatch instantly.
+    // So enforce it: the re-levelled sheet must keep the original question count.
+    const wantQ = countListItems(String(source).match(/<ol[^>]*class="ws-questions"[\s\S]*?<\/ol>/i));
+    let lastMismatch = "";
     for (const a of buildAttempts()) {
       try {
         const raw = await callChat(a.url, a.key, a.model, rp);
         const html = stripCodeFences(raw);
-        if (html && looksComplete(html)) {
-          const checked = await proofread(html, grade, subject, topic);
-          res.status(200).json({ html: checked.html, model: a.model, checked: checked.ran, level: lvl });
-          return;
+        if (!html || !looksComplete(html)) continue;
+        const gotQ = countListItems(String(html).match(/<ol[^>]*class="ws-questions"[\s\S]*?<\/ol>/i));
+        if (wantQ > 0 && gotQ !== wantQ) {
+          // A level set with dropped/added questions cannot be marked from one
+          // answer key, which is the entire point of the feature.
+          lastMismatch = "Re-levelled sheet had " + gotQ + " questions instead of " + wantQ + ".";
+          continue;
         }
+        const checked = await proofread(html, grade, subject, topic);
+        res.status(200).json({ html: checked.html, model: a.model, checked: checked.ran, level: lvl });
+        return;
       } catch (e) { /* try next */ }
+    }
+    if (lastMismatch) {
+      res.status(502).json({ error: "That version came back with a different number of questions, so it wouldn't line up with your answer key. Please try again." });
+      return;
     }
     res.status(502).json({ error: "Could not build that version. Please try again." });
     return;
@@ -1116,3 +1134,8 @@ module.exports._buildTweakPrompt = buildTweakPrompt;
 // "a question may never change without its answer" rule that v41 introduced and
 // that an empty-answer response used to slip past.
 module.exports._parseItemEdit = parseItemEdit;
+// Question-counter used by the re-level guard. Exported so the regression can
+// prove that a re-levelled sheet keeps the SAME number of questions — the
+// three-levels promise is worthless if question 3 of the Easier sheet is not
+// question 3 of the Challenge sheet.
+module.exports._countListItems = countListItems;

@@ -26,6 +26,61 @@
   const $ = (id) => document.getElementById(id);
   if (!$("genForm")) return; // nothing to do on pages without the tool
 
+  // ---------------- inline, non-blocking notices ----------------
+  // This used to be 11 calls to alert(). A browser modal freezes the page, has
+  // to be dismissed by hand, cannot carry a link, and on a phone it covers the
+  // worksheet that was just generated. Everything a visitor needs to know now
+  // appears in a corner card that does not block the sheet, offers an optional
+  // action, and can be dismissed (or times out for the harmless ones).
+  //
+  // kind: "error" (stays until dismissed), "info" (auto-hides), "warn".
+  let noticeTimer = null;
+  function notice(message, kind, actionLabel, actionFn) {
+    let box = $("wsNotice");
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "wsNotice";
+      box.className = "ws-notice no-print";
+      box.setAttribute("role", "status");
+      box.setAttribute("aria-live", "polite");
+      document.body.appendChild(box);
+    }
+    box.className = "ws-notice no-print " + (kind || "error");
+    box.innerHTML = "";
+    const txt = document.createElement("p");
+    txt.className = "ws-notice-text";
+    txt.textContent = String(message || "");
+    box.appendChild(txt);
+    const row = document.createElement("p");
+    row.className = "ws-notice-actions";
+    if (actionLabel && typeof actionFn === "function") {
+      const act = document.createElement("button");
+      act.type = "button";
+      act.className = "ws-notice-act";
+      act.textContent = actionLabel;
+      act.addEventListener("click", () => { hideNotice(); actionFn(); });
+      row.appendChild(act);
+    }
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "ws-notice-close";
+    close.setAttribute("aria-label", "Dismiss");
+    close.textContent = "\u00D7";
+    close.addEventListener("click", hideNotice);
+    row.appendChild(close);
+    box.appendChild(row);
+    box.hidden = false;
+    if (noticeTimer) { clearTimeout(noticeTimer); noticeTimer = null; }
+    // Only the non-actionable kinds disappear on their own; an error the visitor
+    // must act on should never vanish before it is read.
+    if (kind === "info") noticeTimer = setTimeout(hideNotice, 6000);
+  }
+  function hideNotice() {
+    if (noticeTimer) { clearTimeout(noticeTimer); noticeTimer = null; }
+    const box = $("wsNotice");
+    if (box) { box.hidden = true; box.innerHTML = ""; }
+  }
+
   const today = () => new Date().toISOString().slice(0, 10);
   const countKey = () => "wsai_count_" + today();
   // Sheets are generated one request at a time, but a 10-sheet pack or a
@@ -162,7 +217,7 @@
     // Keeping the newest 20 is by design (HIST_MAX), but if storage itself is
     // full we trim further and the visitor gets told via the quota line note.
     const r = saveListTrimmed(HIST_KEY, h.slice(0, HIST_MAX), 1);
-    if (!r.ok) { try { alert("Your browser storage is full, so this worksheet could not be saved to your library. It is still on screen and can be printed."); } catch (e) { /* ignore */ } }
+    if (!r.ok) notice("Your browser storage is full, so this worksheet could not be saved to your library. It is still on screen and can be printed.", "warn");
     return r;
   }
   function isPinned(item) { return !!item && item.html && loadFavs().some((x) => x.html === item.html); }
@@ -182,11 +237,11 @@
       const r = saveListTrimmed(FAV_KEY, capped, 1);
       if (!r.ok) {
         // Tell the truth instead of silently losing pins.
-        try { alert("Your browser storage is full, so we couldn't save that pin. Remove a few pinned worksheets and try again."); } catch (e) { /* ignore */ }
+        notice("Your browser storage is full, so we couldn't save that pin. Remove a few pinned worksheets and try again.", "warn");
         return;
       }
       if (r.dropped > 0) {
-        try { alert(r.dropped + " of your oldest pins were removed to make room — browser storage is limited."); } catch (e) { /* ignore */ }
+        notice(r.dropped + " of your oldest pins were removed to make room — browser storage is limited.", "info");
       }
     }
     updatePinBtn();
@@ -388,7 +443,31 @@
       '<div class="field" id="countField"><label for="count">Questions</label>' +
       '<select id="count"><option>5</option><option>8</option><option selected>10</option><option>12</option></select></div>' +
       '<div class="field"><label for="level">Level</label>' +
-      '<select id="level"><option value="easier">Easier</option><option value="standard" selected>Standard</option><option value="challenge">Challenge</option></select></div>' +
+      '<select id="level"><option value="easier">Easier</option><option value="standard" selected>Standard</option><option value="challenge">Challenge</option></select></div>';
+    $("genForm").insertBefore(opts, $("genBtn"));
+
+    // ---- progressive disclosure -------------------------------------------
+    // The form used to show NINE controls at once (questions, level, font, text
+    // size, math style, student name, pack size, plus grade/subject/topic). A
+    // first-time visitor could not tell which two mattered, so the whole thing
+    // read as a settings panel rather than a "type a topic, get a worksheet"
+    // tool. The two that change WHAT gets practised (Questions, Level) stay in
+    // plain sight; the rest — which only change how it LOOKS or how many copies
+    // — fold away behind one line.
+    //
+    // The controls are hidden, never removed: savePref/readPref, syncSubjectFields
+    // and runGenerate all read them by id, and Pack size drives the batch
+    // generator. The summary names the pack feature on purpose — folded away,
+    // "make 10 sheets at once" would become unfindable, and that is a paid hook.
+    const adv = document.createElement("details");
+    adv.className = "advanced-options";
+    adv.id = "advOptions";
+    const advSum = document.createElement("summary");
+    advSum.innerHTML = 'More options <span class="adv-hint">— font, text size, name on the sheet, pack of 5 or 10</span>';
+    adv.appendChild(advSum);
+    const advGrid = document.createElement("div");
+    advGrid.className = "options";
+    advGrid.innerHTML =
       '<div class="field"><label for="font">Font</label>' +
       '<select id="font"><option value="andika" selected>Andika</option><option value="comic">Comic Neue</option><option value="lexend">Lexend</option><option value="nunito">Nunito</option></select></div>' +
       '<div class="field"><label for="size">Text size</label>' +
@@ -399,7 +478,22 @@
       '<input id="studentName" type="text" placeholder="e.g. Leo" autocomplete="off" /></div>' +
       '<div class="field"><label for="pack">Pack size</label>' +
       '<select id="pack"><option value="1" selected>1 sheet</option><option value="5">5 sheets</option><option value="10">10 sheets</option></select></div>';
-    $("genForm").insertBefore(opts, $("genBtn"));
+    adv.appendChild(advGrid);
+    $("genForm").insertBefore(adv, $("genBtn"));
+    // Re-open automatically when a remembered setting differs from the default,
+    // so a returning visitor can see the choice they made rather than silently
+    // generating with a hidden option. Only the fields savePref() actually
+    // persists are checked here — studentName and pack are deliberately not
+    // remembered, so testing them would be dead logic.
+    function openIfCustomised() {
+      const p = readPref();
+      const custom =
+        (p.font && p.font !== "andika") ||
+        (p.size && p.size !== "m") ||
+        (p.style && p.style !== "mixed");
+      if (custom) adv.open = true;
+    }
+    openIfCustomised();
 
     if ($("subject")) $("subject").addEventListener("change", function () { renderChips(); syncSubjectFields(); updateQuota(); });
     if ($("pack")) $("pack").addEventListener("change", function () {
@@ -432,17 +526,35 @@
         b.addEventListener("click", fn);
         return b;
       };
-      const anchor = $("printBtn") || toolbar.firstChild;
-      // "Easier" and "Harder" are one API call each, so a parent who wants only
-      // one direction doesn't pay the compute/time for both. "All 3 levels" stays
-      // as an opt-in for families comparing the same sheet side by side.
-      [
-        mk("pinBtn", "☆ Pin", "Pin this worksheet so it never leaves your library", togglePin),
-        mk("levelEasierBtn", "⬇️ Easier version", "Make this same worksheet easier", () => runRelevelOne("easier")),
-        mk("levelHarderBtn", "⬆️ Harder version", "Make this same worksheet harder", () => runRelevelOne("challenge")),
-        mk("levelSetBtn", "🎚️ All 3 levels", "Make the Easier and Harder versions at once and compare them", runLevelSet),
-        mk("regenBtn", "🔄 Another version", "Generate a brand-new worksheet on the same topic", () => runGenerate(true)),
-      ].forEach((b) => toolbar.insertBefore(b, anchor));
+      // The toolbar used to be one flat row: Print, Pin, Easier, Harder, All 3
+      // levels, Another version, plus an "Answer key" checkbox. Six buttons of
+      // equal weight gave no clue which one a parent actually wants, and the
+      // three strongest things this product does (same sheet at another level,
+      // a brand-new sheet on the same topic) read as debug controls.
+      //
+      // Now the row is split by intent:
+      //   row 1 (what you do with the sheet in front of you): Print · Answer key · Pin
+      //   row 2 (make a different sheet): Easier / Harder / All 3 levels / Another version
+      // Row 2 is labelled, because "Another version" is the whole point of an AI
+      // generator versus a static library and it deserves a sentence.
+      const row1 = document.createElement("div");
+      row1.className = "tb-row tb-row-main";
+      const row2 = document.createElement("div");
+      row2.className = "tb-row tb-row-make";
+      const row2Label = document.createElement("span");
+      row2Label.className = "tb-label";
+      row2Label.textContent = "Make a different sheet:";
+      row2.appendChild(row2Label);
+
+      const anchorNote = $("note");
+      toolbar.insertBefore(row1, anchorNote);
+      toolbar.insertBefore(row2, anchorNote);
+
+      // Keep Print where it was (first in the DOM) so the primary action is
+      // unchanged for anyone used to it.
+      const printBtn = $("printBtn");
+      if (printBtn) row1.appendChild(printBtn);
+      row1.appendChild(mk("pinBtn", "\u2606 Pin", "Pin this worksheet so it never leaves your library", togglePin));
 
       // Answer-key print toggle: off = print ONLY the student sheet. The key
       // still lives on screen; this only changes what the printer gets.
@@ -450,7 +562,7 @@
       keyTgl.className = "key-toggle no-print";
       keyTgl.title = "When on, the answer key prints on its own page. Turn off to print only the student sheet.";
       keyTgl.innerHTML = '<input type="checkbox" id="keyToggle" checked /> Answer key';
-      toolbar.insertBefore(keyTgl, anchor);
+      row1.appendChild(keyTgl);
       const kt = $("keyToggle");
       if (kt) {
         try { kt.checked = localStorage.getItem("wsai_print_key") !== "0"; } catch (e) { /* default on */ }
@@ -461,6 +573,23 @@
         kt.addEventListener("change", applyKeyPref);
         applyKeyPref();
       }
+
+      // "Easier" and "Harder" are one API call each, so a parent who wants only
+      // one direction doesn't pay the compute/time for both. "All 3 levels" stays
+      // as an opt-in for families comparing the same sheet side by side.
+      [
+        mk("levelEasierBtn", "\u2B07\uFE0F Easier", "Make this same worksheet easier", () => runRelevelOne("easier")),
+        mk("levelHarderBtn", "\u2B06\uFE0F Harder", "Make this same worksheet harder", () => runRelevelOne("challenge")),
+        mk("levelSetBtn", "\u{1F39A}\uFE0F All 3 levels", "Make the Easier and Harder versions at once and compare them", runLevelSet),
+        mk("regenBtn", "\u{1F504} Another version", "Generate a brand-new worksheet on the same topic", () => runGenerate(true)),
+      ].forEach((b) => row2.appendChild(b));
+
+      // One-line explainer under row 2: this is the structural advantage over a
+      // printable library, so it is stated rather than assumed.
+      const hint = document.createElement("p");
+      hint.className = "tb-hint";
+      hint.textContent = "Same worksheet, different difficulty — question 3 stays question 3, so one answer key still works. \u201CAnother version\u201D gives you a brand-new sheet on the same topic.";
+      toolbar.insertBefore(hint, anchorNote);
     }
 
     const recent = document.createElement("div");
@@ -953,7 +1082,7 @@
       // saves the pre-edit version and re-levelling works from a stale sheet.
       syncSheetStorage(prevHtml);
     } catch (e) {
-      alert(failLabel + ": " + e.message);
+      notice(failLabel + ": " + e.message, "error", "Try again", () => runItemEdit(li, btn, mode, instruction, failLabel));
     } finally {
       btn.disabled = false; btn.textContent = old;
     }
@@ -1392,7 +1521,7 @@
       track("levelset_ok", { made: ordered.length, stopped: stopped });
     } catch (err) {
       track("levelset_err", { message: String(err.message || err).slice(0, 120) });
-      alert("Something went wrong: " + err.message);
+      notice("Something went wrong: " + err.message, "error", "Try again", runLevelSet);
     } finally {
       btn.disabled = false;
       btn.textContent = orig;
@@ -1424,7 +1553,7 @@
       track("relevel_ok", { level: level });
     } catch (err) {
       track("relevel_err", { level: level, message: String(err.message || err).slice(0, 120) });
-      alert("Something went wrong: " + err.message);
+      notice("Something went wrong: " + err.message, "error", "Try again", () => runRelevelOne(level));
     } finally {
       if (btn) btn.disabled = false;
       updateQuota();
@@ -1433,7 +1562,7 @@
 
   async function runPack(n) {
     const topic = $("topic").value.trim();
-    if (!topic) { alert("Please enter a topic (or tap a suggestion)."); return; }
+    if (!topic) { notice("Please enter a topic (or tap a suggestion).", "warn"); if ($("topic")) $("topic").focus(); return; }
     if (!canGenerate()) { openPaywall(isMath() ? "quota" : "subject_gate"); return; }
     savePref();
     track("pack_start", { subject: $("subject").value, grade: $("grade").value, size: n, plan: plan() });
@@ -1475,7 +1604,7 @@
     } catch (err) {
       track("pack_err", { message: String(err.message || err).slice(0, 120) });
       $("resultWrap").hidden = sheets.length === 0;
-      alert("Something went wrong: " + err.message);
+      notice("Something went wrong: " + err.message, "error", "Try again", () => runPack(n));
     } finally {
       btn.disabled = false;
       btn.textContent = genLabel();
@@ -1485,7 +1614,7 @@
 
   async function runGenerate(forceSingle) {
     if (!$("subject") || !$("subject").value) {
-      alert("Please choose a subject first.");
+      notice("Please choose a subject first.", "warn");
       if ($("subject")) $("subject").focus();
       return;
     }
@@ -1496,7 +1625,7 @@
       return runPack(packN);
     }
     const topic = $("topic").value.trim();
-    if (!topic) { alert("Please enter a topic (or tap a suggestion)."); return; }
+    if (!topic) { notice("Please enter a topic (or tap a suggestion).", "warn"); $("topic").focus(); return; }
     if (!canGenerate()) { openPaywall(isMath() ? "quota" : "subject_gate"); return; }
     track("generate_start", { subject: $("subject").value, grade: $("grade").value, plan: plan() });
     savePref();
@@ -1527,7 +1656,12 @@
     } catch (err) {
       prog.fail();
       track("generate_err", { message: String(err.message || err).slice(0, 120) });
-      alert("Something went wrong: " + err.message + "\nFree models can be busy — please try again in a few seconds.");
+      notice(
+        "Something went wrong: " + err.message + " — free models can be busy, so give it another go in a few seconds.",
+        "error",
+        "Try again",
+        () => runGenerate(forceSingle)
+      );
     } finally {
       btn.disabled = false;
       btn.textContent = genLabel();

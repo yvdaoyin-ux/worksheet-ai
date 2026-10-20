@@ -294,6 +294,82 @@ function ok(name, cond, extra) {
     const overflow = await q("({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth })");
     ok("390px: no horizontal overflow", overflow && overflow.sw <= overflow.cw + 1, JSON.stringify(overflow));
 
+    // ---------- 10. validation must NOT use a blocking alert() ----------
+    // alert() froze the page and, on a phone, covered the freshly generated
+    // worksheet. Every message now lands in #wsNotice. Count real alert() calls
+    // by replacing window.alert with a counter, then submit with no topic.
+    await q('window.__alertCount = 0; window.alert = function(){ window.__alertCount++; }; localStorage.removeItem("wsai_count_" + new Date().toISOString().slice(0,10));');
+    await go();
+    await q('window.__alertCount = 0; window.alert = function(){ window.__alertCount++; };');
+    await q('(function(){ document.getElementById("subject").value="Math"; document.getElementById("subject").dispatchEvent(new Event("change")); document.getElementById("topic").value=""; document.getElementById("genForm").dispatchEvent(new Event("submit",{cancelable:true})); })()');
+    await sleep(600);
+    const alertCount = await q("window.__alertCount");
+    const notice = await q('(function(){ var n=document.getElementById("wsNotice"); if(!n) return null; return { hidden: n.hidden, text: (n.textContent||"").trim().slice(0,70) }; })()');
+    console.log("   [info] alert() calls after empty-topic submit: " + alertCount + "  notice=" + JSON.stringify(notice));
+    ok("an empty topic does not call alert()", alertCount === 0, "alert called " + alertCount + " time(s)");
+    ok("an empty topic shows an inline notice instead", !!notice && notice.hidden === false, JSON.stringify(notice));
+    ok("the notice explains what to do", !!notice && /topic/i.test(notice.text || ""), JSON.stringify(notice));
+
+    // ---------- 11. progressive disclosure must HIDE, not REMOVE ----------
+    // Nine visible controls read like a settings panel, so the cosmetic ones now
+    // live inside <details id="advOptions">. The critical contract: the controls
+    // must still exist in the DOM (savePref / readPref / syncSubjectFields /
+    // runGenerate read them by id) even while the section is collapsed.
+    const adv = await q(`(function(){
+      var d = document.getElementById('advOptions');
+      if (!d) return null;
+      var ids = ['font','size','style','studentName','pack'];
+      var present = ids.filter(function(i){ return !!document.getElementById(i); });
+      return { open: d.open, present: present.length, ids: ids.length,
+               visible: d.getBoundingClientRect().height > 0 };
+    })()`);
+    console.log("   [info] advanced options: " + JSON.stringify(adv));
+    ok("a collapsed More-options section exists", !!adv && adv.open === false, JSON.stringify(adv));
+    ok("every folded control is still in the DOM", !!adv && adv.present === adv.ids, JSON.stringify(adv));
+
+    // The two controls that change WHAT is practised must stay in plain sight.
+    const coreVisible = await q(`(function(){
+      function vis(id){ var e=document.getElementById(id); if(!e) return false;
+        var r=e.getBoundingClientRect(); return r.height>0 && r.top < window.innerHeight*3; }
+      return { count: vis('countField'), level: vis('level') };
+    })()`);
+    ok("Questions stays visible (not folded away)", coreVisible && coreVisible.count === true, JSON.stringify(coreVisible));
+    ok("Level stays visible (not folded away)", coreVisible && coreVisible.level === true, JSON.stringify(coreVisible));
+
+    // ---------- 12. the result toolbar is grouped, and no action was lost ----------
+    // Six equal-weight buttons in one row read like debug controls. They are now
+    // split into "use this sheet" (Print / Answer key / Pin) and "make a
+    // different sheet" (Easier / Harder / All 3 levels / Another version).
+    // The regression guards the regrouping, and above all that regrouping did not
+    // silently drop a button.
+    const tb = await q(`(function(){
+      var t = document.querySelector('#resultWrap .toolbar');
+      if (!t) return null;
+      var row1 = t.querySelector('.tb-row-main');
+      var row2 = t.querySelector('.tb-row-make');
+      var ids = ['printBtn','keyToggle','pinBtn','levelEasierBtn','levelHarderBtn','levelSetBtn','regenBtn'];
+      return {
+        rows: t.querySelectorAll('.tb-row').length,
+        row1: row1 ? row1.querySelectorAll('button,label').length : 0,
+        row2: row2 ? row2.querySelectorAll('button').length : 0,
+        allPresent: ids.filter(function(i){ return !!document.getElementById(i); }).length,
+        idsTotal: ids.length,
+        label: (t.querySelector('.tb-label')||{}).textContent || '',
+        hint: (t.querySelector('.tb-hint')||{}).textContent || ''
+      };
+    })()`);
+    console.log("   [info] toolbar: " + JSON.stringify({ rows: tb && tb.rows, row1: tb && tb.row1, row2: tb && tb.row2, allPresent: tb && tb.allPresent }));
+    ok("the toolbar is split into two intent rows", !!tb && tb.rows === 2, JSON.stringify(tb));
+    ok("row 1 holds Print / Pin / Answer key", !!tb && tb.row1 === 3, JSON.stringify(tb));
+    ok("row 2 holds the four make-a-different-sheet actions", !!tb && tb.row2 === 4, JSON.stringify(tb));
+    ok("regrouping dropped no action", !!tb && tb.allPresent === tb.idsTotal, JSON.stringify(tb));
+    ok("row 2 is labelled so its purpose is obvious", !!tb && /different sheet/i.test(tb.label), JSON.stringify(tb));
+    ok(
+      "the explainer states the structural advantage (question 3 stays question 3)",
+      !!tb && /question 3 stays question 3/i.test(tb.hint),
+      JSON.stringify(tb.hint || "")
+    );
+
     ws.close();
   } finally {
     try { edge.kill(); } catch (e) { /* ignore */ }
